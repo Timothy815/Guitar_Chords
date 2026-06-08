@@ -72,7 +72,7 @@ import { Caged } from './pages/Caged';
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/Guitar_Chords">
       <Layout>
         <Routes>
           <Route path="/" element={<Navigate to="/dictionary" replace />} />

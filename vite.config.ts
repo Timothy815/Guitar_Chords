@@ -5,6 +5,7 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
+    base: '/Guitar_Chords/',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
