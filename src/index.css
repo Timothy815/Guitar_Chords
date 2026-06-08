@@ -1,0 +1,91 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg: #FDFBF7;
+    --surface: #FFFFFF;
+    --sidebar: #F9F7F4;
+    --primary: #5A6D5D;
+    --secondary: #A68B6D;
+    --accent: #D9C5B2;
+    --ink: #2D241E;
+    --line: #E5E0D8;
+    --fretboard: #32261E;
+    --fretborder: #483C32;
+    --fret: #C0C0C0;
+    --active: #E67E22;
+    --primary-op-10: rgba(90, 109, 93, 0.1);
+    --primary-op-30: rgba(90, 109, 93, 0.3);
+    --primary-op-90: rgba(90, 109, 93, 0.9);
+  }
+
+  .dark {
+    --bg: #1c1917;
+    --surface: #292524;
+    --sidebar: #1c1917;
+    --primary: #9eb9a3; /* lightened original primary */
+    --secondary: #d1b89d; /* lightened original secondary */
+    --accent: #B09C88;
+    --ink: #e7e5e4;
+    --line: #57534e;
+    --fretboard: #32261E;
+    --fretborder: #483C32;
+    --fret: #aaaaaa;
+    --active: #fb923c;
+    --primary-op-10: rgba(158, 185, 163, 0.1);
+    --primary-op-30: rgba(158, 185, 163, 0.3);
+    --primary-op-90: rgba(158, 185, 163, 0.9);
+  }
+
+  @media print {
+    :root {
+      --bg: #ffffff;
+      --surface: #ffffff;
+      --primary: #000000;
+      --secondary: #555555;
+      --ink: #000000;
+      --line: #cccccc;
+      --fretboard: #ffffff;
+      --fretborder: #000000;
+      --fret: #000000;
+      --active: #000000;
+    }
+
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
+    }
+    
+    body {
+      background-color: white !important;
+      color: black !important;
+    }
+  }
+}
+
+
+
+@theme {
+  --color-brand-bg: var(--bg);
+  --color-brand-surface: var(--surface);
+  --color-brand-sidebar: var(--sidebar);
+  --color-brand-primary: var(--primary);
+  --color-brand-secondary: var(--secondary);
+  --color-brand-accent: var(--accent);
+  --color-brand-ink: var(--ink);
+  --color-brand-line: var(--line);
+  --color-brand-fretboard: var(--fretboard);
+  --color-brand-fretborder: var(--fretborder);
+  --color-brand-fret: var(--fret);
+  --color-brand-active: var(--active);
+
+  --font-sans: "Helvetica Neue", Arial, sans-serif;
+  --font-serif: "Georgia", serif;
+}
+
+body {
+  background-color: var(--color-brand-bg);
+  color: var(--color-brand-ink);
+  font-family: var(--font-sans);
+}
