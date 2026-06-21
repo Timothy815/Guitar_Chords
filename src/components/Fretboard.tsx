@@ -193,16 +193,16 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
         })}
 
         {/* Render Notes */}
-        {Array.from({ length: stringsNum }).map((_, stringIdx) => 
-          Array.from({ length: fretsNum + 1 }).map((_, fretIdx) => 
+        {Array.from({ length: stringsNum }).map((_, stringIdx) =>
+          Array.from({ length: fretsNum + 1 }).map((_, fretIdx) =>
             <g key={`note-${stringIdx}-${fretIdx}`}>
               {/* String background interaction area for better clicks if we build an explorer mode */}
-              <rect 
-                x={fretIdx === 0 ? 0 : paddingX + (fretIdx - 1) * fretSpacing} 
-                y={paddingY + (5 - stringIdx) * stringSpacing - 15} 
-                width={fretIdx === 0 ? paddingX : fretSpacing} 
-                height={30} 
-                fill="transparent" 
+              <rect
+                x={fretIdx === 0 ? 0 : paddingX + (fretIdx - 1) * fretSpacing}
+                y={paddingY + (5 - stringIdx) * stringSpacing - 15}
+                width={fretIdx === 0 ? paddingX : fretSpacing}
+                height={30}
+                fill="transparent"
                 onClick={() => (!chord && !scale || onFretClick) ? handleDotClick(stringIdx, fretIdx) : null}
                 className={(!chord && !scale || onFretClick) ? "cursor-pointer hover:fill-brand-secondary/20 transition-colors" : ""}
               />
@@ -210,15 +210,21 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
             </g>
           )
         )}
+
+        {/* Fret numbers — inside SVG so they scale with the fretboard */}
+        {Array.from({ length: fretsNum }).map((_, i) => (
+          <text
+            key={`fnum-${i}`}
+            x={paddingX + (i + 0.5) * fretSpacing}
+            y={totalHeight - 8}
+            textAnchor="middle"
+            fontSize={10}
+            className="font-mono fill-brand-secondary/70 print:hidden"
+          >
+            {i + 1}
+          </text>
+        ))}
       </svg>
-      {/* Fret numbers below */}
-      <div className="flex font-mono text-xs text-brand-secondary/70 mt-2 ml-[40px] px-[20px]" style={{width: 'min(100%, 800px)'}}>
-         {Array.from({ length: fretsNum }).map((_, i) => (
-             <div key={`fn-${i}`} className="text-center" style={{width: `${100/fretsNum}%`}}>
-                 {i + 1}
-             </div>
-         ))}
-      </div>
     </div>
   );
 }
