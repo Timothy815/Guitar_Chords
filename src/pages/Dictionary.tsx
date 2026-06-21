@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Chord as TonalChord } from '@tonaljs/tonal';
 import { Fretboard } from '../components/Fretboard';
+import { PianoKeyboard } from '../components/PianoKeyboard';
 import { COMMON_CHORDS, COMMON_SCALES, generateScalePattern, ALL_NOTES } from '../data/guitarData';
 import { playStrum, playArpeggio, getFretNote, initAudio, playNote, setEffects } from '../lib/audio';
 import { Volume2, ListMusic, Printer } from 'lucide-react';
@@ -64,6 +65,18 @@ export function Dictionary() {
   const identifiedNotesRaw = identifiedFrets.map((f, strIdx) => f !== -1 ? getFretNote(strIdx, f).replace(/[0-9]/g, '') : null).filter((n): n is string => n !== null);
   const uniqueNotes = Array.from(new Set(identifiedNotesRaw));
   const identifiedChordNames = uniqueNotes.length > 0 ? TonalChord.detect(uniqueNotes) : [];
+
+  const activeChordNotes: string[] = mode === 'chords' && activeChord
+    ? activeChord.frets
+        .map((fret, strIdx) => fret !== -1 ? getFretNote(strIdx, fret) : null)
+        .filter((n): n is string => n !== null)
+    : [];
+
+  const identifiedNotesWithOctaves: string[] = identifiedFrets
+    .map((f, strIdx) => f !== -1 ? getFretNote(strIdx, f) : null)
+    .filter((n): n is string => n !== null);
+
+  const pianoNotes = mode === 'chords' ? activeChordNotes : identifiedNotesWithOctaves;
 
   const handleFretClick = (str: number, fret: number) => {
      if (mode === 'identify') {
@@ -655,7 +668,13 @@ export function Dictionary() {
                   <p className="text-brand-secondary/70 text-sm mt-8 pb-4 print:hidden text-center">
                      Click any dot to hear the note{mode === 'identify' ? ' and set the fret' : ''}, or use keyboard numbers <strong>1-6</strong> to play individual strings.
                   </p>
-                  
+                  {(mode === 'chords' || mode === 'identify') && (
+                    <div className="w-full mt-2 print:hidden">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-brand-secondary mb-2 text-center">Piano</p>
+                      <PianoKeyboard highlightedNotes={pianoNotes} />
+                    </div>
+                  )}
+
                   {/* Arpeggiator for Scales */}
                   {mode === 'scales' && activeScale && (
                      <div className="w-full mt-4 p-6 border border-brand-line rounded-xl bg-brand-bg opacity-100 print:hidden">
