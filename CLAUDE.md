@@ -9,6 +9,7 @@ npm run dev       # Start dev server on port 3000 (all interfaces)
 npm run build     # Production build
 npm run lint      # TypeScript type-check only (tsc --noEmit)
 npm run preview   # Preview production build
+npm run clean     # Remove dist/ and server.js
 ```
 
 There are no tests. `npm run lint` is the only static check available.
@@ -48,9 +49,25 @@ Central type file. `ChordShape.frets` is a 6-element array (index 0 = low E). `T
 
 Tailwind v4 with custom CSS variables for the design system. Brand tokens include `brand-primary`, `brand-ink`, `brand-secondary`, `brand-surface`, `brand-sidebar`, `brand-bg`, `brand-line`, `brand-active`, `brand-fretboard`, `brand-fret`, `brand-fretborder`. Dark mode is toggled via `document.documentElement.classList.toggle('dark')`.
 
+### Utilities (`src/lib/utils.ts`)
+
+- `cn(...inputs)` — Tailwind-aware class merger (`clsx` + `tailwind-merge`). Use instead of template literals for conditional classes.
+- `handlePrint(elementId?)` — Opens a print window mirroring the current stylesheet. Used by pages that support chord/scale diagram printing.
+
 ### Path alias
 
 `@` resolves to the **project root** (not `src/`). `@/src/...` is the correct form for aliased imports.
+
+### Deployment base path
+
+`vite.config.ts` sets `base: '/Guitar_Chords/'` and `App.tsx` sets `BrowserRouter basename="/Guitar_Chords"`. These must stay in sync; the app is deployed to GitHub Pages under that path.
+
+### Available dependencies (non-obvious)
+
+- `@google/genai` — Gemini API client (for AI features)
+- `motion` — Framer Motion v12 (animation)
+- `lucide-react` — icon library already in use throughout the app
+- `canvas-confetti` — celebration effects
 
 ### Environment
 
