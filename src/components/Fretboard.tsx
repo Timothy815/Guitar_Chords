@@ -58,7 +58,9 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
         textColor = "fill-brand-secondary";
       } else {
          const finger = chord.fingers[stringIdx];
-         text = (finger !== undefined && finger !== 0 && finger !== -1) ? finger.toString() : "";
+         text = (finger !== undefined && finger !== 0 && finger !== -1)
+           ? finger.toString()
+           : (showNoteNames ? noteStr.replace(/[0-9]/g, '') : '');
          if (fretIdx === 0) {
              bgColor = isPlaying ? "fill-orange-500" : "transparent";
              textColor = isPlaying ? "fill-white" : "fill-brand-active";
