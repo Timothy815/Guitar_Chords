@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import { Dictionary } from './pages/Dictionary';
 import { Progressions } from './pages/Progressions';
-import { Music, Calendar, BookOpen, Sun, Moon } from 'lucide-react';
+import { Music, Calendar, BookOpen, Sun, Moon, Disc } from 'lucide-react';
 
 function Layout({ children }: { children: React.ReactNode }) {
   const [isDark, setIsDark] = useState(() => {
@@ -36,14 +36,20 @@ function Layout({ children }: { children: React.ReactNode }) {
               >
                 <BookOpen size={16} /> Dictionary
               </NavLink>
-              <NavLink 
-                to="/caged" 
+              <NavLink
+                to="/caged"
                 className={({isActive}) => `flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${isActive ? 'bg-brand-sidebar text-brand-ink' : 'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar/50'}`}
               >
                 <Music size={16} /> CAGED System
               </NavLink>
-              <NavLink 
-                to="/progressions" 
+              <NavLink
+                to="/circle"
+                className={({isActive}) => `flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${isActive ? 'bg-brand-sidebar text-brand-ink' : 'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar/50'}`}
+              >
+                <Disc size={16} /> Circle of 5ths
+              </NavLink>
+              <NavLink
+                to="/progressions"
                 className={({isActive}) => `flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${isActive ? 'bg-brand-sidebar text-brand-ink' : 'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar/50'}`}
               >
                 <Calendar size={16} /> Practice
@@ -69,6 +75,7 @@ function Layout({ children }: { children: React.ReactNode }) {
 }
 
 import { Caged } from './pages/Caged';
+import { Circle } from './pages/Circle';
 
 export default function App() {
   return (
@@ -79,6 +86,7 @@ export default function App() {
           <Route path="/dictionary" element={<Dictionary />} />
           <Route path="/progressions" element={<Progressions />} />
           <Route path="/caged" element={<Caged />} />
+          <Route path="/circle" element={<Circle />} />
         </Routes>
       </Layout>
     </BrowserRouter>
