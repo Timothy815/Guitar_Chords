@@ -932,24 +932,25 @@ export function Dictionary() {
                                  <div className="w-10 text-[10px] font-mono text-brand-secondary font-bold text-right pr-2">dur</div>
                                  {Array.from({ length: seqNumSteps }, (_, stepIdx) => {
                                     const dur = seqStepDurations[stepIdx] ?? '16n';
-                                    const LABELS: Record<string, string> = { '16n': '16', '8n': '8', '4n': '4', '2n': '2', '1n': '1' };
-                                    const CYCLE = ['16n', '8n', '4n', '2n', '1n'];
                                     return (
-                                       <button
+                                       <select
                                           key={stepIdx}
-                                          onClick={() => {
-                                             const next = CYCLE[(CYCLE.indexOf(dur) + 1) % CYCLE.length];
+                                          value={dur}
+                                          onChange={(e) => {
                                              const d = [...seqStepDurations];
-                                             d[stepIdx] = next;
+                                             d[stepIdx] = e.target.value;
                                              setSeqStepDurations(d);
                                           }}
-                                          title={dur}
-                                          className={`flex-1 h-6 rounded-sm border text-[10px] transition-colors ${
+                                          className={`flex-1 h-6 rounded-sm border text-[10px] bg-brand-surface cursor-pointer ${
                                              currentStep === stepIdx ? 'border-brand-primary text-brand-primary' : 'border-brand-line text-brand-secondary'
-                                          } bg-brand-surface hover:border-brand-primary`}
+                                          }`}
                                        >
-                                          {LABELS[dur]}
-                                       </button>
+                                          <option value="16n">16</option>
+                                          <option value="8n">8</option>
+                                          <option value="4n">4</option>
+                                          <option value="2n">2</option>
+                                          <option value="1n">1</option>
+                                       </select>
                                     );
                                  })}
                               </div>

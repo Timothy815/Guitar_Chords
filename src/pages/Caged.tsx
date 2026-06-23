@@ -438,17 +438,20 @@ export function Caged() {
                   {Array.from({ length: seqNum }, (_, stepIdx) => {
                     const dur = seqDurs[stepIdx] ?? '8n';
                     return (
-                      <button
+                      <select
                         key={stepIdx}
-                        onClick={() => {
-                          const next = DURATION_CYCLE[(DURATION_CYCLE.indexOf(dur) + 1) % DURATION_CYCLE.length];
-                          const d = [...seqDurs]; d[stepIdx] = next; setSeqDurs(d);
+                        value={dur}
+                        onChange={(e) => {
+                          const d = [...seqDurs]; d[stepIdx] = e.target.value; setSeqDurs(d);
                         }}
-                        title={dur}
-                        className={`flex-1 h-6 rounded-sm border text-[10px] transition-colors ${currentStep === stepIdx ? 'border-brand-primary text-brand-primary' : 'border-brand-line text-brand-secondary'} bg-brand-surface hover:border-brand-primary`}
+                        className={`flex-1 h-6 rounded-sm border text-[10px] bg-brand-surface cursor-pointer ${currentStep === stepIdx ? 'border-brand-primary text-brand-primary' : 'border-brand-line text-brand-secondary'}`}
                       >
-                        {DURATION_LABELS[dur]}
-                      </button>
+                        <option value="16n">16</option>
+                        <option value="8n">8</option>
+                        <option value="4n">4</option>
+                        <option value="2n">2</option>
+                        <option value="1n">1</option>
+                      </select>
                     );
                   })}
                 </div>
