@@ -17,6 +17,20 @@ function getDiatonicRoots(key: Note): Set<string> {
   return new Set(MAJOR_INTERVALS.map(i => ALL_NOTES[(rootIdx + i) % 12]));
 }
 
+const PRESET_KEYS: Record<string, string> = {
+  'I-V-vi-IV (C Major)': 'C',
+  'ii-V-I (Jazz, C Major)': 'C',
+  '12-Bar Blues (A)': 'A',
+  'I-vi-IV-V (50s, G Major)': 'G',
+  'Andalusian Cadence (Am)': 'A',
+  'Doo-Wop (C)': 'C',
+  'Minor Plagal (G)': 'G',
+  "Pachelbel's Canon (D)": 'D',
+  '12-Bar Blues (E)': 'E',
+  'La Bamba (I-IV-V, C)': 'C',
+  'Jazz Turnaround (vi-ii-V-I, C)': 'C',
+};
+
 // ─── JSON Import utilities ───────────────────────────────────────────────────
 
 const FLAT_TO_SHARP: Record<string, Note> = {
@@ -101,6 +115,7 @@ function parseProgressionJSON(raw: string): ImportResult | null {
         id: Date.now().toString() + Math.random().toString(36).slice(2),
         name: typeof data.name === 'string' ? data.name : 'Imported Progression',
         bpm: typeof data.bpm === 'number' ? Math.min(200, Math.max(40, Math.round(data.bpm))) : 80,
+        key: typeof data.key === 'string' ? data.key : 'C',
         slots,
       },
       warnings,
@@ -486,9 +501,9 @@ export function Progressions() {
       // Migrate old format { chords: ChordShape[] } → { slots: ChordSlot[], bpm: number }
       const migrated = parsed.map((p: any) => {
         if (p.chords && !p.slots) {
-          return { ...p, slots: p.chords.map((chord: ChordShape) => ({ chord })), bpm: p.bpm ?? 80 };
+          return { ...p, slots: p.chords.map((chord: ChordShape) => ({ chord })), bpm: p.bpm ?? 80, key: p.key ?? 'C' };
         }
-        return { ...p, bpm: p.bpm ?? 80 };
+        return { ...p, bpm: p.bpm ?? 80, key: p.key ?? 'C' };
       });
       setProgressions(migrated);
     } else {
@@ -496,6 +511,7 @@ export function Progressions() {
         id: '1',
         name: 'Classic I-V-vi-IV (C Major)',
         bpm: 80,
+        key: 'C',
         slots: [
           COMMON_CHORDS['C'][0],
           COMMON_CHORDS['G'][0],
@@ -507,6 +523,13 @@ export function Progressions() {
     }
   }, []);
 
+  useEffect(() => {
+    const prog = progressions.find(p => p.id === activeProgId);
+    if (prog?.key) {
+      setChordPaletteKey(prog.key);
+    }
+  }, [activeProgId]);
+
   const saveProgressions = (newProgs: Progression[]) => {
     setProgressions(newProgs);
     localStorage.setItem('guitar_progressions', JSON.stringify(newProgs));
@@ -517,6 +540,7 @@ export function Progressions() {
       id: Date.now().toString() + Math.random().toString(),
       name: 'New Progression',
       bpm: 80,
+      key: chordPaletteKey,
       slots: []
     };
     saveProgressions([...progressions, newProg]);
@@ -573,6 +597,7 @@ export function Progressions() {
       id: Date.now().toString() + Math.random().toString(),
       name: presetName,
       bpm: 80,
+      key: PRESET_KEYS[presetName] ?? 'C',
       slots: presetChords.filter(Boolean).map(chord => ({ chord }))
     };
     const updated = [...baseProgressions, newProg];
@@ -912,6 +937,11 @@ export function Progressions() {
                       onKeySelect={(key) => {
                         setCircleKey(key);
                         setChordPaletteKey(key);
+                        if (activeProgression) {
+                          saveProgressions(progressions.map(p =>
+                            p.id === activeProgression.id ? { ...p, key } : p
+                          ));
+                        }
                       }}
                       className="max-w-xs mx-auto"
                     />
@@ -924,7 +954,14 @@ export function Progressions() {
                     return (
                       <button
                         key={key}
-                        onClick={() => setChordPaletteKey(key)}
+                        onClick={() => {
+                          setChordPaletteKey(key);
+                          if (activeProgression) {
+                            saveProgressions(progressions.map(p =>
+                              p.id === activeProgression.id ? { ...p, key } : p
+                            ));
+                          }
+                        }}
                         className={`px-2 py-1 flex-shrink-0 text-xs font-bold rounded transition-colors ${
                           chordPaletteKey === key
                             ? 'bg-brand-primary text-white'

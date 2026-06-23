@@ -52,6 +52,7 @@ export interface Progression {
   id: string;
   name: string;
   bpm: number;    // default 80, range 40–200
+  key: string;   // root note, e.g. "C", "G", "F#" — defaults to "C"
   slots: ChordSlot[];  // replaces chords: ChordShape[]
 }
 
