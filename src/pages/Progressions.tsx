@@ -7,7 +7,7 @@ import { ChordSheet } from '../components/ChordSheet';
 import { Plus, Trash2, Play, Printer, Disc, GripHorizontal, Square, RotateCcw, Pencil, X, Upload, FileText } from 'lucide-react';
 import { Reorder } from 'motion/react';
 import { playStrum, initAudio, getFretNote, playProgressionWithPatterns } from '../lib/audio';
-import { handlePrint } from '../lib/utils';
+import { handlePrint, printChordSheet } from '../lib/utils';
 import { cn } from '../lib/utils';
 
 const MAJOR_INTERVALS = [0, 2, 4, 5, 7, 9, 11];
@@ -581,7 +581,7 @@ function ChordSheetModal({
             Cancel
           </button>
           <button
-            onClick={() => { handlePrint('chord-sheet-area'); onClose(); }}
+            onClick={() => { onClose(); setTimeout(() => printChordSheet('chord-sheet-area'), 50); }}
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-brand-primary text-white rounded-lg hover:opacity-90 transition-opacity"
           >
             <Printer size={16} /> Print

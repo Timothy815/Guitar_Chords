@@ -5,6 +5,31 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export function printChordSheet(elementId: string) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  const style = document.createElement('style');
+  style.textContent = [
+    '@media print {',
+    '  html.chord-sheet-printing * { visibility: hidden !important; }',
+    `  html.chord-sheet-printing #${elementId},`,
+    `  html.chord-sheet-printing #${elementId} * { visibility: visible !important; }`,
+    `  html.chord-sheet-printing #${elementId} {`,
+    '    position: fixed !important; inset: 0 !important;',
+    '    width: 100% !important; overflow: visible !important;',
+    '    background: white !important;',
+    '  }',
+    '}',
+  ].join('\n');
+  document.head.appendChild(style);
+  document.documentElement.classList.add('chord-sheet-printing');
+  window.addEventListener('afterprint', () => {
+    document.documentElement.classList.remove('chord-sheet-printing');
+    style.remove();
+  }, { once: true });
+  window.print();
+}
+
 export function handlePrint(elementId?: string) {
   const contentNode = elementId ? document.getElementById(elementId) : null;
   const pWindow = window.open('', '_blank');

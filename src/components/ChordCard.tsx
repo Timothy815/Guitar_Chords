@@ -103,6 +103,7 @@ export function ChordCard({ chord, progressionKey }: ChordCardProps) {
         chord={chord}
         showNoteNames={false}
         className="pointer-events-none w-full"
+        compact
       />
       <div ref={vexRef} className="w-full overflow-hidden" style={{ height: 160 }} />
     </div>

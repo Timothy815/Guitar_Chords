@@ -25,9 +25,10 @@ interface FretboardProps {
   className?: string; // Additional classes
   fretRange?: [number, number]; // [startFret, endFret] to isolate scales
   playingNotes?: Set<string>;
+  compact?: boolean; // removes min-width constraint and hides label toggle (for grid contexts)
 }
 
-export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClick, showNoteNames = true, className, fretRange, playingNotes = new Set() }: FretboardProps) {
+export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClick, showNoteNames = true, className, fretRange, playingNotes = new Set(), compact = false }: FretboardProps) {
   const [labelMode, setLabelMode] = useState<LabelMode>('none');
 
   const stringsNum = 6;
@@ -171,7 +172,7 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
 
   return (
     <div className={cn("w-full overflow-x-auto print:overflow-hidden pb-4 print:pb-0", className)}>
-      <svg viewBox={`0 0 ${totalWidth} ${totalHeight}`} className="w-full min-w-[600px] print:min-w-0 h-auto drop-shadow-sm border-8 print:border-2 border-brand-fretborder rounded-xl">
+      <svg viewBox={`0 0 ${totalWidth} ${totalHeight}`} className={cn("w-full h-auto drop-shadow-sm border-8 print:border-2 border-brand-fretborder rounded-xl", !compact && "min-w-[600px] print:min-w-0")}>
         {/* Fretboard Background */}
         <rect x={paddingX} y={paddingY} width={totalWidth - paddingX * 2} height={totalHeight - paddingY * 2} fill="var(--color-brand-fretboard)" />
 
@@ -254,8 +255,8 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
         ))}
       </svg>
 
-      {/* Label mode toggle — only when chord or scale is active */}
-      {showToggle && (
+      {/* Label mode toggle — only when chord or scale is active, and not in compact mode */}
+      {showToggle && !compact && (
         <div className="flex justify-end mt-1 print:hidden">
           <button
             onClick={cycleLabelMode}
