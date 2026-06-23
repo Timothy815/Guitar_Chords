@@ -7,6 +7,9 @@ export default defineConfig(() => {
   return {
     base: '/Guitar_Chords/',
     plugins: [react(), tailwindcss()],
+    optimizeDeps: {
+      include: ['vexflow'],
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
