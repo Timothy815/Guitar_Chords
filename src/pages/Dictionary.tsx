@@ -110,6 +110,22 @@ export function Dictionary() {
     setEffects(fx);
   }, [fx]);
 
+  // Refs — written every render so effects always read the latest value without being in dep arrays
+  const modeRef = React.useRef(mode); modeRef.current = mode;
+  const activeChordRef = React.useRef(activeChord); activeChordRef.current = activeChord;
+  const activeScaleRef = React.useRef(activeScale); activeScaleRef.current = activeScale;
+  const scaleFretRangeRef = React.useRef(scaleFretRange); scaleFretRangeRef.current = scaleFretRange;
+  const identifiedFretsRef = React.useRef(identifiedFrets); identifiedFretsRef.current = identifiedFrets;
+  const seqStepsRef = React.useRef(seqSteps); seqStepsRef.current = seqSteps;
+  const seqScaleFretsRef = React.useRef(seqScaleFrets); seqScaleFretsRef.current = seqScaleFrets;
+  const seqStepDurationsRef = React.useRef(seqStepDurations); seqStepDurationsRef.current = seqStepDurations;
+  const seqNumStepsRef = React.useRef(seqNumSteps); seqNumStepsRef.current = seqNumSteps;
+  const arpeggioTempoRef = React.useRef(arpeggioTempo); arpeggioTempoRef.current = arpeggioTempo;
+  const sustainRef = React.useRef(sustain); sustainRef.current = sustain;
+  const drumsEnabledRef = React.useRef(drumsEnabled); drumsEnabledRef.current = drumsEnabled;
+  const arpDirectionRef = React.useRef(arpDirection); arpDirectionRef.current = arpDirection;
+  const metronomeEnabledRef = React.useRef(metronomeEnabled); metronomeEnabledRef.current = metronomeEnabled;
+
   const getScaleNotesForString = (strIdx: number) => {
       const notes: { fret: number, note: string }[] = [];
       if (!activeScale) return notes;
@@ -147,38 +163,42 @@ export function Dictionary() {
   };
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (arpPlaying && mode === 'scales' && activeScale) {
-      const scaleNotes = getScaleNotesInRange();
-      if (scaleNotes.length === 0) return;
-      
-      let orderedNotes = [...scaleNotes];
-      if (arpDirection === 'down') {
-         orderedNotes.reverse();
-      } else if (arpDirection === 'up-down') {
-         orderedNotes = [...scaleNotes, ...[...scaleNotes].reverse().slice(1, -1)];
+    let interval: ReturnType<typeof setInterval> | undefined;
+    if (arpPlaying && modeRef.current === 'scales' && activeScaleRef.current) {
+      const currentScale = activeScaleRef.current;
+      const range = scaleFretRangeRef.current;
+      const dir = arpDirectionRef.current;
+      const tempo = arpeggioTempoRef.current;
+      const minFret = range.length === 2 ? range[0] : 0;
+      const maxFret = range.length === 2 ? range[1] : 15;
+      const scaleNotes: { stringIdx: number; fretIdx: number; note: string }[] = [];
+      for (let s = 0; s < 6; s++) {
+        for (let f = minFret; f <= maxFret; f++) {
+          const noteStr = getFretNote(s, f);
+          if (currentScale.notes.includes(noteStr.replace(/[0-9]/g, '') as any)) {
+            scaleNotes.push({ stringIdx: s, fretIdx: f, note: noteStr });
+          }
+        }
       }
-      
-      const msPerBeat = (60 / arpeggioTempo) * 1000 / 2; // Arp plays 8th notes to span scale quickly
-      
+      if (scaleNotes.length === 0) { setCurrentArpIdx(-1); return; }
+      let orderedNotes = [...scaleNotes];
+      if (dir === 'down') orderedNotes.reverse();
+      else if (dir === 'up-down') orderedNotes = [...scaleNotes, ...[...scaleNotes].reverse().slice(1, -1)];
+      const msPerBeat = (60 / tempo) * 500;
       interval = setInterval(() => {
         setCurrentArpIdx(prev => {
           const nextIdx = (prev + 1) % orderedNotes.length;
           const noteToPlay = orderedNotes[nextIdx].note;
           import('../lib/audio').then(m => {
-             m.playNote(noteToPlay, sustain);
-             if (drumsEnabled) {
-               // Arp is playing 8th notes. Kick on 1 and 3 (0, 4), Snare on 2 and 4 (2, 6) in an 8-beat cycle
-               const beatId = nextIdx % 8;
-               if (beatId === 0 || beatId === 4) m.playKick();
-               if (beatId === 2 || beatId === 6) m.playSnare();
-             }
-             if (metronomeEnabled) {
-               // Arp is 8th notes. Quarter note beat is when nextIdx % 2 === 0
-               if (nextIdx % 2 === 0) {
-                 m.playClick(nextIdx % 8 === 0);
-               }
-             }
+            m.playNote(noteToPlay, sustainRef.current);
+            if (drumsEnabledRef.current) {
+              const beatId = nextIdx % 8;
+              if (beatId === 0 || beatId === 4) m.playKick();
+              if (beatId === 2 || beatId === 6) m.playSnare();
+            }
+            if (metronomeEnabledRef.current) {
+              if (nextIdx % 2 === 0) m.playClick(nextIdx % 8 === 0);
+            }
           });
           return nextIdx;
         });
@@ -186,8 +206,8 @@ export function Dictionary() {
     } else {
       setCurrentArpIdx(-1);
     }
-    return () => clearInterval(interval);
-  }, [arpPlaying, arpeggioTempo, mode, activeScale, scaleFretRange, arpDirection, sustain, metronomeEnabled, drumsEnabled]);
+    return () => { if (interval) clearInterval(interval); };
+  }, [arpPlaying]);
 
   useEffect(() => {
     if (seqTimerRef.current) { clearTimeout(seqTimerRef.current); seqTimerRef.current = null; }
@@ -198,41 +218,53 @@ export function Dictionary() {
       return;
     }
 
-    seqStepIdxRef.current = 0;
-
     const SEQ_DUR_MULT: Record<string, number> = { '16n': 0.25, '8n': 0.5, '4n': 1, '2n': 2, '1n': 4 };
 
+    seqStepIdxRef.current = 0;
     const scheduleNext = () => {
       const step = seqStepIdxRef.current;
+      const m_mode = modeRef.current;
+      const m_activeChord = activeChordRef.current;
+      const m_identifiedFrets = identifiedFretsRef.current;
+      const m_seqSteps = seqStepsRef.current;
+      const m_activeScale = activeScaleRef.current;
+      const m_scaleFretRange = scaleFretRangeRef.current;
+      const m_seqScaleFrets = seqScaleFretsRef.current;
+      const m_sustain = sustainRef.current;
+      const m_seqStepDurations = seqStepDurationsRef.current;
+      const m_seqNumSteps = seqNumStepsRef.current;
+      const m_arpeggioTempo = arpeggioTempoRef.current;
+      const m_drumsEnabled = drumsEnabledRef.current;
+
       setCurrentStep(step);
 
       const notesToPlay: string[] = [];
-      if (mode === 'chords' && activeChord) {
+      if (m_mode === 'chords' && m_activeChord) {
         for (let s = 0; s < 6; s++) {
-          if (seqSteps[s][step]) {
-            const fret = activeChord.frets[s];
+          if (m_seqSteps[s][step]) {
+            const fret = m_activeChord.frets[s];
             notesToPlay.push(fret !== -1 ? getFretNote(s, fret) : getFretNote(s, 0));
           }
         }
-      } else if (mode === 'identify') {
+      } else if (m_mode === 'identify') {
         for (let s = 0; s < 6; s++) {
-          if (seqSteps[s][step]) {
-            const fret = identifiedFrets[s];
+          if (m_seqSteps[s][step]) {
+            const fret = m_identifiedFrets[s];
             notesToPlay.push(fret !== -1 ? getFretNote(s, fret) : getFretNote(s, 0));
           }
         }
-      } else if (mode === 'scales' && activeScale) {
+      } else if (m_mode === 'scales' && m_activeScale) {
         for (let s = 0; s < 6; s++) {
-          if (seqSteps[s][step]) {
-            const overrideFret = seqScaleFrets[s][step];
+          if (m_seqSteps[s][step]) {
+            const overrideFret = m_seqScaleFrets[s][step];
             if (overrideFret !== -1) {
               notesToPlay.push(getFretNote(s, overrideFret));
             } else {
-              const minFret = scaleFretRange.length === 2 ? scaleFretRange[0] : 0;
-              const maxFret = scaleFretRange.length === 2 ? scaleFretRange[1] : 15;
+              const minFret = m_scaleFretRange.length === 2 ? m_scaleFretRange[0] : 0;
+              const maxFret = m_scaleFretRange.length === 2 ? m_scaleFretRange[1] : 15;
               for (let f = minFret; f <= maxFret; f++) {
                 const noteStr = getFretNote(s, f);
-                if (activeScale.notes.includes(noteStr.replace(/[0-9]/g, '') as any)) {
+                if (m_activeScale.notes.includes(noteStr.replace(/[0-9]/g, '') as any)) {
                   notesToPlay.push(getFretNote(s, f));
                   break;
                 }
@@ -243,24 +275,24 @@ export function Dictionary() {
       }
 
       if (notesToPlay.length > 0) {
-        import('../lib/audio').then(m => m.playStrum(notesToPlay, sustain, 'down'));
+        import('../lib/audio').then(m => m.playStrum(notesToPlay, m_sustain, 'down'));
       }
-      if (drumsEnabled) {
+      if (m_drumsEnabled) {
         import('../lib/audio').then(m => {
           if (step === 0 || step === 8) m.playKick();
           if (step === 4 || step === 12) m.playSnare();
         });
       }
 
-      const dur = seqStepDurations[step] ?? '16n';
-      const delayMs = (60 / arpeggioTempo) * (SEQ_DUR_MULT[dur] ?? 0.25) * 1000;
-      seqStepIdxRef.current = (step + 1) % seqNumSteps;
+      const dur = m_seqStepDurations[step] ?? '16n';
+      const delayMs = (60 / m_arpeggioTempo) * (SEQ_DUR_MULT[dur] ?? 0.25) * 1000;
+      seqStepIdxRef.current = (step + 1) % m_seqNumSteps;
       seqTimerRef.current = setTimeout(scheduleNext, delayMs);
     };
 
     scheduleNext();
     return () => { if (seqTimerRef.current) clearTimeout(seqTimerRef.current); };
-  }, [seqPlaying, arpeggioTempo, seqSteps, seqStepDurations, seqNumSteps, activeChord, sustain, mode, activeScale, scaleFretRange, identifiedFrets, seqScaleFrets, drumsEnabled]);
+  }, [seqPlaying]);
 
   const toggleStep = (stringIdx: number, stepIdx: number) => {
     const newSteps = [...seqSteps];
