@@ -1,8 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ChordShape, ScalePattern, STANDARD_TUNING } from '../types';
 import { getFretNote, playNote } from '../lib/audio';
 import { cn } from '../lib/utils';
 import { ALL_NOTES } from '../data/guitarData';
+
+type LabelMode = 'none' | 'note' | 'interval';
+
+const INTERVAL_NAMES = ['1', 'b2', '2', 'b3', '3', '4', 'b5', '5', 'b6', '6', 'b7', '7'];
+
+function getIntervalName(root: string, note: string): string {
+  const rootIdx = ALL_NOTES.indexOf(root as any);
+  const noteIdx = ALL_NOTES.indexOf(note as any);
+  if (rootIdx === -1 || noteIdx === -1) return '';
+  return INTERVAL_NAMES[(noteIdx - rootIdx + 12) % 12];
+}
 
 interface FretboardProps {
   fretsNum?: number; // Usually 12 or 15 or 22
@@ -17,6 +28,8 @@ interface FretboardProps {
 }
 
 export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClick, showNoteNames = true, className, fretRange, playingNotes = new Set() }: FretboardProps) {
+  const [labelMode, setLabelMode] = useState<LabelMode>('none');
+
   const stringsNum = 6;
   const paddingX = 40;
   const paddingY = 30;
@@ -28,6 +41,24 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
   const dots = [3, 5, 7, 9, 15, 17, 19, 21];
   const doubleDots = [12, 24];
 
+  // Root note for interval calculation — from scale or chord name
+  const labelRoot: string | null = scale?.root ?? (chord ? chord.name.split(' ')[0] : null);
+  const canShowIntervals = labelRoot !== null;
+
+  const cycleLabelMode = () => {
+    setLabelMode(prev => {
+      if (prev === 'none') return 'note';
+      if (prev === 'note') return canShowIntervals ? 'interval' : 'none';
+      return 'none';
+    });
+  };
+
+  const getLabelText = (noteJustName: string): string => {
+    if (labelMode === 'note') return noteJustName;
+    if (labelMode === 'interval' && labelRoot) return getIntervalName(labelRoot, noteJustName);
+    return '';
+  };
+
   const handleDotClick = (stringIdx: number, fretIdx: number) => {
     const noteStr = getFretNote(stringIdx, fretIdx);
     if (onFretClick) onFretClick(stringIdx, fretIdx);
@@ -36,18 +67,16 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
   };
 
   const renderNoteMarker = (stringIdx: number, fretIdx: number) => {
-    // stringIdx 0 is bottom drawn string (E2), strings usually drawn highest to lowest visually?
-    // Standard notation: Top string visually is e (Highest frequency, index 5). Bottom string visually is E (Lowest frequency, index 0).
-    const visualStringIdx = 5 - stringIdx; 
+    const visualStringIdx = 5 - stringIdx;
     const isMuted = fretIdx === -1;
-    
+
     let text = "";
     let bgColor = "fill-brand-secondary/80";
     let textColor = "fill-white";
     let show = false;
 
-    // Find note string for this position
     const noteStr = getFretNote(stringIdx, fretIdx);
+    const noteJustName = noteStr.replace(/[0-9]/g, '');
     const isPlaying = playingNotes.has(noteStr);
 
     // Check Chord
@@ -57,44 +86,44 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
         bgColor = "transparent";
         textColor = "fill-brand-secondary";
       } else {
-         const finger = chord.fingers[stringIdx];
-         text = (finger !== undefined && finger !== 0 && finger !== -1)
-           ? finger.toString()
-           : (showNoteNames ? noteStr.replace(/[0-9]/g, '') : '');
-         if (fretIdx === 0) {
-             bgColor = isPlaying ? "fill-orange-500" : "transparent";
-             textColor = isPlaying ? "fill-white" : "fill-brand-active";
-             text = getFretNote(stringIdx, 0).replace(/[0-9]/g, '');
-         } else {
-             bgColor = isPlaying ? "fill-orange-500" : "fill-brand-active";
-         }
+        if (fretIdx === 0) {
+          bgColor = isPlaying ? "fill-orange-500" : "transparent";
+          textColor = isPlaying ? "fill-white" : "fill-brand-active";
+          text = labelMode !== 'none' ? getLabelText(noteJustName) : getFretNote(stringIdx, 0).replace(/[0-9]/g, '');
+        } else {
+          bgColor = isPlaying ? "fill-orange-500" : "fill-brand-active";
+          const finger = chord.fingers[stringIdx];
+          if (labelMode !== 'none') {
+            text = getLabelText(noteJustName);
+          } else {
+            text = (finger !== undefined && finger !== 0 && finger !== -1)
+              ? finger.toString()
+              : (showNoteNames ? noteJustName : '');
+          }
+        }
       }
       show = true;
     }
 
     // Check Scale
     if (scale && !chord) {
-      const noteJustName = noteStr.replace(/[0-9]/g, '');
       if (scale.notes.includes(noteJustName as any)) {
-         // Apply fretRange filtering
-         if (fretRange) {
-           const [startFret, endFret] = fretRange;
-           if (fretIdx >= startFret && fretIdx <= endFret) {
-             show = true;
-           }
-         } else {
-           show = true;
-         }
+        if (fretRange) {
+          const [startFret, endFret] = fretRange;
+          if (fretIdx >= startFret && fretIdx <= endFret) show = true;
+        } else {
+          show = true;
+        }
 
-         if (show) {
-             if (isPlaying) {
-                 bgColor = "fill-orange-500";
-                 textColor = "fill-white";
-             } else if (noteJustName === scale.root) {
-                 bgColor = "fill-brand-active";
-             }
-         }
-         text = showNoteNames ? noteJustName : "";
+        if (show) {
+          if (isPlaying) {
+            bgColor = "fill-orange-500";
+            textColor = "fill-white";
+          } else if (noteJustName === scale.root) {
+            bgColor = "fill-brand-active";
+          }
+        }
+        text = labelMode !== 'none' ? getLabelText(noteJustName) : (showNoteNames ? noteJustName : "");
       }
     }
 
@@ -102,36 +131,34 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
     const y = paddingY + visualStringIdx * stringSpacing;
 
     if (!show && !isMuted) {
-        if (fretIdx === 0 && (!chord && !scale)) {
-            // Draw default open string notes when exploring
-            const noteName = getFretNote(stringIdx, 0).replace(/[0-9]/g, '');
-            return (
-                <g onClick={() => handleDotClick(stringIdx, fretIdx)} style={{cursor: 'pointer'}}>
-                  <circle cx={x} cy={y} r={12} className={cn("stroke-2 opacity-50", isPlaying ? "stroke-orange-500 fill-orange-500" : "stroke-brand-secondary fill-brand-bg")} />
-                  <text x={x} y={y + 4} className={cn("text-[14px] font-bold pointer-events-none", isPlaying ? "fill-white" : "fill-brand-secondary")} textAnchor="middle">{noteName}</text>
-                </g>
-            );
-        }
-        
-        // If it's playing but not in scale/chord, we can still show a ghost playing note
-        if (isPlaying && (!chord && !scale)) {
-           return (
-            <g>
-              <circle cx={x} cy={y} r={fretIdx === 0 ? 12 : 14} className="stroke-2 stroke-orange-500 fill-orange-500 shadow-lg print:stroke-black print:fill-white" />
-              {showNoteNames && <text x={x} y={y + 5} className="text-[14px] font-bold pointer-events-none fill-white print:fill-black" textAnchor="middle">{noteStr.replace(/[0-9]/g, '')}</text>}
-            </g>
-           )
-        }
-        
-        return null;
+      if (fretIdx === 0 && (!chord && !scale)) {
+        const noteName = getFretNote(stringIdx, 0).replace(/[0-9]/g, '');
+        return (
+          <g onClick={() => handleDotClick(stringIdx, fretIdx)} style={{cursor: 'pointer'}}>
+            <circle cx={x} cy={y} r={12} className={cn("stroke-2 opacity-50", isPlaying ? "stroke-orange-500 fill-orange-500" : "stroke-brand-secondary fill-brand-bg")} />
+            <text x={x} y={y + 4} className={cn("text-[14px] font-bold pointer-events-none", isPlaying ? "fill-white" : "fill-brand-secondary")} textAnchor="middle">{noteName}</text>
+          </g>
+        );
+      }
+
+      if (isPlaying && (!chord && !scale)) {
+        return (
+          <g>
+            <circle cx={x} cy={y} r={fretIdx === 0 ? 12 : 14} className="stroke-2 stroke-orange-500 fill-orange-500 shadow-lg print:stroke-black print:fill-white" />
+            {showNoteNames && <text x={x} y={y + 5} className="text-[14px] font-bold pointer-events-none fill-white print:fill-black" textAnchor="middle">{noteStr.replace(/[0-9]/g, '')}</text>}
+          </g>
+        );
+      }
+
+      return null;
     }
 
     if (isMuted) {
-        return (
-            <text x={x} y={y + 5} className="text-sm font-bold fill-brand-secondary pointer-events-none" textAnchor="middle">X</text>
-        );
+      return (
+        <text x={x} y={y + 5} className="text-sm font-bold fill-brand-secondary pointer-events-none" textAnchor="middle">X</text>
+      );
     }
-    
+
     return (
       <g onClick={() => handleDotClick(stringIdx, fretIdx)} style={{cursor: 'pointer'}}>
         <circle cx={x} cy={y} r={fretIdx === 0 ? 10 : 14} className={cn("stroke-2 shadow-lg", fretIdx === 0 ? "stroke-brand-secondary fill-brand-bg print:stroke-black print:fill-white" : "stroke-white/20 print:stroke-black print:fill-white", bgColor)} />
@@ -139,6 +166,8 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
       </g>
     );
   };
+
+  const showToggle = !!(chord || scale);
 
   return (
     <div className={cn("w-full overflow-x-auto print:overflow-hidden pb-4 print:pb-0", className)}>
@@ -168,7 +197,7 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
             x2={totalWidth - paddingX}
             y2={paddingY + i * stringSpacing}
             stroke="#AAAAAA"
-            strokeWidth={1 + (5 - i) * 0.4} // Thicker strings for lower ones visually (index 5 is bottom visually, which maps to E2)
+            strokeWidth={1 + (5 - i) * 0.4}
           />
         ))}
 
@@ -177,7 +206,7 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
           const actualFret = fretIdx + 1;
           const x = paddingX + (fretIdx + 0.5) * fretSpacing;
           const middleY = paddingY + ((stringsNum - 1) * stringSpacing) / 2;
-          
+
           if (dots.includes(actualFret)) {
             return <circle key={`dot-${actualFret}`} cx={x} cy={middleY} r={6} fill="var(--color-brand-fretborder)" opacity={0.6} />;
           }
@@ -196,7 +225,6 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
         {Array.from({ length: stringsNum }).map((_, stringIdx) =>
           Array.from({ length: fretsNum + 1 }).map((_, fretIdx) =>
             <g key={`note-${stringIdx}-${fretIdx}`}>
-              {/* String background interaction area for better clicks if we build an explorer mode */}
               <rect
                 x={fretIdx === 0 ? 0 : paddingX + (fretIdx - 1) * fretSpacing}
                 y={paddingY + (5 - stringIdx) * stringSpacing - 15}
@@ -211,7 +239,7 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
           )
         )}
 
-        {/* Fret numbers — screen only; HTML version below handles print */}
+        {/* Fret numbers — screen only */}
         {Array.from({ length: fretsNum }).map((_, i) => (
           <text
             key={`fnum-${i}`}
@@ -225,7 +253,25 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
           </text>
         ))}
       </svg>
-      {/* Fret numbers for print — HTML so they render at full CSS size regardless of SVG scale */}
+
+      {/* Label mode toggle — only when chord or scale is active */}
+      {showToggle && (
+        <div className="flex justify-end mt-1 print:hidden">
+          <button
+            onClick={cycleLabelMode}
+            className={cn(
+              'text-xs px-2.5 py-0.5 rounded border transition-colors',
+              labelMode !== 'none'
+                ? 'border-brand-primary text-brand-primary bg-brand-primary/10'
+                : 'border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-primary'
+            )}
+          >
+            {labelMode === 'none' ? 'Labels: off' : labelMode === 'note' ? 'Labels: notes' : 'Labels: intervals'}
+          </button>
+        </div>
+      )}
+
+      {/* Fret numbers for print — HTML so they render at full CSS size */}
       <div
         className="hidden print:flex text-[9px] font-mono text-gray-600"
         style={{ paddingLeft: `${(paddingX / totalWidth) * 100}%`, paddingRight: `${(paddingX / totalWidth) * 100}%` }}

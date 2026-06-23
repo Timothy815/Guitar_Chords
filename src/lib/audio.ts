@@ -255,7 +255,10 @@ function stepDurationSeconds(dur: string, bpm: number): number {
   return (60 / bpm) * (DURATION_MULTIPLIERS[dur] ?? 1);
 }
 
-let _stopRequested = false;
+// Generation counter: each playback run captures its own ID. Incrementing
+// invalidates all Tone.Draw.schedule callbacks from the previous run without
+// needing to cancel them (they can't be cancelled once queued).
+let _generation = 0;
 let _loopTimeoutId: ReturnType<typeof setTimeout> | null = null;
 const _chordChangeTimeouts: ReturnType<typeof setTimeout>[] = [];
 
@@ -267,7 +270,8 @@ export function playProgressionWithPatterns(
 ): () => void {
   if (!isInitialized || !sampler) return () => {};
 
-  _stopRequested = false;
+  _generation++;
+  const myGen = _generation;
   _chordChangeTimeouts.forEach(clearTimeout);
   _chordChangeTimeouts.length = 0;
   if (_loopTimeoutId !== null) { clearTimeout(_loopTimeoutId); _loopTimeoutId = null; }
@@ -282,7 +286,8 @@ export function playProgressionWithPatterns(
     const delayMs = slotStart * 1000;
     _chordChangeTimeouts.push(
       setTimeout(() => {
-        if (!_stopRequested) onChordChange?.(i);
+        if (myGen !== _generation) return;
+        onChordChange?.(i);
       }, delayMs) as unknown as ReturnType<typeof setTimeout>
     );
 
@@ -295,7 +300,7 @@ export function playProgressionWithPatterns(
           .filter((n): n is string => n !== null);
 
         Tone.Draw.schedule(() => {
-          if (_stopRequested) return;
+          if (myGen !== _generation) return;
           notesToPlay.forEach(note => {
             sampler!.triggerAttackRelease(note, dur, Tone.now());
           });
@@ -307,7 +312,7 @@ export function playProgressionWithPatterns(
       const t = now + offset;
       const strumNotes = slot.notesByString.filter((n): n is string => n !== null);
       Tone.Draw.schedule(() => {
-        if (_stopRequested) return;
+        if (myGen !== _generation) return;
         strumNotes.forEach((note, idx) => {
           sampler!.triggerAttackRelease(note, '2n', Tone.now() + idx * 0.03);
         });
@@ -318,14 +323,13 @@ export function playProgressionWithPatterns(
 
   if (loop) {
     _loopTimeoutId = setTimeout(() => {
-      if (!_stopRequested) {
-        playProgressionWithPatterns(slots, bpm, loop, onChordChange);
-      }
+      if (myGen !== _generation) return;
+      playProgressionWithPatterns(slots, bpm, loop, onChordChange);
     }, offset * 1000) as unknown as ReturnType<typeof setTimeout>;
   }
 
   return () => {
-    _stopRequested = true;
+    _generation++;
     _chordChangeTimeouts.forEach(clearTimeout);
     _chordChangeTimeouts.length = 0;
     if (_loopTimeoutId !== null) { clearTimeout(_loopTimeoutId); _loopTimeoutId = null; }
