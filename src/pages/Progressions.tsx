@@ -1,15 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { Progression, ChordShape } from '../types';
-import { COMMON_CHORDS } from '../data/guitarData';
+import { Progression, ChordShape, Note } from '../types';
+import { COMMON_CHORDS, ALL_NOTES } from '../data/guitarData';
 import { Fretboard } from '../components/Fretboard';
-import { Plus, Trash2, Save, Play, Printer } from 'lucide-react';
+import { CircleOfFifths } from '../components/CircleOfFifths';
+import { Plus, Trash2, Save, Play, Printer, Disc } from 'lucide-react';
 import { playStrum, initAudio } from '../lib/audio';
 import { handlePrint } from '../lib/utils';
+
+const MAJOR_INTERVALS = [0, 2, 4, 5, 7, 9, 11];
+
+function getDiatonicRoots(key: Note): Set<string> {
+  const rootIdx = ALL_NOTES.indexOf(key);
+  if (rootIdx === -1) return new Set();
+  return new Set(MAJOR_INTERVALS.map(i => ALL_NOTES[(rootIdx + i) % 12]));
+}
 
 export function Progressions() {
   const [progressions, setProgressions] = useState<Progression[]>([]);
   const [activeProgId, setActiveProgId] = useState<string | null>(null);
   const [chordPaletteKey, setChordPaletteKey] = useState<string>('C');
+  const [showCircle, setShowCircle] = useState(false);
+  const [circleKey, setCircleKey] = useState<Note | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem('guitar_progressions');
@@ -264,21 +275,67 @@ export function Progressions() {
                    <div className="pt-6 border-t border-brand-line print:hidden">
                       <div className="flex justify-between items-center mb-4">
                         <h3 className="text-sm font-bold text-brand-secondary uppercase tracking-wider">Add from Common Chords</h3>
-                        <div className="flex gap-1 overflow-x-auto pb-1 max-w-[50%]">
-                           {Object.keys(COMMON_CHORDS).map(key => (
+                        <button
+                          onClick={() => {
+                            const next = !showCircle;
+                            setShowCircle(next);
+                            if (!next) setCircleKey(null);
+                          }}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border transition-colors ${
+                            showCircle
+                              ? 'bg-brand-primary text-white border-brand-primary'
+                              : 'bg-brand-surface text-brand-secondary border-brand-line hover:border-brand-primary hover:text-brand-primary'
+                          }`}
+                        >
+                          <Disc size={13} /> Circle of 5ths
+                        </button>
+                      </div>
+
+                      {showCircle && (
+                        <div className="mb-5 p-4 bg-brand-bg rounded-xl border border-brand-line">
+                          <div className="flex items-center justify-between mb-3">
+                            <p className="text-xs text-brand-secondary">
+                              {circleKey ? `Showing diatonic chords for ${circleKey} Major` : 'Click a key to highlight its diatonic chords'}
+                            </p>
+                            {circleKey && (
+                              <button onClick={() => setCircleKey(null)} className="text-xs text-brand-secondary hover:text-brand-ink underline">Clear</button>
+                            )}
+                          </div>
+                          <CircleOfFifths
+                            selectedKey={circleKey}
+                            onKeySelect={(key) => {
+                              setCircleKey(key);
+                              setChordPaletteKey(key);
+                            }}
+                            className="max-w-xs mx-auto"
+                          />
+                        </div>
+                      )}
+
+                      <div className="flex gap-1 overflow-x-auto pb-1 mb-3">
+                         {Object.keys(COMMON_CHORDS).map(key => {
+                            const isDiatonic = circleKey ? getDiatonicRoots(circleKey).has(key) : false;
+                            return (
                               <button
-                                 key={key}
-                                 onClick={() => setChordPaletteKey(key)}
-                                 className={`px-2 py-1 flex-shrink-0 text-xs font-bold rounded ${chordPaletteKey === key ? 'bg-brand-primary text-white' : 'bg-brand-surface border border-brand-line text-brand-ink hover:border-brand-primary'}`}
+                                key={key}
+                                onClick={() => setChordPaletteKey(key)}
+                                className={`px-2 py-1 flex-shrink-0 text-xs font-bold rounded transition-colors ${
+                                  chordPaletteKey === key
+                                    ? 'bg-brand-primary text-white'
+                                    : isDiatonic
+                                    ? 'bg-brand-active/10 border border-brand-active text-brand-active hover:bg-brand-active hover:text-white'
+                                    : 'bg-brand-surface border border-brand-line text-brand-ink hover:border-brand-primary'
+                                }`}
                               >
                                 {key}
                               </button>
-                           ))}
-                        </div>
+                            );
+                         })}
                       </div>
+
                       <div className="flex flex-wrap gap-2">
                          {COMMON_CHORDS[chordPaletteKey]?.map((chord, i) => (
-                            <button 
+                            <button
                                key={i}
                                onClick={() => addChordToProgression(chord)}
                                className="px-3 py-1.5 border border-brand-line bg-brand-surface rounded-md text-sm text-brand-ink hover:bg-brand-bg hover:border-brand-primary transition-colors"
