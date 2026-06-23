@@ -3,7 +3,8 @@ import { Progression, ChordShape, Note } from '../types';
 import { COMMON_CHORDS, ALL_NOTES } from '../data/guitarData';
 import { Fretboard } from '../components/Fretboard';
 import { CircleOfFifths } from '../components/CircleOfFifths';
-import { Plus, Trash2, Save, Play, Printer, Disc } from 'lucide-react';
+import { Plus, Trash2, Save, Play, Printer, Disc, GripHorizontal } from 'lucide-react';
+import { Reorder } from 'motion/react';
 import { playStrum, initAudio } from '../lib/audio';
 import { handlePrint } from '../lib/utils';
 
@@ -242,34 +243,54 @@ export function Progressions() {
                    </div>
 
                    {/* Chord sequence viz */}
-                   <div className="flex gap-4 print:gap-4 print:justify-start print:items-start overflow-x-auto pb-4 print:pb-0 print:flex-row print:flex-wrap print:overflow-hidden print:w-full">
-                      {activeProgression.chords.length > 0 ? activeProgression.chords.map((chord, i) => {
+                   {activeProgression.chords.length > 0 ? (
+                     <Reorder.Group
+                       as="div"
+                       axis="x"
+                       values={activeProgression.chords}
+                       onReorder={(newOrder) => {
+                         const updated = { ...activeProgression, chords: newOrder };
+                         saveProgressions(progressions.map(p => p.id === updated.id ? updated : p));
+                       }}
+                       className="flex gap-4 print:gap-4 print:justify-start print:items-start overflow-x-auto pb-4 print:pb-0 print:flex-row print:flex-wrap print:overflow-hidden print:w-full"
+                     >
+                       {activeProgression.chords.map((chord, i) => {
                          const maxFret = Math.max(...chord.frets);
-                         const minFret = Math.min(...chord.frets.filter(f => f > 0));
-                         // We display enough frets to show the chord. 
-                         // To make them look somewhat uniform, we'll try to show at least 5 frets, or up to maxFret+1.
                          const displayFrets = Math.max(5, maxFret <= 5 ? 5 : maxFret + 1);
-                         
                          return (
-                         <div key={i} className="flex-shrink-0 w-48 border border-brand-line rounded-lg p-4 relative group bg-brand-bg print:w-[360px] print:border-none print:shadow-none print:p-0 print:bg-transparent print:mb-8 print:break-inside-avoid">
-                            <button 
+                           <Reorder.Item
+                             as="div"
+                             key={`${chord.name}-${i}`}
+                             value={chord}
+                             className="flex-shrink-0 w-48 border border-brand-line rounded-lg p-4 relative group bg-brand-bg print:w-[360px] print:border-none print:shadow-none print:p-0 print:bg-transparent print:mb-8 print:break-inside-avoid cursor-grab active:cursor-grabbing select-none"
+                             whileDrag={{ scale: 1.04, boxShadow: '0 10px 30px rgba(0,0,0,0.15)', zIndex: 50 }}
+                           >
+                             <div className="absolute top-2 left-1/2 -translate-x-1/2 text-brand-line opacity-0 group-hover:opacity-100 transition-opacity print:hidden">
+                               <GripHorizontal size={14} />
+                             </div>
+                             <button
+                               onPointerDown={(e) => e.stopPropagation()}
                                onClick={() => {
-                                  const updated = {...activeProgression, chords: activeProgression.chords.filter((_, idx) => idx !== i)};
-                                  saveProgressions(progressions.map(p => p.id === updated.id ? updated : p));
+                                 const updated = { ...activeProgression, chords: activeProgression.chords.filter((_, idx) => idx !== i) };
+                                 saveProgressions(progressions.map(p => p.id === updated.id ? updated : p));
                                }}
                                className="absolute top-2 right-2 p-1.5 bg-brand-surface border border-brand-line rounded-full text-brand-active opacity-0 group-hover:opacity-100 transition-opacity print:hidden"
-                            >
+                             >
                                <Trash2 size={14} />
-                            </button>
-                            <h4 className="text-center font-bold text-brand-ink mb-2 print:mb-2 print:text-xl">{chord.name}</h4>
-                            <Fretboard fretsNum={displayFrets} chord={chord} showNoteNames={false} className="pointer-events-none origin-top print:scale-100 scale-75" />
-                         </div>
-                      )}) : (
-                         <div className="text-brand-secondary/70 p-8 border-2 border-dashed border-brand-line bg-brand-bg/50 rounded-lg w-full text-center">
-                            No chords yet. Add some from the dictionary below.
-                         </div>
-                      )}
-                   </div>
+                             </button>
+                             <h4 className="text-center font-bold text-brand-ink mb-2 mt-3 print:mb-2 print:mt-0 print:text-xl">{chord.name}</h4>
+                             <Fretboard fretsNum={displayFrets} chord={chord} showNoteNames={false} className="pointer-events-none origin-top print:scale-100 scale-75" />
+                           </Reorder.Item>
+                         );
+                       })}
+                     </Reorder.Group>
+                   ) : (
+                     <div className="flex gap-4 pb-4">
+                       <div className="text-brand-secondary/70 p-8 border-2 border-dashed border-brand-line bg-brand-bg/50 rounded-lg w-full text-center">
+                         No chords yet. Add some from the dictionary below.
+                       </div>
+                     </div>
+                   )}
 
                    {/* Add Chords Palette */}
                    <div className="pt-6 border-t border-brand-line print:hidden">
