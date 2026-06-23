@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Progression, ChordShape, ChordSlot, ArpeggioStep, ArpeggioPattern, Note } from '../types';
 import { COMMON_CHORDS, ALL_NOTES } from '../data/guitarData';
 import { Fretboard } from '../components/Fretboard';
@@ -1125,11 +1126,11 @@ export function Progressions() {
           ) : (
             <div className="p-12 text-center text-brand-secondary bg-brand-surface rounded-xl border border-brand-line">Select or create a progression.</div>
           )}
-          {/* Off-screen chord sheet for printing — positioned outside viewport, not display:none */}
-          {activeProgression && (
+          {/* Chord sheet portal: rendered as a body sibling so print can hide #root and show only this */}
+          {activeProgression && createPortal(
             <div
               id="chord-sheet-area"
-              style={{ position: 'absolute', left: '-9999px', top: 0, width: '850px', overflow: 'hidden' }}
+              style={{ position: 'absolute', left: '-9999px', top: 0, width: '850px' }}
               aria-hidden="true"
             >
               <ChordSheet
@@ -1137,7 +1138,8 @@ export function Progressions() {
                 showDiagrams={showDiagrams}
                 showChart={showChart}
               />
-            </div>
+            </div>,
+            document.body
           )}
         </div>
       </div>

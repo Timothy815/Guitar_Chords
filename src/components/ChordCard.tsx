@@ -59,7 +59,7 @@ export function ChordCard({ chord, progressionKey }: ChordCardProps) {
 
     const W = 260;
     const renderer = new Renderer(div, Renderer.Backends.SVG);
-    renderer.resize(W, 160);
+    renderer.resize(W, 195);
     const ctx = renderer.getContext();
     ctx.setFont('Arial', 10);
 
@@ -78,7 +78,7 @@ export function ChordCard({ chord, progressionKey }: ChordCardProps) {
     voice.draw(ctx, stave);
 
     // Tab stave
-    const tabStave = new TabStave(5, 90, W - 15);
+    const tabStave = new TabStave(5, 105, W - 15);
     tabStave.addClef('tab');
     tabStave.setContext(ctx).draw();
 
@@ -105,7 +105,7 @@ export function ChordCard({ chord, progressionKey }: ChordCardProps) {
         className="pointer-events-none w-full"
         compact
       />
-      <div ref={vexRef} className="w-full overflow-hidden" style={{ height: 160 }} />
+      <div ref={vexRef} className="w-full" style={{ height: 195 }} />
     </div>
   );
 }
