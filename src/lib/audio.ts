@@ -1,5 +1,5 @@
 import * as Tone from 'tone';
-import { Note, STANDARD_TUNING, Tuning } from '../types';
+import { Note, STANDARD_TUNING, Tuning, ArpeggioPattern } from '../types';
 
 let sampler: Tone.Sampler | null = null;
 let kickSynth: Tone.MembraneSynth;
@@ -240,9 +240,95 @@ export function playArpeggio(notes: string[], tempoBpm = 120, duration: number |
     const delayBetweenNotes = 60 / tempoBpm;
     notes.forEach((note, index) => {
       const time = now + index * delayBetweenNotes;
-      sampler!.triggerAttackRelease(note, duration, time); 
+      sampler!.triggerAttackRelease(note, duration, time);
       Tone.Draw.schedule(() => {
         if (onNotePlayCallback) onNotePlayCallback(note);
       }, time);
     });
+}
+
+const DURATION_MULTIPLIERS: Record<string, number> = {
+  '16n': 0.25, '8n': 0.5, '4n': 1, '2n': 2, '1n': 4,
+};
+
+function stepDurationSeconds(dur: string, bpm: number): number {
+  return (60 / bpm) * (DURATION_MULTIPLIERS[dur] ?? 1);
+}
+
+let _stopRequested = false;
+let _loopTimeoutId: ReturnType<typeof setTimeout> | null = null;
+const _chordChangeTimeouts: ReturnType<typeof setTimeout>[] = [];
+
+export function playProgressionWithPatterns(
+  slots: Array<{ notesByString: (string | null)[]; pattern?: ArpeggioPattern }>,
+  bpm: number,
+  loop: boolean,
+  onChordChange?: (slotIndex: number) => void,
+): () => void {
+  if (!isInitialized || !sampler) return () => {};
+
+  _stopRequested = false;
+  _chordChangeTimeouts.forEach(clearTimeout);
+  _chordChangeTimeouts.length = 0;
+  if (_loopTimeoutId !== null) { clearTimeout(_loopTimeoutId); _loopTimeoutId = null; }
+
+  const now = Tone.now();
+  let offset = 0;
+
+  for (let i = 0; i < slots.length; i++) {
+    const slot = slots[i];
+    const slotStart = offset;
+
+    const delayMs = slotStart * 1000;
+    _chordChangeTimeouts.push(
+      setTimeout(() => {
+        if (!_stopRequested) onChordChange?.(i);
+      }, delayMs) as unknown as ReturnType<typeof setTimeout>
+    );
+
+    if (slot.pattern && slot.pattern.steps.length > 0) {
+      for (const step of slot.pattern.steps) {
+        const t = now + offset;
+        const dur = step.duration;
+        const notesToPlay = step.strings
+          .map(sIdx => slot.notesByString[sIdx])
+          .filter((n): n is string => n !== null);
+
+        Tone.Draw.schedule(() => {
+          if (_stopRequested) return;
+          notesToPlay.forEach(note => {
+            sampler!.triggerAttackRelease(note, dur, Tone.now());
+          });
+        }, t);
+
+        offset += stepDurationSeconds(dur, bpm);
+      }
+    } else {
+      const t = now + offset;
+      const strumNotes = slot.notesByString.filter((n): n is string => n !== null);
+      Tone.Draw.schedule(() => {
+        if (_stopRequested) return;
+        strumNotes.forEach((note, idx) => {
+          sampler!.triggerAttackRelease(note, '2n', Tone.now() + idx * 0.03);
+        });
+      }, t);
+      offset += (60 / bpm) * 4;
+    }
+  }
+
+  if (loop) {
+    _loopTimeoutId = setTimeout(() => {
+      if (!_stopRequested) {
+        playProgressionWithPatterns(slots, bpm, loop, onChordChange);
+      }
+    }, offset * 1000) as unknown as ReturnType<typeof setTimeout>;
+  }
+
+  return () => {
+    _stopRequested = true;
+    _chordChangeTimeouts.forEach(clearTimeout);
+    _chordChangeTimeouts.length = 0;
+    if (_loopTimeoutId !== null) { clearTimeout(_loopTimeoutId); _loopTimeoutId = null; }
+    if (sampler) sampler.releaseAll();
+  };
 }

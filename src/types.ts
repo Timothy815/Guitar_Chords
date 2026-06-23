@@ -34,10 +34,25 @@ export interface PracticeItem {
   durationCompleted: number; // in seconds
 }
 
+export interface ArpeggioStep {
+  strings: number[];  // active string indices: 0 = low E, 5 = high e
+  duration: '16n' | '8n' | '4n' | '2n' | '1n';
+}
+
+export interface ArpeggioPattern {
+  steps: ArpeggioStep[];
+}
+
+export interface ChordSlot {
+  chord: ChordShape;
+  pattern?: ArpeggioPattern;  // absent = strum (legacy behaviour)
+}
+
 export interface Progression {
   id: string;
   name: string;
-  chords: ChordShape[];
+  bpm: number;    // default 80, range 40–200
+  slots: ChordSlot[];  // replaces chords: ChordShape[]
 }
 
 export type Tuning = {
