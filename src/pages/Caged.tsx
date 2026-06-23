@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Fretboard } from '../components/Fretboard';
 import { Finger, Note } from '../types';
 import { ALL_NOTES } from '../data/guitarData';
-import { playStrum, initAudio, getFretNote } from '../lib/audio';
+import { playStrum, playNote, initAudio, getFretNote, playArpeggio } from '../lib/audio';
 import { Volume2 } from 'lucide-react';
 
 const CAGED_BASE_SHAPES = [
@@ -12,6 +12,23 @@ const CAGED_BASE_SHAPES = [
   { id: 'E', baseRoot: 'E', name: 'E Shape', relFrets: [0, 2, 2, 1, 0, 0], description: 'Originates from the open E major chord. Root is on the low E (6th) string. This is the most widely used major barre chord shape.' },
   { id: 'D', baseRoot: 'D', name: 'D Shape', relFrets: [-1, -1, 0, 2, 3, 2], description: 'Originates from the open D major chord. Root is on the D (4th) string. Useful for higher-register voicings and triads.' }
 ];
+
+const COMMON_KEYS: Note[] = ['E', 'A', 'D', 'G', 'C', 'F', 'B', 'G#'];
+
+const PRACTICE_SCENARIOS: { label: string; mode: 'byKey' | 'byShape'; key?: Note; shapeId?: string; shift?: number }[] = [
+  { label: 'Open Chords in E',         mode: 'byKey',   key: 'E' },
+  { label: 'Open Chords in G',         mode: 'byKey',   key: 'G' },
+  { label: 'Open Chords in C',         mode: 'byKey',   key: 'C' },
+  { label: 'Open Chords in D',         mode: 'byKey',   key: 'D' },
+  { label: 'Barre Chords – E shape',   mode: 'byShape', shapeId: 'E', shift: 2 },
+  { label: 'Barre Chords – A shape',   mode: 'byShape', shapeId: 'A', shift: 2 },
+  { label: 'Upper Neck – G shape',     mode: 'byShape', shapeId: 'G', shift: 7 },
+  { label: 'Upper Neck – C shape',     mode: 'byShape', shapeId: 'C', shift: 5 },
+];
+
+const SEQ_DUR_MULT: Record<string, number> = { '16n': 0.25, '8n': 0.5, '4n': 1, '2n': 2, '1n': 4 };
+const DURATION_LABELS: Record<string, string> = { '16n': '16', '8n': '8', '4n': '4', '2n': '2', '1n': '1' };
+const DURATION_CYCLE = ['16n', '8n', '4n', '2n', '1n'];
 
 function getDistance(from: Note, to: Note) {
   const fromIdx = ALL_NOTES.indexOf(from);
@@ -26,28 +43,112 @@ export function Caged() {
   const [selectedShapeId, setSelectedShapeId] = useState<string>('C');
   const [shapeShift, setShapeShift] = useState<number>(0);
 
+  // Arpeggio sequencer (byShape mode)
+  const [seqSteps, setSeqSteps] = useState<boolean[][]>(Array.from({ length: 6 }, () => Array(16).fill(false)));
+  const [seqDurs, setSeqDurs] = useState<string[]>(Array(16).fill('8n'));
+  const [seqNum, setSeqNum] = useState(8);
+  const [seqPlaying, setSeqPlaying] = useState(false);
+  const [currentStep, setCurrentStep] = useState(-1);
+  const [seqTempo, setSeqTempo] = useState(120);
+  const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stepIdxRef = React.useRef(0);
+
+  const activeShapeDef = CAGED_BASE_SHAPES.find(s => s.id === selectedShapeId)!;
+  const fretsForShape = useMemo(
+    () => activeShapeDef.relFrets.map(f => f === -1 ? -1 : f + shapeShift),
+    [activeShapeDef, shapeShift]
+  );
+
+  useEffect(() => {
+    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
+    if (!seqPlaying) { setCurrentStep(-1); stepIdxRef.current = 0; return; }
+    stepIdxRef.current = 0;
+    const scheduleNext = () => {
+      const step = stepIdxRef.current;
+      setCurrentStep(step);
+      seqSteps.forEach((row, sIdx) => {
+        if (row[step] && fretsForShape[sIdx] !== -1) {
+          playNote(getFretNote(sIdx, fretsForShape[sIdx]), seqDurs[step] ?? '8n');
+        }
+      });
+      const dur = seqDurs[step] ?? '8n';
+      const delayMs = (60 / seqTempo) * (SEQ_DUR_MULT[dur] ?? 0.5) * 1000;
+      stepIdxRef.current = (step + 1) % seqNum;
+      timerRef.current = setTimeout(scheduleNext, delayMs);
+    };
+    scheduleNext();
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [seqPlaying, seqTempo, seqSteps, seqDurs, seqNum, fretsForShape]);
+
+  const applyPreset = (name: string) => {
+    const grid = Array.from({ length: 6 }, () => Array(16).fill(false)) as boolean[][];
+    let durs = Array(16).fill('8n') as string[];
+    let num = 8;
+    const mark = (stringOrder: number[], stepDur: string) => {
+      stringOrder.forEach((s, step) => { grid[s][step] = true; });
+      durs = Array(16).fill(stepDur);
+      num = stringOrder.length;
+    };
+    if (name === 'Ascending')         mark([0,1,2,3,4,5,4,3], '8n');
+    else if (name === 'Descending')   mark([5,4,3,2,1,0,1,2], '8n');
+    else if (name === 'Travis Pick')  mark([0,3,1,4,0,3,1,4], '8n');
+    else if (name === 'Banjo Roll')   mark([3,4,5,3,4,5,3,4], '16n');
+    else if (name === 'P-i-m-a')      mark([0,2,3,5,0,2,3,5], '8n');
+    else if (name === 'Full Strum') {
+      num = 4; durs = Array(16).fill('4n');
+      for (let step = 0; step < 4; step++) for (let s = 0; s < 6; s++) grid[s][step] = true;
+    } else if (name === 'Bass + Chord') {
+      num = 4; durs = Array(16).fill('4n');
+      grid[0][0] = true;
+      [2,3,4,5].forEach(s => { grid[s][1] = true; grid[s][3] = true; });
+      grid[0][2] = true;
+    }
+    setSeqSteps(grid);
+    setSeqDurs(durs);
+    setSeqNum(num);
+  };
+
   const getCagedChord = (shape: typeof CAGED_BASE_SHAPES[0], targetNote: Note) => {
     const shift = getDistance(shape.baseRoot as Note, targetNote);
     const finalFrets = shape.relFrets.map(f => f === -1 ? -1 : f + shift);
-    
-    // Determine the root string for this shape to mark it or just return shape.
-    // D shape = string index 3 (D string)
-    // C, A shape = string index 1 (A string)
-    // G, E shape = string index 0 (Low E string)
-    
     return {
       name: `${targetNote} Major (${shape.name})`,
       frets: finalFrets,
-      fingers: [-1,-1,-1,-1,-1,-1] as Finger[], // Simplification, Fretboard doesn't strictly need accurate fingers if we map the shape
+      fingers: [-1,-1,-1,-1,-1,-1] as Finger[],
       fretsOnly: finalFrets
     };
   };
 
   const handlePlay = async (frets: number[]) => {
-      await initAudio();
-      const notesToPlay = frets.map((fret, stringIdx) => getFretNote(stringIdx, fret)).filter(n => n !== "");
-      playStrum(notesToPlay, 2, 'down');
+    await initAudio();
+    const notesToPlay = frets.map((fret, stringIdx) => getFretNote(stringIdx, fret)).filter(n => n !== "");
+    playStrum(notesToPlay, 2, 'down');
   };
+
+  const handleArpeggiate = async (frets: number[]) => {
+    await initAudio();
+    const notes = frets.map((fret, sIdx) => fret === -1 ? null : getFretNote(sIdx, fret)).filter((n): n is string => n !== null);
+    playArpeggio([...notes, ...notes.slice(0,-1).reverse()], seqTempo, '8n');
+  };
+
+  const loadScenario = (label: string) => {
+    const s = PRACTICE_SCENARIOS.find(p => p.label === label);
+    if (!s) return;
+    setViewMode(s.mode);
+    if (s.key) setSelectedKey(s.key);
+    if (s.shapeId) setSelectedShapeId(s.shapeId);
+    if (s.shift !== undefined) setShapeShift(s.shift);
+    setSeqPlaying(false);
+  };
+
+  const resultingNote = ALL_NOTES[(ALL_NOTES.indexOf(activeShapeDef.baseRoot as Note) + shapeShift) % 12];
+  const byShapeChordData = {
+    name: `${resultingNote} Major (${activeShapeDef.name})`,
+    frets: fretsForShape,
+    fingers: [-1,-1,-1,-1,-1,-1] as Finger[],
+    fretsOnly: fretsForShape
+  };
+  const displayFretsNum = Math.max(12, Math.max(...fretsForShape) + 2);
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500 pb-16">
@@ -55,20 +156,28 @@ export function Caged() {
         <div>
            <h1 className="text-4xl font-serif font-bold text-brand-ink mb-2">The CAGED System</h1>
            <p className="text-brand-secondary text-lg max-w-2xl">
-             The CAGED system maps the guitar fretboard using five basic open chord shapes: C, A, G, E, and D. 
+             The CAGED system maps the guitar fretboard using five basic open chord shapes: C, A, G, E, and D.
              By connecting these shapes, you can play any major chord anywhere on the neck.
            </p>
         </div>
+        {/* Practice scenarios */}
+        <select
+          onChange={(e) => { if (e.target.value) { loadScenario(e.target.value); (e.target as HTMLSelectElement).value = ''; } }}
+          className="text-sm px-3 py-2 rounded-lg border border-brand-line bg-brand-surface text-brand-ink outline-none focus:border-brand-primary shrink-0"
+        >
+          <option value="">Practice scenario…</option>
+          {PRACTICE_SCENARIOS.map(s => <option key={s.label}>{s.label}</option>)}
+        </select>
       </div>
 
       <div className="flex bg-brand-surface rounded-lg p-1 border border-brand-line w-max mb-8 shadow-sm">
-        <button 
+        <button
           onClick={() => setViewMode('byKey')}
           className={`flex items-center gap-2 px-6 py-2.5 rounded-md font-bold text-sm transition-all duration-200 ${viewMode === 'byKey' ? 'bg-brand-primary text-white shadow-md' : 'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar'}`}
         >
           Find Shapes for Key
         </button>
-        <button 
+        <button
           onClick={() => setViewMode('byShape')}
           className={`flex items-center gap-2 px-6 py-2.5 rounded-md font-bold text-sm transition-all duration-200 ${viewMode === 'byShape' ? 'bg-brand-primary text-white shadow-md' : 'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar'}`}
         >
@@ -78,24 +187,44 @@ export function Caged() {
 
       {viewMode === 'byKey' ? (
         <>
-          <div className="bg-brand-sidebar p-6 rounded-xl border border-brand-line flex items-center gap-4">
+          <div className="bg-brand-sidebar p-6 rounded-xl border border-brand-line space-y-4">
+             {/* Common key shortcuts */}
              <div>
-                <h3 className="text-sm font-bold text-brand-secondary uppercase tracking-wider mb-2">Select Key</h3>
-                <div className="flex flex-wrap gap-2">
-                   {ALL_NOTES.map(note => (
-                     <button
-                       key={note}
-                       onClick={() => setSelectedKey(note)}
-                       className={`w-10 h-10 rounded-full font-bold transition-all ${
-                         selectedKey === note 
-                           ? 'bg-brand-primary text-white shadow-md' 
-                           : 'bg-brand-surface text-brand-ink hover:bg-brand-hover border border-brand-line'
-                       }`}
-                     >
-                       {note}
-                     </button>
-                   ))}
-                </div>
+               <p className="text-xs font-bold text-brand-secondary uppercase tracking-wider mb-2">Common Keys</p>
+               <div className="flex flex-wrap gap-2">
+                 {COMMON_KEYS.map(note => (
+                   <button
+                     key={note}
+                     onClick={() => setSelectedKey(note)}
+                     className={`px-3 py-1.5 rounded-md font-bold text-sm transition-all border ${
+                       selectedKey === note
+                         ? 'bg-brand-primary text-white border-brand-primary shadow-md'
+                         : 'bg-brand-surface text-brand-ink hover:border-brand-primary border-brand-line'
+                     }`}
+                   >
+                     {note}
+                   </button>
+                 ))}
+               </div>
+             </div>
+             {/* Full key picker */}
+             <div>
+               <h3 className="text-sm font-bold text-brand-secondary uppercase tracking-wider mb-2">All Keys</h3>
+               <div className="flex flex-wrap gap-2">
+                  {ALL_NOTES.map(note => (
+                    <button
+                      key={note}
+                      onClick={() => setSelectedKey(note)}
+                      className={`w-10 h-10 rounded-full font-bold transition-all ${
+                        selectedKey === note
+                          ? 'bg-brand-primary text-white shadow-md'
+                          : 'bg-brand-surface text-brand-ink hover:bg-brand-hover border border-brand-line'
+                      }`}
+                    >
+                      {note}
+                    </button>
+                  ))}
+               </div>
              </div>
           </div>
 
@@ -104,8 +233,7 @@ export function Caged() {
                return { shape, chordData: getCagedChord(shape, selectedKey), shift: getDistance(shape.baseRoot as Note, selectedKey) };
             }).sort((a, b) => a.shift - b.shift).map(({shape, chordData}) => {
                const maxFret = Math.max(...chordData.fretsOnly);
-               // Display at least 5 frets, centered around the chord
-               const displayFretsNum = Math.max(5, maxFret + 1);
+               const displayFretsNumLocal = Math.max(5, maxFret + 1);
 
                return (
                   <div key={shape.id} className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center bg-brand-surface border border-brand-line rounded-xl p-8 shadow-sm">
@@ -119,18 +247,26 @@ export function Caged() {
                         <p className="text-brand-secondary leading-relaxed">
                            {shape.description}
                         </p>
-                        <button 
-                           onClick={() => handlePlay(chordData.fretsOnly)}
-                           className="flex items-center gap-2 px-4 py-2 bg-brand-bg border border-brand-line text-brand-ink rounded-md hover:border-brand-primary hover:text-brand-primary transition-colors font-semibold text-sm"
-                        >
-                           <Volume2 size={16} /> Play Shape
-                        </button>
+                        <div className="flex gap-2 flex-wrap">
+                          <button
+                             onClick={() => handlePlay(chordData.fretsOnly)}
+                             className="flex items-center gap-2 px-4 py-2 bg-brand-bg border border-brand-line text-brand-ink rounded-md hover:border-brand-primary hover:text-brand-primary transition-colors font-semibold text-sm"
+                          >
+                             <Volume2 size={16} /> Play
+                          </button>
+                          <button
+                             onClick={() => handleArpeggiate(chordData.fretsOnly)}
+                             className="flex items-center gap-2 px-4 py-2 bg-brand-bg border border-brand-line text-brand-ink rounded-md hover:border-brand-primary hover:text-brand-primary transition-colors font-semibold text-sm"
+                          >
+                             Arpeggiate
+                          </button>
+                        </div>
                      </div>
                      <div className="md:col-span-2 overflow-x-auto">
                         <div className="min-w-[400px]">
-                           <Fretboard 
-                              fretsNum={Math.min(18, displayFretsNum + 2)} 
-                              chord={chordData} 
+                           <Fretboard
+                              fretsNum={Math.min(18, displayFretsNumLocal + 2)}
+                              chord={chordData}
                               onFretClick={() => {}}
                            />
                         </div>
@@ -141,87 +277,168 @@ export function Caged() {
           </div>
         </>
       ) : (
-        (() => {
-           const activeShapeDef = CAGED_BASE_SHAPES.find(s => s.id === selectedShapeId)!;
-           const resultingNote = ALL_NOTES[(ALL_NOTES.indexOf(activeShapeDef.baseRoot as Note) + shapeShift) % 12];
-           const fretsWithOffset = activeShapeDef.relFrets.map(f => f === -1 ? -1 : f + shapeShift);
-           const chordData = {
-              name: `${resultingNote} Major (${activeShapeDef.name})`,
-              frets: fretsWithOffset,
-              fingers: [-1,-1,-1,-1,-1,-1] as Finger[],
-              fretsOnly: fretsWithOffset
-           };
-           const displayFretsNum = Math.max(12, Math.max(...fretsWithOffset) + 2);
-
-           return (
-              <div className="space-y-8 animate-in fade-in duration-300">
-                <div className="bg-brand-sidebar p-6 md:p-8 rounded-xl border border-brand-line flex flex-col md:flex-row items-start md:items-center gap-8">
-                   <div>
-                      <h3 className="text-sm font-bold text-brand-secondary uppercase tracking-wider mb-3">Select Shape</h3>
-                      <div className="flex gap-2">
-                         {CAGED_BASE_SHAPES.map(shape => (
-                           <button
-                             key={shape.id}
-                             onClick={() => { setSelectedShapeId(shape.id); setShapeShift(0); }}
-                             className={`w-14 h-14 rounded-xl font-bold font-serif text-2xl transition-all ${
-                               selectedShapeId === shape.id 
-                                 ? 'bg-brand-primary text-white shadow-[0_4px_12px_rgba(var(--brand-primary-rgb),0.3)]' 
-                                 : 'bg-brand-surface text-brand-ink hover:bg-brand-hover border border-brand-line'
-                             }`}
-                           >
-                             {shape.id}
-                           </button>
-                         ))}
-                      </div>
-                   </div>
-                   
-                   <div className="flex-1 w-full relative">
-                      <h3 className="text-sm font-bold text-brand-secondary uppercase tracking-wider mb-4 flex justify-between">
-                         <span>Move up/down the neck</span>
-                         <span className="text-brand-primary text-base">+{shapeShift} Fret{shapeShift !== 1 ? 's' : ''}</span>
-                      </h3>
-                      <input 
-                        type="range" 
-                        min="0" max="12" 
-                        value={shapeShift} 
-                        onChange={(e) => setShapeShift(Number(e.target.value))}
-                        className="w-full accent-brand-primary cursor-pointer hover:accent-brand-primary/80 transition-all h-2 bg-brand-line rounded-lg appearance-none"
-                      />
-                      <div className="flex justify-between text-xs text-brand-secondary mt-3 font-mono font-bold tracking-widest">
-                         <span>0 (OPEN)</span>
-                         <span>12 (OCTAVE)</span>
-                      </div>
-                   </div>
+        <div className="space-y-8 animate-in fade-in duration-300">
+          <div className="bg-brand-sidebar p-6 md:p-8 rounded-xl border border-brand-line flex flex-col md:flex-row items-start md:items-center gap-8">
+             <div>
+                <h3 className="text-sm font-bold text-brand-secondary uppercase tracking-wider mb-3">Select Shape</h3>
+                <div className="flex gap-2">
+                   {CAGED_BASE_SHAPES.map(shape => (
+                     <button
+                       key={shape.id}
+                       onClick={() => { setSelectedShapeId(shape.id); setShapeShift(0); setSeqPlaying(false); }}
+                       className={`w-14 h-14 rounded-xl font-bold font-serif text-2xl transition-all ${
+                         selectedShapeId === shape.id
+                           ? 'bg-brand-primary text-white shadow-[0_4px_12px_rgba(var(--brand-primary-rgb),0.3)]'
+                           : 'bg-brand-surface text-brand-ink hover:bg-brand-hover border border-brand-line'
+                       }`}
+                     >
+                       {shape.id}
+                     </button>
+                   ))}
                 </div>
+             </div>
 
-                <div className="bg-brand-surface border border-brand-line rounded-xl p-6 md:p-10 shadow-sm">
-                   <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b border-brand-line pb-8">
-                      <div>
-                         <h2 className="text-4xl font-bold text-brand-ink mb-2">{resultingNote} Major</h2>
-                         <p className="text-brand-secondary text-lg">
-                           <strong className="text-brand-ink">{activeShapeDef.name}</strong> shifted by {shapeShift} fret{shapeShift !== 1 ? 's' : ''}
-                         </p>
-                      </div>
-                      <button 
-                         onClick={() => handlePlay(chordData.fretsOnly)}
-                         className="flex items-center gap-2 px-6 py-3 bg-brand-primary text-white rounded-lg hover:bg-brand-primary/90 transition-colors font-bold shadow-[0_4px_12px_rgba(var(--brand-primary-rgb),0.2)]"
-                      >
-                         <Volume2 size={20} /> Play Shape
-                      </button>
-                   </div>
-                   <div className="overflow-x-auto">
-                      <div className="min-w-[600px] py-4">
-                         <Fretboard 
-                            fretsNum={Math.min(18, displayFretsNum)} 
-                            chord={chordData} 
-                            onFretClick={() => {}}
-                         />
-                      </div>
-                   </div>
+             <div className="flex-1 w-full relative">
+                <h3 className="text-sm font-bold text-brand-secondary uppercase tracking-wider mb-4 flex justify-between">
+                   <span>Move up/down the neck</span>
+                   <span className="text-brand-primary text-base">+{shapeShift} Fret{shapeShift !== 1 ? 's' : ''}</span>
+                </h3>
+                <input
+                  type="range"
+                  min="0" max="12"
+                  value={shapeShift}
+                  onChange={(e) => { setShapeShift(Number(e.target.value)); setSeqPlaying(false); }}
+                  className="w-full accent-brand-primary cursor-pointer hover:accent-brand-primary/80 transition-all h-2 bg-brand-line rounded-lg appearance-none"
+                />
+                <div className="flex justify-between text-xs text-brand-secondary mt-3 font-mono font-bold tracking-widest">
+                   <span>0 (OPEN)</span>
+                   <span>12 (OCTAVE)</span>
+                </div>
+             </div>
+          </div>
+
+          <div className="bg-brand-surface border border-brand-line rounded-xl p-6 md:p-10 shadow-sm">
+             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b border-brand-line pb-8">
+                <div>
+                   <h2 className="text-4xl font-bold text-brand-ink mb-2">{resultingNote} Major</h2>
+                   <p className="text-brand-secondary text-lg">
+                     <strong className="text-brand-ink">{activeShapeDef.name}</strong> shifted by {shapeShift} fret{shapeShift !== 1 ? 's' : ''}
+                   </p>
+                </div>
+                <button
+                   onClick={() => handlePlay(fretsForShape)}
+                   className="flex items-center gap-2 px-6 py-3 bg-brand-primary text-white rounded-lg hover:bg-brand-primary/90 transition-colors font-bold shadow-[0_4px_12px_rgba(var(--brand-primary-rgb),0.2)]"
+                >
+                   <Volume2 size={20} /> Play Shape
+                </button>
+             </div>
+             <div className="overflow-x-auto">
+                <div className="min-w-[600px] py-4">
+                   <Fretboard
+                      fretsNum={Math.min(18, displayFretsNum)}
+                      chord={byShapeChordData}
+                      onFretClick={() => {}}
+                   />
+                </div>
+             </div>
+          </div>
+
+          {/* Arpeggio sequencer */}
+          <div className="w-full p-6 border border-brand-line rounded-xl bg-brand-bg">
+            <div className="flex justify-between items-center mb-4 flex-wrap gap-3">
+              <div>
+                <h3 className="font-bold text-brand-ink">Arp Sequencer</h3>
+                <p className="text-xs text-brand-secondary">Pick a preset or build your own pattern. Muted strings are disabled.</p>
+                <div className="flex items-center gap-3 mt-2 flex-wrap">
+                  <select
+                    onChange={(e) => { if (e.target.value) { applyPreset(e.target.value); (e.target as HTMLSelectElement).value = ''; } }}
+                    className="text-[10px] border border-brand-line rounded px-1 py-0.5 bg-brand-surface text-brand-secondary outline-none"
+                  >
+                    <option value="">Preset…</option>
+                    <option>Ascending</option>
+                    <option>Descending</option>
+                    <option>Travis Pick</option>
+                    <option>Banjo Roll</option>
+                    <option>P-i-m-a</option>
+                    <option>Full Strum</option>
+                    <option>Bass + Chord</option>
+                  </select>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => setSeqNum(n => Math.max(1, n - 1))} className="w-5 h-5 rounded border border-brand-line text-brand-secondary hover:text-brand-ink flex items-center justify-center text-xs">−</button>
+                    <span className="text-[10px] font-mono text-brand-secondary w-14 text-center">{seqNum} steps</span>
+                    <button onClick={() => setSeqNum(n => Math.min(16, n + 1))} className="w-5 h-5 rounded border border-brand-line text-brand-secondary hover:text-brand-ink flex items-center justify-center text-xs">+</button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-[10px] text-brand-secondary font-bold uppercase">BPM</label>
+                    <input type="range" min="40" max="200" value={seqTempo} onChange={(e) => setSeqTempo(Number(e.target.value))} className="w-20 accent-brand-primary" />
+                    <span className="text-[10px] font-mono font-bold text-brand-ink w-8">{seqTempo}</span>
+                  </div>
+                  <button
+                    className="text-[10px] uppercase font-bold text-red-500"
+                    onClick={() => { setSeqSteps(Array.from({ length: 6 }, () => Array(16).fill(false))); setSeqDurs(Array(16).fill('8n')); }}
+                  >Clear</button>
                 </div>
               </div>
-           );
-        })()
+              <button
+                onClick={async () => { await initAudio(); setSeqPlaying(p => !p); }}
+                className={`px-4 py-2 text-sm font-bold rounded-md transition-colors ${seqPlaying ? 'bg-brand-active/10 text-brand-active border border-brand-active/30' : 'bg-brand-primary text-white hover:bg-brand-primary/90'}`}
+              >
+                {seqPlaying ? 'Stop' : 'Play Pattern'}
+              </button>
+            </div>
+
+            <div className="overflow-x-auto pb-2">
+              <div className="flex flex-col gap-1 min-w-[400px]">
+                {[...seqSteps].reverse().map((row, reversedIdx) => {
+                  const sIdx = 5 - reversedIdx;
+                  const muted = fretsForShape[sIdx] === -1;
+                  const STRING_LABELS = ['low_e', 'A', 'D', 'G', 'B', 'high_e'];
+                  return (
+                    <div key={`str-${sIdx}`} className="flex items-center gap-1">
+                      <div className={`w-10 text-[10px] font-mono font-bold text-right pr-2 uppercase ${muted ? 'text-brand-line' : 'text-brand-secondary'}`}>
+                        {STRING_LABELS[sIdx]}
+                      </div>
+                      {row.slice(0, seqNum).map((active, stepIdx) => (
+                        <button
+                          key={stepIdx}
+                          disabled={muted}
+                          onClick={() => {
+                            if (muted) return;
+                            const next = seqSteps.map((r, i) => i === sIdx ? r.map((v, j) => j === stepIdx ? !v : v) : r);
+                            setSeqSteps(next);
+                          }}
+                          className={`flex-1 h-8 rounded-sm border transition-colors ${muted ? 'border-brand-line/30 bg-brand-line/10 cursor-not-allowed' : currentStep === stepIdx ? 'border-brand-primary cursor-default' : 'border-brand-line cursor-pointer'} ${
+                            !muted && active ? 'bg-brand-primary shadow-[inset_0_0_8px_rgba(0,0,0,0.2)]' : !muted ? 'bg-brand-surface hover:bg-brand-line/50' : ''
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  );
+                })}
+                {/* Duration row */}
+                <div className="flex items-center gap-1 mt-1">
+                  <div className="w-10 text-[10px] font-mono text-brand-secondary font-bold text-right pr-2">dur</div>
+                  {Array.from({ length: seqNum }, (_, stepIdx) => {
+                    const dur = seqDurs[stepIdx] ?? '8n';
+                    return (
+                      <button
+                        key={stepIdx}
+                        onClick={() => {
+                          const next = DURATION_CYCLE[(DURATION_CYCLE.indexOf(dur) + 1) % DURATION_CYCLE.length];
+                          const d = [...seqDurs]; d[stepIdx] = next; setSeqDurs(d);
+                        }}
+                        title={dur}
+                        className={`flex-1 h-6 rounded-sm border text-[10px] transition-colors ${currentStep === stepIdx ? 'border-brand-primary text-brand-primary' : 'border-brand-line text-brand-secondary'} bg-brand-surface hover:border-brand-primary`}
+                      >
+                        {DURATION_LABELS[dur]}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
