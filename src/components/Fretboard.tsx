@@ -211,7 +211,7 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
           )
         )}
 
-        {/* Fret numbers — inside SVG so they scale with the fretboard */}
+        {/* Fret numbers — screen only; HTML version below handles print */}
         {Array.from({ length: fretsNum }).map((_, i) => (
           <text
             key={`fnum-${i}`}
@@ -219,12 +219,21 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
             y={totalHeight - 8}
             textAnchor="middle"
             fontSize={10}
-            className="font-mono fill-brand-secondary/70"
+            className="font-mono fill-brand-secondary/70 print:hidden"
           >
             {i + 1}
           </text>
         ))}
       </svg>
+      {/* Fret numbers for print — HTML so they render at full CSS size regardless of SVG scale */}
+      <div
+        className="hidden print:flex text-[9px] font-mono text-gray-600"
+        style={{ paddingLeft: `${(paddingX / totalWidth) * 100}%`, paddingRight: `${(paddingX / totalWidth) * 100}%` }}
+      >
+        {Array.from({ length: fretsNum }).map((_, i) => (
+          <div key={i} className="flex-1 text-center">{i + 1}</div>
+        ))}
+      </div>
     </div>
   );
 }
