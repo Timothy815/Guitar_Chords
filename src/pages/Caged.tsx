@@ -59,26 +59,43 @@ export function Caged() {
     [activeShapeDef, shapeShift]
   );
 
+  // Refs so the scheduler always reads the latest values without causing effect re-runs
+  const seqStepsRef = React.useRef(seqSteps);
+  const seqDursRef = React.useRef(seqDurs);
+  const seqNumRef = React.useRef(seqNum);
+  const seqTempoRef = React.useRef(seqTempo);
+  const fretsForShapeRef = React.useRef(fretsForShape);
+  useEffect(() => { seqStepsRef.current = seqSteps; }, [seqSteps]);
+  useEffect(() => { seqDursRef.current = seqDurs; }, [seqDurs]);
+  useEffect(() => { seqNumRef.current = seqNum; }, [seqNum]);
+  useEffect(() => { seqTempoRef.current = seqTempo; }, [seqTempo]);
+  useEffect(() => { fretsForShapeRef.current = fretsForShape; }, [fretsForShape]);
+
   useEffect(() => {
     if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
     if (!seqPlaying) { setCurrentStep(-1); stepIdxRef.current = 0; return; }
     stepIdxRef.current = 0;
     const scheduleNext = () => {
       const step = stepIdxRef.current;
+      const steps = seqStepsRef.current;
+      const durs = seqDursRef.current;
+      const num = seqNumRef.current;
+      const tempo = seqTempoRef.current;
+      const frets = fretsForShapeRef.current;
       setCurrentStep(step);
-      seqSteps.forEach((row, sIdx) => {
-        if (row[step] && fretsForShape[sIdx] !== -1) {
-          playNote(getFretNote(sIdx, fretsForShape[sIdx]), seqDurs[step] ?? '8n');
+      const dur = durs[step] ?? '8n';
+      const stepSecs = (60 / tempo) * (SEQ_DUR_MULT[dur] ?? 0.5);
+      steps.forEach((row, sIdx) => {
+        if (row[step] && frets[sIdx] !== -1) {
+          playNote(getFretNote(sIdx, frets[sIdx]), stepSecs * 0.9);
         }
       });
-      const dur = seqDurs[step] ?? '8n';
-      const delayMs = (60 / seqTempo) * (SEQ_DUR_MULT[dur] ?? 0.5) * 1000;
-      stepIdxRef.current = (step + 1) % seqNum;
-      timerRef.current = setTimeout(scheduleNext, delayMs);
+      stepIdxRef.current = (step + 1) % num;
+      timerRef.current = setTimeout(scheduleNext, stepSecs * 1000);
     };
     scheduleNext();
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [seqPlaying, seqTempo, seqSteps, seqDurs, seqNum, fretsForShape]);
+  }, [seqPlaying]);
 
   const applyPreset = (name: string) => {
     const grid = Array.from({ length: 6 }, () => Array(16).fill(false)) as boolean[][];
