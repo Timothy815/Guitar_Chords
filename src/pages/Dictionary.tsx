@@ -46,9 +46,13 @@ export function Dictionary() {
   // Sequencer state
   const [seqSteps, setSeqSteps] = useState<boolean[][]>(Array.from({ length: 6 }, () => Array(16).fill(false)));
   const [seqScaleFrets, setSeqScaleFrets] = useState<number[][]>(Array.from({ length: 6 }, () => Array(16).fill(-1)));
+  const [seqStepDurations, setSeqStepDurations] = useState<string[]>(Array(16).fill('16n'));
+  const [seqNumSteps, setSeqNumSteps] = useState(16);
   const [seqPlaying, setSeqPlaying] = useState(false);
   const [currentStep, setCurrentStep] = useState(-1);
   const [drumsEnabled, setDrumsEnabled] = useState(false);
+  const seqTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const seqStepIdxRef = React.useRef(0);
 
   // Arpeggiator state
   const [arpPlaying, setArpPlaying] = useState(false);
@@ -183,74 +187,77 @@ export function Dictionary() {
   }, [arpPlaying, arpeggioTempo, mode, activeScale, scaleFretRange, arpDirection, sustain, metronomeEnabled, drumsEnabled]);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (seqPlaying) {
-      const msPerBeat = (60 / arpeggioTempo) * 1000 / 4; // 16th notes
-      interval = setInterval(() => {
-        setCurrentStep(prev => {
-          const nextStep = (prev + 1) % 16;
-          const notesToPlay: string[] = [];
-          
-          if (mode === 'chords' && activeChord) {
-             for (let s = 0; s < 6; s++) {
-                if (seqSteps[s][nextStep]) {
-                   const fret = activeChord.frets[s];
-                   if (fret !== -1) notesToPlay.push(getFretNote(s, fret));
-                   else notesToPlay.push(getFretNote(s, 0));
-                }
-             }
-          } else if (mode === 'identify') {
-             for (let s = 0; s < 6; s++) {
-                if (seqSteps[s][nextStep]) {
-                   const fret = identifiedFrets[s];
-                   if (fret !== -1) notesToPlay.push(getFretNote(s, fret));
-                   else notesToPlay.push(getFretNote(s, 0));
-                }
-             }
-          } else if (mode === 'scales' && activeScale) {
-             for (let s = 0; s < 6; s++) {
-                if (seqSteps[s][nextStep]) {
-                   const overrideFret = seqScaleFrets[s][nextStep];
-                   if (overrideFret !== -1) {
-                      notesToPlay.push(getFretNote(s, overrideFret));
-                   } else {
-                      let minFret = scaleFretRange.length === 2 ? scaleFretRange[0] : 0;
-                      let maxFret = scaleFretRange.length === 2 ? scaleFretRange[1] : 15;
-                      let played = false;
-                      for (let f = minFret; f <= maxFret; f++) {
-                         const noteStr = getFretNote(s, f);
-                         const noteJustName = noteStr.replace(/[0-9]/g, '');
-                         if (activeScale.notes.includes(noteJustName as any)) {
-                            notesToPlay.push(getFretNote(s, f));
-                            played = true;
-                            break;
-                         }
-                      }
-                      if (!played) notesToPlay.push(getFretNote(s, 0));
-                   }
-                }
-             }
-          }
-          
-          if (notesToPlay.length > 0) {
-             import('../lib/audio').then(m => m.playStrum(notesToPlay, sustain, 'down'));
-          }
-          
-          import('../lib/audio').then(m => {
-            if (drumsEnabled) {
-              // seq plays 16th notes. so nextStep 0,4,8,12 are quarters.
-              if (nextStep === 0 || nextStep === 8) m.playKick();
-              if (nextStep === 4 || nextStep === 12) m.playSnare();
-            }
-          });
-          return nextStep;
-        });
-      }, msPerBeat);
-    } else {
+    if (seqTimerRef.current) { clearTimeout(seqTimerRef.current); seqTimerRef.current = null; }
+
+    if (!seqPlaying) {
       setCurrentStep(-1);
+      seqStepIdxRef.current = 0;
+      return;
     }
-    return () => clearInterval(interval);
-  }, [seqPlaying, arpeggioTempo, seqSteps, activeChord, sustain, mode, activeScale, scaleFretRange]);
+
+    seqStepIdxRef.current = 0;
+
+    const SEQ_DUR_MULT: Record<string, number> = { '16n': 0.25, '8n': 0.5, '4n': 1, '2n': 2, '1n': 4 };
+
+    const scheduleNext = () => {
+      const step = seqStepIdxRef.current;
+      setCurrentStep(step);
+
+      const notesToPlay: string[] = [];
+      if (mode === 'chords' && activeChord) {
+        for (let s = 0; s < 6; s++) {
+          if (seqSteps[s][step]) {
+            const fret = activeChord.frets[s];
+            notesToPlay.push(fret !== -1 ? getFretNote(s, fret) : getFretNote(s, 0));
+          }
+        }
+      } else if (mode === 'identify') {
+        for (let s = 0; s < 6; s++) {
+          if (seqSteps[s][step]) {
+            const fret = identifiedFrets[s];
+            notesToPlay.push(fret !== -1 ? getFretNote(s, fret) : getFretNote(s, 0));
+          }
+        }
+      } else if (mode === 'scales' && activeScale) {
+        for (let s = 0; s < 6; s++) {
+          if (seqSteps[s][step]) {
+            const overrideFret = seqScaleFrets[s][step];
+            if (overrideFret !== -1) {
+              notesToPlay.push(getFretNote(s, overrideFret));
+            } else {
+              const minFret = scaleFretRange.length === 2 ? scaleFretRange[0] : 0;
+              const maxFret = scaleFretRange.length === 2 ? scaleFretRange[1] : 15;
+              for (let f = minFret; f <= maxFret; f++) {
+                const noteStr = getFretNote(s, f);
+                if (activeScale.notes.includes(noteStr.replace(/[0-9]/g, '') as any)) {
+                  notesToPlay.push(getFretNote(s, f));
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      if (notesToPlay.length > 0) {
+        import('../lib/audio').then(m => m.playStrum(notesToPlay, sustain, 'down'));
+      }
+      if (drumsEnabled) {
+        import('../lib/audio').then(m => {
+          if (step === 0 || step === 8) m.playKick();
+          if (step === 4 || step === 12) m.playSnare();
+        });
+      }
+
+      const dur = seqStepDurations[step] ?? '16n';
+      const delayMs = (60 / arpeggioTempo) * (SEQ_DUR_MULT[dur] ?? 0.25) * 1000;
+      seqStepIdxRef.current = (step + 1) % seqNumSteps;
+      seqTimerRef.current = setTimeout(scheduleNext, delayMs);
+    };
+
+    scheduleNext();
+    return () => { if (seqTimerRef.current) clearTimeout(seqTimerRef.current); };
+  }, [seqPlaying, arpeggioTempo, seqSteps, seqStepDurations, seqNumSteps, activeChord, sustain, mode, activeScale, scaleFretRange, identifiedFrets, seqScaleFrets, drumsEnabled]);
 
   const toggleStep = (stringIdx: number, stepIdx: number) => {
     const newSteps = [...seqSteps];
@@ -737,17 +744,33 @@ export function Dictionary() {
                         <div className="flex justify-between items-center mb-4">
                            <div>
                               <h3 className="font-bold text-brand-ink">Arp Sequencer</h3>
-                              <p className="text-xs text-brand-secondary">Create picking patterns. 16 steps per bar.</p>
-                              <div className="flex gap-2 mt-2">
+                              <p className="text-xs text-brand-secondary">Create picking patterns. Click a duration to cycle it.</p>
+                              <div className="flex items-center gap-3 mt-2 flex-wrap">
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    onClick={() => setSeqNumSteps(n => Math.max(1, n - 1))}
+                                    className="w-5 h-5 rounded border border-brand-line text-brand-secondary hover:text-brand-ink flex items-center justify-center text-xs"
+                                  >−</button>
+                                  <span className="text-[10px] font-mono text-brand-secondary w-14 text-center">{seqNumSteps} steps</span>
+                                  <button
+                                    onClick={() => setSeqNumSteps(n => Math.min(16, n + 1))}
+                                    className="w-5 h-5 rounded border border-brand-line text-brand-secondary hover:text-brand-ink flex items-center justify-center text-xs"
+                                  >+</button>
+                                </div>
                                 <button className="text-[10px] uppercase font-bold text-brand-primary" onClick={() => {
-                                  localStorage.setItem('savedSeq', JSON.stringify(seqSteps));
-                                }}>Save Pattern</button>
+                                  localStorage.setItem('savedSeq', JSON.stringify({ steps: seqSteps, durations: seqStepDurations, numSteps: seqNumSteps }));
+                                }}>Save</button>
                                 <button className="text-[10px] uppercase font-bold text-brand-secondary" onClick={() => {
                                    const saved = localStorage.getItem('savedSeq');
-                                   if (saved) setSeqSteps(JSON.parse(saved));
-                                }}>Load Pattern</button>
+                                   if (saved) {
+                                     const parsed = JSON.parse(saved);
+                                     if (Array.isArray(parsed)) { setSeqSteps(parsed); } // legacy
+                                     else { setSeqSteps(parsed.steps); setSeqStepDurations(parsed.durations ?? Array(16).fill('16n')); setSeqNumSteps(parsed.numSteps ?? 16); }
+                                   }
+                                }}>Load</button>
                                 <button className="text-[10px] uppercase font-bold text-red-500" onClick={() => {
                                    setSeqSteps(Array.from({ length: 6 }, () => Array(16).fill(false)));
+                                   setSeqStepDurations(Array(16).fill('16n'));
                                 }}>Clear</button>
                               </div>
                            </div>
@@ -764,7 +787,7 @@ export function Dictionary() {
                         </div>
                         
                         <div className="overflow-x-auto pb-2">
-                           <div className="flex flex-col gap-1 min-w-[600px]">
+                           <div className="flex flex-col gap-1 min-w-[400px]">
                               {[...seqSteps].reverse().map((row, reversedIdx) => {
                                  const stringIdx = 5 - reversedIdx;
                                  return (
@@ -772,29 +795,25 @@ export function Dictionary() {
                                     <div className="w-10 text-[10px] font-mono text-brand-secondary font-bold text-right pr-2 uppercase">
                                        {['low_e','A','D','G','B','high_e'][stringIdx]}
                                     </div>
-                                    {row.map((active, stepIdx) => {
+                                    {row.slice(0, seqNumSteps).map((active, stepIdx) => {
                                        if (mode === 'scales') {
                                           const available = Array.from(new Set(getScaleNotesForString(stringIdx).map(n => n.fret)))
                                                                .map(f => getScaleNotesForString(stringIdx).find(n => n.fret === f)!);
                                           const val = seqScaleFrets[stringIdx][stepIdx];
-                                          // Note: When seqSteps is true but val is -1, it plays the first available fret.
                                           return (
-                                             <select 
+                                             <select
                                                 key={`step-${stringIdx}-${stepIdx}`}
                                                 value={active ? (val === -1 ? (available.length > 0 ? available[0].fret : -1) : val) : -1}
                                                 onChange={(e) => {
                                                    const newVal = Number(e.target.value);
-                                                   
                                                    const nextSteps = [...seqSteps];
                                                    nextSteps[stringIdx] = [...nextSteps[stringIdx]];
                                                    nextSteps[stringIdx][stepIdx] = newVal !== -1;
                                                    setSeqSteps(nextSteps);
-
                                                    const nextFrets = [...seqScaleFrets];
                                                    nextFrets[stringIdx] = [...nextFrets[stringIdx]];
                                                    nextFrets[stringIdx][stepIdx] = newVal;
                                                    setSeqScaleFrets(nextFrets);
-                                                   
                                                    if (newVal !== -1) {
                                                       import('../lib/audio').then(m => m.playNote(getFretNote(stringIdx, newVal), sustain));
                                                    }
@@ -802,8 +821,8 @@ export function Dictionary() {
                                                 className={`flex-1 min-w-0 px-0 h-8 rounded-sm border transition-colors outline-none text-[10px] sm:text-xs font-bold text-center appearance-none ${
                                                    currentStep === stepIdx ? 'border-brand-primary' : 'border-brand-line'
                                                 } ${
-                                                   active 
-                                                      ? 'bg-brand-primary text-white shadow-[inset_0_0_8px_rgba(0,0,0,0.2)]' 
+                                                   active
+                                                      ? 'bg-brand-primary text-white shadow-[inset_0_0_8px_rgba(0,0,0,0.2)]'
                                                       : 'bg-brand-surface text-brand-secondary hover:bg-brand-line hover:text-brand-ink/50'
                                                 }`}
                                              >
@@ -815,14 +834,14 @@ export function Dictionary() {
                                           );
                                        }
                                        return (
-                                          <button 
+                                          <button
                                              key={`step-${stringIdx}-${stepIdx}`}
                                              onClick={() => toggleStep(stringIdx, stepIdx)}
                                              className={`flex-1 h-8 rounded-sm border transition-colors ${
                                                 currentStep === stepIdx ? 'border-brand-primary cursor-default' : 'border-brand-line cursor-pointer'
                                              } ${
-                                                active 
-                                                   ? 'bg-brand-primary shadow-[inset_0_0_8px_rgba(0,0,0,0.2)]' 
+                                                active
+                                                   ? 'bg-brand-primary shadow-[inset_0_0_8px_rgba(0,0,0,0.2)]'
                                                    : 'bg-brand-surface hover:bg-brand-line/50'
                                              }`}
                                           />
@@ -831,6 +850,32 @@ export function Dictionary() {
                                  </div>
                                  );
                               })}
+                              {/* Duration row */}
+                              <div className="flex items-center gap-1 mt-1">
+                                 <div className="w-10 text-[10px] font-mono text-brand-secondary font-bold text-right pr-2">dur</div>
+                                 {Array.from({ length: seqNumSteps }, (_, stepIdx) => {
+                                    const dur = seqStepDurations[stepIdx] ?? '16n';
+                                    const LABELS: Record<string, string> = { '16n': '16', '8n': '8', '4n': '4', '2n': '2', '1n': '1' };
+                                    const CYCLE = ['16n', '8n', '4n', '2n', '1n'];
+                                    return (
+                                       <button
+                                          key={stepIdx}
+                                          onClick={() => {
+                                             const next = CYCLE[(CYCLE.indexOf(dur) + 1) % CYCLE.length];
+                                             const d = [...seqStepDurations];
+                                             d[stepIdx] = next;
+                                             setSeqStepDurations(d);
+                                          }}
+                                          title={dur}
+                                          className={`flex-1 h-6 rounded-sm border text-[10px] transition-colors ${
+                                             currentStep === stepIdx ? 'border-brand-primary text-brand-primary' : 'border-brand-line text-brand-secondary'
+                                          } bg-brand-surface hover:border-brand-primary`}
+                                       >
+                                          {LABELS[dur]}
+                                       </button>
+                                    );
+                                 })}
+                              </div>
                            </div>
                         </div>
                      </div>
