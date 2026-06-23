@@ -116,6 +116,70 @@ const IMPORT_EXAMPLE = `{
   "chords": ["Dm7", "G7", "Cmaj7", "Am"]
 }`;
 
+const IMPORT_TEMPLATE = {
+  "_instructions": "GuitarMaster progression import. Fill in 'name', 'bpm', and 'chords'. Fields starting with _ are comments and are ignored on import.",
+  "name": "My Progression",
+  "bpm": 100,
+  "chords": [
+    "Am",
+    "C",
+    "G",
+    "F",
+    {
+      "_note": "Use object form to attach an arpeggio pattern to a specific chord.",
+      "chord": "Em7",
+      "arpeggio": {
+        "_note": "Each step fires one or more strings simultaneously. strings: 0=low E, 1=A, 2=D, 3=G, 4=B, 5=high e.",
+        "steps": [
+          { "strings": [0],       "duration": "4n" },
+          { "strings": [3, 4],    "duration": "8n" },
+          { "strings": [0],       "duration": "8n" },
+          { "strings": [2, 3, 4, 5], "duration": "4n" }
+        ]
+      }
+    }
+  ],
+  "_chord_quality_reference": {
+    "_note": "Replace C with any root note. Flats (Bb, Eb, Ab, Db, Gb) are accepted.",
+    "major":           ["C", "Cmaj", "CM"],
+    "minor":           ["Cm", "Cmin", "C-"],
+    "dominant_7":      ["C7"],
+    "major_7":         ["Cmaj7", "CM7"],
+    "minor_7":         ["Cm7", "Cmin7"],
+    "sus2":            ["Csus2"],
+    "sus4":            ["Csus4", "Csus"],
+    "diminished":      ["Cdim", "C°"],
+    "diminished_7":    ["Cdim7", "C°7"],
+    "augmented":       ["Caug", "C+"],
+    "half_diminished": ["Cm7b5", "Cø"]
+  },
+  "_string_index_reference": {
+    "0": "low E  (E2)",
+    "1": "A string (A2)",
+    "2": "D string (D3)",
+    "3": "G string (G3)",
+    "4": "B string (B3)",
+    "5": "high e  (E4)"
+  },
+  "_duration_reference": {
+    "16n": "sixteenth note",
+    "8n":  "eighth note",
+    "4n":  "quarter note",
+    "2n":  "half note",
+    "1n":  "whole note"
+  }
+};
+
+function downloadTemplate() {
+  const blob = new Blob([JSON.stringify(IMPORT_TEMPLATE, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'guitarmaster-progression-template.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 function ImportProgressionModal({ onImport, onClose }: {
   onImport: (r: ImportResult) => void;
   onClose: () => void;
@@ -168,15 +232,20 @@ function ImportProgressionModal({ onImport, onClose }: {
 
         {invalid && <p className="text-xs text-red-500">Invalid JSON or no recognized chords found.</p>}
 
-        <div className="flex justify-end gap-3 pt-1">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-brand-secondary hover:text-brand-ink transition-colors">Cancel</button>
-          <button
-            onClick={() => { if (parsed) { onImport(parsed); onClose(); } }}
-            disabled={!parsed}
-            className="px-4 py-2 text-sm font-medium bg-brand-primary text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-40"
-          >
-            Import
+        <div className="flex items-center justify-between pt-1">
+          <button onClick={downloadTemplate} className="flex items-center gap-1.5 px-3 py-2 text-xs text-brand-secondary hover:text-brand-primary border border-brand-line hover:border-brand-primary rounded-lg transition-colors">
+            <Upload size={13} /> Download Template
           </button>
+          <div className="flex gap-3">
+            <button onClick={onClose} className="px-4 py-2 text-sm text-brand-secondary hover:text-brand-ink transition-colors">Cancel</button>
+            <button
+              onClick={() => { if (parsed) { onImport(parsed); onClose(); } }}
+              disabled={!parsed}
+              className="px-4 py-2 text-sm font-medium bg-brand-primary text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-40"
+            >
+              Import
+            </button>
+          </div>
         </div>
       </div>
     </div>
