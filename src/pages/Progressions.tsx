@@ -27,15 +27,27 @@ const DURATION_LABELS: Record<string, string> = {
 const DURATION_CYCLE: ArpeggioStep['duration'][] = ['16n', '8n', '4n', '2n', '1n'];
 
 function makePreset(name: string): ArpeggioStep[] {
-  const seqs: Record<string, number[]> = {
-    'Ascending':        [0, 1, 2, 3, 4, 5, 0, 1],
-    'Descending':       [5, 4, 3, 2, 1, 0, 5, 4],
-    'Alternating Bass': [0, 3, 4, 3, 0, 3, 4, 3],
-    'Travis Pick':      [0, 4, 2, 4, 0, 4, 2, 4],
-  };
-  const seq = seqs[name];
-  if (!seq) return [];
-  return seq.map(sIdx => ({ strings: [sIdx], duration: '4n' as const }));
+  const eighth = '8n' as const;
+  const sixteenth = '16n' as const;
+  const quarter = '4n' as const;
+  const simple = (strings: number[], dur: typeof eighth | typeof sixteenth | typeof quarter): ArpeggioStep[] =>
+    strings.map(s => ({ strings: [s], duration: dur }));
+  switch (name) {
+    case 'Ascending':        return simple([0,1,2,3,4,5,4,3], eighth);
+    case 'Descending':       return simple([5,4,3,2,1,0,1,2], eighth);
+    case 'Alternating Bass': return simple([0,3,4,3,0,3,4,3], eighth);
+    case 'Travis Pick':      return simple([0,3,1,4,0,3,1,4], eighth);
+    case 'Banjo Roll':       return simple([3,4,5,3,4,5,3,4], sixteenth);
+    case 'P-i-m-a':         return simple([0,2,3,5,0,2,3,5], eighth);
+    case 'Full Strum':       return Array(4).fill(null).map(() => ({ strings: [0,1,2,3,4,5], duration: quarter }));
+    case 'Bass + Chord':     return [
+      { strings: [0],         duration: quarter },
+      { strings: [2,3,4,5],  duration: quarter },
+      { strings: [0],         duration: quarter },
+      { strings: [2,3,4,5],  duration: quarter },
+    ];
+    default: return [];
+  }
 }
 
 interface SequencerPanelProps {
@@ -101,6 +113,10 @@ function SequencerPanel({ slot, bpm, onPatternChange, onClose }: SequencerPanelP
           <option>Descending</option>
           <option>Alternating Bass</option>
           <option>Travis Pick</option>
+          <option>Banjo Roll</option>
+          <option>P-i-m-a</option>
+          <option>Full Strum</option>
+          <option>Bass + Chord</option>
           <option>Clear</option>
         </select>
         <div className="flex items-center gap-1">
