@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Chord as TonalChord } from '@tonaljs/tonal';
 import { Fretboard } from '../components/Fretboard';
 import { PianoKeyboard } from '../components/PianoKeyboard';
@@ -64,7 +64,10 @@ export function Dictionary() {
   const activeChord = currentChords[selectedChordIdx] || null;
   
   const activeScaleBase = COMMON_SCALES[selectedScaleIdx];
-  const activeScale = activeScaleBase ? generateScalePattern(selectedKey, activeScaleBase) : null;
+  const activeScale = useMemo(
+    () => activeScaleBase ? generateScalePattern(selectedKey, activeScaleBase) : null,
+    [selectedKey, selectedScaleIdx] // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   const identifiedNotesRaw = identifiedFrets.map((f, strIdx) => f !== -1 ? getFretNote(strIdx, f).replace(/[0-9]/g, '') : null).filter((n): n is string => n !== null);
   const uniqueNotes: string[] = Array.from(new Set(identifiedNotesRaw));
