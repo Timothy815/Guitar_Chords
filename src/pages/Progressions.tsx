@@ -3,7 +3,8 @@ import { Progression, ChordShape, ChordSlot, ArpeggioStep, ArpeggioPattern, Note
 import { COMMON_CHORDS, ALL_NOTES } from '../data/guitarData';
 import { Fretboard } from '../components/Fretboard';
 import { CircleOfFifths } from '../components/CircleOfFifths';
-import { Plus, Trash2, Play, Printer, Disc, GripHorizontal, Square, RotateCcw, Pencil, X, Upload } from 'lucide-react';
+import { ChordSheet } from '../components/ChordSheet';
+import { Plus, Trash2, Play, Printer, Disc, GripHorizontal, Square, RotateCcw, Pencil, X, Upload, FileText } from 'lucide-react';
 import { Reorder } from 'motion/react';
 import { playStrum, initAudio, getFretNote, playProgressionWithPatterns } from '../lib/audio';
 import { handlePrint } from '../lib/utils';
@@ -479,6 +480,118 @@ function SequencerPanel({ slot, bpm, onPatternChange, onClose }: SequencerPanelP
   );
 }
 
+// ─── Chord Sheet helpers ─────────────────────────────────────────────────────
+
+function SheetToggle({
+  label,
+  checked,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <label className={cn('flex items-center gap-2', disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer')}>
+      <button
+        role="switch"
+        aria-checked={checked}
+        onClick={disabled ? undefined : onChange}
+        className={cn(
+          'relative w-10 h-6 rounded-full transition-colors focus:outline-none',
+          checked ? 'bg-brand-primary' : 'bg-brand-line'
+        )}
+      >
+        <span
+          className={cn(
+            'absolute top-1 w-4 h-4 rounded-full bg-white transition-transform',
+            checked ? 'translate-x-5' : 'translate-x-1'
+          )}
+        />
+      </button>
+      <span className="text-sm text-brand-ink">{label}</span>
+    </label>
+  );
+}
+
+function ChordSheetModal({
+  progression,
+  showDiagrams,
+  showChart,
+  onToggleDiagrams,
+  onToggleChart,
+  onClose,
+}: {
+  progression: Progression;
+  showDiagrams: boolean;
+  showChart: boolean;
+  onToggleDiagrams: () => void;
+  onToggleChart: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-brand-surface rounded-xl border border-brand-line shadow-xl w-full max-w-2xl space-y-4 p-6"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-brand-ink">Print Chord Sheet</h2>
+          <button onClick={onClose} className="text-brand-secondary hover:text-brand-ink">
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Toggles */}
+        <div className="flex gap-6">
+          <SheetToggle
+            label="Chord Diagrams"
+            checked={showDiagrams}
+            onChange={onToggleDiagrams}
+            disabled={showDiagrams && !showChart}
+          />
+          <SheetToggle
+            label="Lead Chart"
+            checked={showChart}
+            onChange={onToggleChart}
+            disabled={showChart && !showDiagrams}
+          />
+        </div>
+
+        {/* Live preview */}
+        <div className="border border-brand-line rounded-lg overflow-y-auto max-h-96 bg-white">
+          <ChordSheet
+            progression={progression}
+            showDiagrams={showDiagrams}
+            showChart={showChart}
+          />
+        </div>
+
+        {/* Actions */}
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm text-brand-secondary hover:text-brand-ink transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => { handlePrint('chord-sheet-area'); onClose(); }}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-brand-primary text-white rounded-lg hover:opacity-90 transition-opacity"
+          >
+            <Printer size={16} /> Print
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Progressions page ───────────────────────────────────────────────────────
 
 export function Progressions() {
@@ -492,6 +605,9 @@ export function Progressions() {
   const [isLooping, setIsLooping] = useState(false);
   const [openSequencerSlotIdx, setOpenSequencerSlotIdx] = useState<number | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showChordSheetModal, setShowChordSheetModal] = useState(false);
+  const [showDiagrams, setShowDiagrams] = useState(true);
+  const [showChart, setShowChart] = useState(true);
   const stopFnRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
@@ -688,6 +804,16 @@ export function Progressions() {
       {showImportModal && (
         <ImportProgressionModal onImport={handleImport} onClose={() => setShowImportModal(false)} />
       )}
+      {showChordSheetModal && activeProgression && (
+        <ChordSheetModal
+          progression={activeProgression}
+          showDiagrams={showDiagrams}
+          showChart={showChart}
+          onToggleDiagrams={() => setShowDiagrams(v => !v)}
+          onToggleChart={() => setShowChart(v => !v)}
+          onClose={() => setShowChordSheetModal(false)}
+        />
+      )}
       <div className="flex justify-between items-center bg-brand-surface p-6 rounded-xl border border-brand-line">
         <div>
           <h1 className="text-2xl font-sans font-bold text-brand-ink">Custom Progressions</h1>
@@ -805,6 +931,12 @@ export function Progressions() {
                       <Play size={18} fill="currentColor" /> Play
                     </button>
                   )}
+                  <button
+                    onClick={() => setShowChordSheetModal(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-transparent text-brand-ink border border-brand-line font-medium rounded-md hover:border-brand-primary hover:text-brand-primary transition-colors"
+                  >
+                    <FileText size={18} /> Chord Sheet
+                  </button>
                   <button onClick={() => handlePrint('print-area')} className="flex items-center gap-2 px-4 py-2 bg-transparent text-brand-ink border border-brand-line font-medium rounded-md hover:border-brand-primary hover:text-brand-primary transition-colors">
                     <Printer size={18} /> Print
                   </button>
@@ -992,6 +1124,20 @@ export function Progressions() {
             </div>
           ) : (
             <div className="p-12 text-center text-brand-secondary bg-brand-surface rounded-xl border border-brand-line">Select or create a progression.</div>
+          )}
+          {/* Off-screen chord sheet for printing — positioned outside viewport, not display:none */}
+          {activeProgression && (
+            <div
+              id="chord-sheet-area"
+              style={{ position: 'absolute', left: '-9999px', top: 0, width: '850px', overflow: 'hidden' }}
+              aria-hidden="true"
+            >
+              <ChordSheet
+                progression={activeProgression}
+                showDiagrams={showDiagrams}
+                showChart={showChart}
+              />
+            </div>
           )}
         </div>
       </div>
