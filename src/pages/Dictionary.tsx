@@ -342,6 +342,35 @@ export function Dictionary() {
     }
   };
 
+  const applySeqPreset = (name: string) => {
+    const grid = Array.from({ length: 6 }, () => Array(16).fill(false)) as boolean[][];
+    let durs = Array(16).fill('16n') as string[];
+    let num = 8;
+    const mark = (stringOrder: number[], stepDur: string) => {
+      stringOrder.forEach((s, step) => { grid[s][step] = true; });
+      durs = Array(16).fill(stepDur);
+      num = stringOrder.length;
+    };
+    if (name === 'Ascending')         mark([0,1,2,3,4,5,4,3], '8n');
+    else if (name === 'Descending')   mark([5,4,3,2,1,0,1,2], '8n');
+    else if (name === 'Travis Pick')  mark([0,3,1,4,0,3,1,4], '8n');
+    else if (name === 'Banjo Roll')   mark([3,4,5,3,4,5,3,4], '16n');
+    else if (name === 'P-i-m-a')      mark([0,2,3,5,0,2,3,5], '8n');
+    else if (name === 'Full Strum') {
+      num = 4; durs = Array(16).fill('4n');
+      for (let step = 0; step < 4; step++) for (let s = 0; s < 6; s++) grid[s][step] = true;
+    } else if (name === 'Bass + Chord') {
+      // step 0: bass (string 0); steps 1-3: upper strings (2,3,4,5)
+      num = 4; durs = Array(16).fill('4n');
+      grid[0][0] = true;
+      [2,3,4,5].forEach(s => { grid[s][1] = true; grid[s][3] = true; });
+      grid[0][2] = true;
+    }
+    setSeqSteps(grid);
+    setSeqStepDurations(durs);
+    setSeqNumSteps(num);
+  };
+
   return (
     <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500">
       
@@ -757,6 +786,19 @@ export function Dictionary() {
                                     className="w-5 h-5 rounded border border-brand-line text-brand-secondary hover:text-brand-ink flex items-center justify-center text-xs"
                                   >+</button>
                                 </div>
+                                <select
+                                  onChange={(e) => { if (e.target.value) { applySeqPreset(e.target.value); (e.target as HTMLSelectElement).value = ''; } }}
+                                  className="text-[10px] border border-brand-line rounded px-1 py-0.5 bg-brand-surface text-brand-secondary outline-none"
+                                >
+                                  <option value="">Preset…</option>
+                                  <option>Ascending</option>
+                                  <option>Descending</option>
+                                  <option>Travis Pick</option>
+                                  <option>Banjo Roll</option>
+                                  <option>P-i-m-a</option>
+                                  <option>Full Strum</option>
+                                  <option>Bass + Chord</option>
+                                </select>
                                 <button className="text-[10px] uppercase font-bold text-brand-primary" onClick={() => {
                                   localStorage.setItem('savedSeq', JSON.stringify({ steps: seqSteps, durations: seqStepDurations, numSteps: seqNumSteps }));
                                 }}>Save</button>
