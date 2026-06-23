@@ -219,7 +219,7 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
             y={totalHeight - 8}
             textAnchor="middle"
             fontSize={10}
-            className="font-mono fill-brand-secondary/70 print:hidden"
+            className="font-mono fill-brand-secondary/70"
           >
             {i + 1}
           </text>
