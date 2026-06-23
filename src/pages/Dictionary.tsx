@@ -63,8 +63,8 @@ export function Dictionary() {
   const activeScale = activeScaleBase ? generateScalePattern(selectedKey, activeScaleBase) : null;
 
   const identifiedNotesRaw = identifiedFrets.map((f, strIdx) => f !== -1 ? getFretNote(strIdx, f).replace(/[0-9]/g, '') : null).filter((n): n is string => n !== null);
-  const uniqueNotes = Array.from(new Set(identifiedNotesRaw));
-  const identifiedChordNames = uniqueNotes.length > 0 ? TonalChord.detect(uniqueNotes) : [];
+  const uniqueNotes: string[] = Array.from(new Set(identifiedNotesRaw));
+  const identifiedChordNames = uniqueNotes.length > 0 ? TonalChord.detect(uniqueNotes) as string[] : [];
 
   const activeChordNotes: string[] = mode === 'chords' && activeChord
     ? activeChord.frets

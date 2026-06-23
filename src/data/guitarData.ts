@@ -1,4 +1,4 @@
-import { ChordShape, Note, ScalePattern } from '../types';
+import { ChordShape, Finger, Note, ScalePattern } from '../types';
 
 export const ALL_NOTES: Note[] = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
@@ -36,7 +36,15 @@ const shapes = [
   { baseRoot: 'A', nameStr: 'sus2 (A Shape)', relFrets: [-1, 0, 2, 2, 0, 0], fingers: [-1, 1, 3, 4, 1, 1], rootString: 1 },
   // Sus4
   { baseRoot: 'A', nameStr: 'sus4 (A Shape)', relFrets: [-1, 0, 2, 2, 3, 0], fingers: [-1, 1, 2, 3, 4, 1], rootString: 1 },
-  { baseRoot: 'E', nameStr: 'sus4 (E Shape)', relFrets: [0, 2, 2, 2, 0, 0], fingers: [1, 3, 4, 4, 1, 1], rootString: 0 }
+  { baseRoot: 'E', nameStr: 'sus4 (E Shape)', relFrets: [0, 2, 2, 2, 0, 0], fingers: [1, 3, 4, 4, 1, 1], rootString: 0 },
+  // Diminished triad: root, b3, b5 — verified: A,C,Eb
+  { baseRoot: 'A', nameStr: 'dim (A Shape)', relFrets: [-1, 0, 1, 2, 1, -1], fingers: [-1, 1, 2, 4, 3, -1], rootString: 1 },
+  // Augmented triad: root, 3, #5 — verified: A,C#,F
+  { baseRoot: 'A', nameStr: 'aug (A Shape)', relFrets: [-1, 0, 3, 2, 2, 1], fingers: [-1, 1, 4, 3, 2, 1], rootString: 1 },
+  // Diminished 7th: root, b3, b5, bb7 — verified: A,C,Eb,Gb
+  { baseRoot: 'A', nameStr: 'dim7 (A Shape)', relFrets: [-1, 0, 1, 2, 1, 2], fingers: [-1, 1, 2, 4, 3, 4], rootString: 1 },
+  // Half-diminished (m7b5): root, b3, b5, b7 — verified: A,C,Eb,G
+  { baseRoot: 'A', nameStr: 'm7b5 (A Shape)', relFrets: [-1, 0, 1, 0, 1, -1], fingers: [-1, 1, 2, 1, 3, -1], rootString: 1 },
 ];
 
 const openChords: Record<string, ChordShape[]> = {
@@ -69,7 +77,7 @@ for (const note of ALL_NOTES) {
     COMMON_CHORDS[note].push({
       name: `${note} ${shape.nameStr}`,
       frets: finalFrets,
-      fingers: shape.fingers,
+      fingers: shape.fingers as Finger[],
       baseFret: baseFret,
       barre: baseFret > 0 ? [{ stringStart: shape.rootString, stringEnd: 5, fret: baseFret, finger: 1 }] : undefined
     });

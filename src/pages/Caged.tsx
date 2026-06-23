@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Fretboard } from '../components/Fretboard';
-import { Note } from '../types';
+import { Finger, Note } from '../types';
 import { ALL_NOTES } from '../data/guitarData';
 import { playStrum, initAudio, getFretNote } from '../lib/audio';
 import { Volume2 } from 'lucide-react';
@@ -38,7 +38,7 @@ export function Caged() {
     return {
       name: `${targetNote} Major (${shape.name})`,
       frets: finalFrets,
-      fingers: [-1,-1,-1,-1,-1,-1], // Simplification, Fretboard doesn't strictly need accurate fingers if we map the shape
+      fingers: [-1,-1,-1,-1,-1,-1] as Finger[], // Simplification, Fretboard doesn't strictly need accurate fingers if we map the shape
       fretsOnly: finalFrets
     };
   };
@@ -148,7 +148,7 @@ export function Caged() {
            const chordData = {
               name: `${resultingNote} Major (${activeShapeDef.name})`,
               frets: fretsWithOffset,
-              fingers: [-1,-1,-1,-1,-1,-1],
+              fingers: [-1,-1,-1,-1,-1,-1] as Finger[],
               fretsOnly: fretsWithOffset
            };
            const displayFretsNum = Math.max(12, Math.max(...fretsWithOffset) + 2);

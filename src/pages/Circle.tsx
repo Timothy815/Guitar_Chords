@@ -25,20 +25,17 @@ const DIATONIC = [
 ] as const;
 
 // Return the first chord shape from COMMON_CHORDS matching the degree root + quality.
-// Returns null for 'dim' (no diminished shapes in COMMON_CHORDS).
 function getDiatonicChord(
   key: Note,
   interval: number,
   quality: 'Major' | 'Minor' | 'dim',
 ): ChordShape | null {
-  if (quality === 'dim') return null;
   const degreeRoot = noteAt(key, interval);
   const chords = COMMON_CHORDS[degreeRoot] ?? [];
-  return (
-    chords.find(c =>
-      quality === 'Major' ? c.name.includes('Major') : c.name.includes('Minor'),
-    ) ?? null
-  );
+  if (quality === 'Major') return chords.find(c => c.name.includes('Major')) ?? null;
+  if (quality === 'Minor') return chords.find(c => c.name.includes('Minor')) ?? null;
+  // dim triad specifically: match 'dim (' to exclude dim7
+  return chords.find(c => c.name.includes('dim (')) ?? null;
 }
 
 // Display label for a Note (uses flat spellings for conventional enharmonics).
@@ -61,7 +58,6 @@ export function Circle() {
 
   const handleDegreeClick = async (degIdx: number) => {
     const deg = DIATONIC[degIdx];
-    if (deg.quality === 'dim') return;
     setSelectedDegree(degIdx);
     const chord = getDiatonicChord(selectedKey, deg.interval, deg.quality);
     if (!chord) return;
@@ -126,15 +122,16 @@ export function Circle() {
                 <button
                   key={deg.roman}
                   onClick={() => handleDegreeClick(i)}
-                  disabled={isDim}
                   className={cn(
                     'flex flex-col items-center px-3 py-2 rounded-lg border text-sm font-bold transition-all min-w-[52px]',
-                    isDim
-                      ? 'opacity-40 cursor-not-allowed border-brand-line text-brand-secondary'
-                      : isSelected
-                      ? isMajor
+                    isSelected
+                      ? isDim
+                        ? 'bg-rose-600 text-white border-rose-600 shadow-md'
+                        : isMajor
                         ? 'bg-brand-active text-white border-brand-active shadow-md'
                         : 'bg-brand-secondary text-white border-brand-secondary shadow-md'
+                      : isDim
+                      ? 'border-rose-400 text-rose-600 hover:bg-rose-50'
                       : isMajor
                       ? 'border-brand-active text-brand-active hover:bg-brand-active/10'
                       : 'border-brand-line text-brand-secondary hover:bg-brand-sidebar',
