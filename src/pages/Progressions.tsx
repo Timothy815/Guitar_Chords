@@ -3,7 +3,7 @@ import { Progression, ChordShape, ChordSlot, ArpeggioStep, ArpeggioPattern, Note
 import { COMMON_CHORDS, ALL_NOTES } from '../data/guitarData';
 import { Fretboard } from '../components/Fretboard';
 import { CircleOfFifths } from '../components/CircleOfFifths';
-import { Plus, Trash2, Play, Printer, Disc, GripHorizontal, Square, RotateCcw, Pencil, X } from 'lucide-react';
+import { Plus, Trash2, Play, Printer, Disc, GripHorizontal, Square, RotateCcw, Pencil, X, Upload } from 'lucide-react';
 import { Reorder } from 'motion/react';
 import { playStrum, initAudio, getFretNote, playProgressionWithPatterns } from '../lib/audio';
 import { handlePrint } from '../lib/utils';
@@ -15,6 +15,172 @@ function getDiatonicRoots(key: Note): Set<string> {
   const rootIdx = ALL_NOTES.indexOf(key);
   if (rootIdx === -1) return new Set();
   return new Set(MAJOR_INTERVALS.map(i => ALL_NOTES[(rootIdx + i) % 12]));
+}
+
+// ─── JSON Import utilities ───────────────────────────────────────────────────
+
+const FLAT_TO_SHARP: Record<string, Note> = {
+  'Db': 'C#', 'Eb': 'D#', 'Fb': 'E', 'Gb': 'F#', 'Ab': 'G#', 'Bb': 'A#', 'Cb': 'B',
+};
+
+function parseChordName(input: string): ChordShape | null {
+  const s = input.trim();
+  let root: Note;
+  let rest: string;
+  const two = s.slice(0, 2);
+  if (FLAT_TO_SHARP[two]) { root = FLAT_TO_SHARP[two]; rest = s.slice(2); }
+  else if (['C#', 'D#', 'F#', 'G#', 'A#'].includes(two)) { root = two as Note; rest = s.slice(2); }
+  else if ('CDEFGAB'.includes(s[0])) { root = s[0] as Note; rest = s.slice(1); }
+  else return null;
+
+  const q = rest.trim();
+  let quality: string;
+  if (/^(maj7|major7|M7|Δ)/i.test(q))       quality = 'Maj7';
+  else if (/^(m7b5|ø|half.?dim)/i.test(q))  quality = 'm7b5';
+  else if (/^(dim7|°7)/i.test(q))            quality = 'dim7';
+  else if (/^(m7|min7|-7)/i.test(q))         quality = 'm7';
+  else if (/^sus2/i.test(q))                 quality = 'sus2';
+  else if (/^sus/i.test(q))                  quality = 'sus4';
+  else if (/^(m|min|minor|-)$/i.test(q))     quality = 'Minor';
+  else if (/^(aug|\+)/i.test(q))             quality = 'aug';
+  else if (/^(dim|°)/i.test(q))              quality = 'dim';
+  else if (/^7/.test(q))                     quality = '7';
+  else                                        quality = 'Major';
+
+  return (COMMON_CHORDS[root] ?? []).find(c => c.name.split(' ')[1] === quality) ?? null;
+}
+
+const VALID_DURATIONS = new Set<string>(['16n', '8n', '4n', '2n', '1n']);
+
+function parseArpeggioSteps(raw: unknown): ArpeggioStep[] | null {
+  if (!Array.isArray(raw) || raw.length === 0) return null;
+  const steps: ArpeggioStep[] = [];
+  for (const s of raw) {
+    if (!s || !Array.isArray((s as any).strings)) continue;
+    const strings = ((s as any).strings as unknown[]).filter(
+      (n): n is number => typeof n === 'number' && n >= 0 && n <= 5
+    );
+    const dur = (s as any).duration;
+    const duration = (VALID_DURATIONS.has(dur) ? dur : '4n') as ArpeggioStep['duration'];
+    steps.push({ strings, duration });
+  }
+  return steps.length > 0 ? steps : null;
+}
+
+function parseArpeggioJSON(raw: string): ArpeggioPattern | null {
+  try {
+    const data = JSON.parse(raw);
+    const steps = parseArpeggioSteps(data?.steps);
+    return steps ? { steps } : null;
+  } catch { return null; }
+}
+
+type ImportResult = { progression: Progression; warnings: string[] };
+
+function parseProgressionJSON(raw: string): ImportResult | null {
+  try {
+    const data = JSON.parse(raw);
+    if (!data || !Array.isArray(data.chords) || data.chords.length === 0) return null;
+    const warnings: string[] = [];
+    const slots: ChordSlot[] = [];
+    for (const item of data.chords) {
+      const chordStr: string = typeof item === 'string' ? item : (item as any)?.chord;
+      if (!chordStr) { warnings.push(`Skipped entry: ${JSON.stringify(item)}`); continue; }
+      const shape = parseChordName(chordStr);
+      if (!shape) { warnings.push(`Chord not found: "${chordStr}"`); continue; }
+      const slot: ChordSlot = { chord: shape };
+      if (typeof item === 'object' && (item as any).arpeggio?.steps) {
+        const steps = parseArpeggioSteps((item as any).arpeggio.steps);
+        if (steps) slot.pattern = { steps };
+      }
+      slots.push(slot);
+    }
+    if (slots.length === 0) return null;
+    return {
+      progression: {
+        id: Date.now().toString() + Math.random().toString(36).slice(2),
+        name: typeof data.name === 'string' ? data.name : 'Imported Progression',
+        bpm: typeof data.bpm === 'number' ? Math.min(200, Math.max(40, Math.round(data.bpm))) : 80,
+        slots,
+      },
+      warnings,
+    };
+  } catch { return null; }
+}
+
+// ─── Import Modal ─────────────────────────────────────────────────────────────
+
+const IMPORT_EXAMPLE = `{
+  "name": "Jazz ii-V-I",
+  "bpm": 100,
+  "chords": ["Dm7", "G7", "Cmaj7", "Am"]
+}`;
+
+function ImportProgressionModal({ onImport, onClose }: {
+  onImport: (r: ImportResult) => void;
+  onClose: () => void;
+}) {
+  const [text, setText] = React.useState('');
+  const parsed = text.trim() ? parseProgressionJSON(text) : null;
+  const invalid = text.trim().length > 0 && !parsed;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-brand-surface rounded-xl border border-brand-line shadow-xl w-full max-w-lg space-y-4 p-6" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-brand-ink">Import Progression</h2>
+          <button onClick={onClose} className="text-brand-secondary hover:text-brand-ink"><X size={20} /></button>
+        </div>
+
+        <p className="text-sm text-brand-secondary">
+          Paste JSON from any AI. Chord names like <code className="text-brand-primary font-mono">Am</code>,{' '}
+          <code className="text-brand-primary font-mono">G7</code>,{' '}
+          <code className="text-brand-primary font-mono">Cmaj7</code>,{' '}
+          <code className="text-brand-primary font-mono">Dm7b5</code> are all supported.
+        </p>
+
+        <textarea
+          value={text}
+          onChange={e => setText(e.target.value)}
+          placeholder={IMPORT_EXAMPLE}
+          rows={9}
+          autoFocus
+          className="w-full font-mono text-xs p-3 rounded-lg border border-brand-line bg-brand-bg text-brand-ink focus:outline-none focus:border-brand-primary resize-none"
+        />
+
+        {parsed && (
+          <div className="space-y-2">
+            <p className="text-xs font-bold text-brand-secondary uppercase tracking-wide">
+              Preview — {parsed.progression.name} · {parsed.progression.bpm} BPM · {parsed.progression.slots.length} chord{parsed.progression.slots.length !== 1 ? 's' : ''}
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {parsed.progression.slots.map((slot, i) => (
+                <span key={i} className="px-2 py-0.5 rounded bg-green-500/15 border border-green-500/30 text-green-700 dark:text-green-400 text-xs font-mono">
+                  {slot.chord.name.split('(')[0].trim()}{slot.pattern ? ' ♩' : ''}
+                </span>
+              ))}
+            </div>
+            {parsed.warnings.map((w, i) => (
+              <p key={i} className="text-xs text-amber-500">{w}</p>
+            ))}
+          </div>
+        )}
+
+        {invalid && <p className="text-xs text-red-500">Invalid JSON or no recognized chords found.</p>}
+
+        <div className="flex justify-end gap-3 pt-1">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-brand-secondary hover:text-brand-ink transition-colors">Cancel</button>
+          <button
+            onClick={() => { if (parsed) { onImport(parsed); onClose(); } }}
+            disabled={!parsed}
+            className="px-4 py-2 text-sm font-medium bg-brand-primary text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-40"
+          >
+            Import
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ─── Sequencer Panel ────────────────────────────────────────────────────────
@@ -55,6 +221,8 @@ interface SequencerPanelProps {
 
 function SequencerPanel({ slot, bpm, onPatternChange, onClose }: SequencerPanelProps) {
   const steps: ArpeggioStep[] = slot.pattern?.steps ?? [];
+  const [showArpImport, setShowArpImport] = React.useState(false);
+  const [arpImportText, setArpImportText] = React.useState('');
 
   const addStep = () => {
     onPatternChange({ steps: [...steps, { strings: [], duration: '4n' }] });
@@ -121,16 +289,50 @@ function SequencerPanel({ slot, bpm, onPatternChange, onClose }: SequencerPanelP
             className="w-6 h-6 rounded border border-brand-line text-brand-secondary hover:text-brand-ink flex items-center justify-center text-sm disabled:opacity-30"
           >+</button>
         </div>
+        <button
+          onClick={() => { setShowArpImport(v => !v); setArpImportText(''); }}
+          title="Import pattern from JSON"
+          className={cn('p-1 rounded transition-colors', showArpImport ? 'text-brand-primary' : 'text-brand-secondary hover:text-brand-ink')}
+        >
+          <Upload size={14} />
+        </button>
         <button onClick={onClose} className="ml-auto p-1 text-brand-secondary hover:text-brand-ink transition-colors">
           <X size={16} />
         </button>
       </div>
 
-      {steps.length === 0 ? (
+      {showArpImport && (
+        <div className="space-y-2 border border-brand-primary/30 rounded-lg p-3 bg-brand-surface">
+          <p className="text-xs text-brand-secondary">Paste arpeggio pattern JSON:</p>
+          <textarea
+            value={arpImportText}
+            onChange={e => setArpImportText(e.target.value)}
+            placeholder={'{\n  "steps": [\n    { "strings": [0], "duration": "4n" },\n    { "strings": [3,4], "duration": "8n" }\n  ]\n}'}
+            rows={5}
+            autoFocus
+            className="w-full font-mono text-xs p-2 rounded border border-brand-line bg-brand-bg text-brand-ink focus:outline-none focus:border-brand-primary resize-none"
+          />
+          <div className="flex justify-end gap-2">
+            <button onClick={() => setShowArpImport(false)} className="px-3 py-1 text-xs text-brand-secondary hover:text-brand-ink transition-colors">Cancel</button>
+            <button
+              onClick={() => {
+                const pattern = parseArpeggioJSON(arpImportText);
+                if (pattern) { onPatternChange(pattern); setShowArpImport(false); }
+              }}
+              disabled={!parseArpeggioJSON(arpImportText)}
+              className="px-3 py-1 text-xs font-medium bg-brand-primary text-white rounded hover:opacity-90 disabled:opacity-40 transition-opacity"
+            >
+              Apply
+            </button>
+          </div>
+        </div>
+      )}
+
+      {steps.length === 0 && !showArpImport ? (
         <p className="text-xs text-brand-secondary/70 text-center py-4">
           No steps yet — use + or choose a preset to get started.
         </p>
-      ) : (
+      ) : steps.length > 0 ? (
         <div className="overflow-x-auto">
           <div className="inline-block min-w-full">
             {STRING_LABELS.map((label, visualRow) => {
@@ -179,7 +381,7 @@ function SequencerPanel({ slot, bpm, onPatternChange, onClose }: SequencerPanelP
             </div>
           </div>
         </div>
-      )}
+      ) : null}
 
       <div className="flex justify-end pt-1">
         <button
@@ -205,6 +407,7 @@ export function Progressions() {
   const [activeChordIdx, setActiveChordIdx] = useState<number | null>(null);
   const [isLooping, setIsLooping] = useState(false);
   const [openSequencerSlotIdx, setOpenSequencerSlotIdx] = useState<number | null>(null);
+  const [showImportModal, setShowImportModal] = useState(false);
   const stopFnRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
@@ -379,16 +582,31 @@ export function Progressions() {
     stopFnRef.current = null;
   };
 
+  const handleImport = ({ progression, warnings }: ImportResult) => {
+    if (warnings.length) console.warn('Import warnings:', warnings);
+    const updated = [...progressions, progression];
+    saveProgressions(updated);
+    setActiveProgId(progression.id);
+  };
+
   return (
     <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500">
+      {showImportModal && (
+        <ImportProgressionModal onImport={handleImport} onClose={() => setShowImportModal(false)} />
+      )}
       <div className="flex justify-between items-center bg-brand-surface p-6 rounded-xl border border-brand-line">
         <div>
           <h1 className="text-2xl font-sans font-bold text-brand-ink">Custom Progressions</h1>
           <p className="text-brand-secondary mt-1">Build and save chord sequences for practice.</p>
         </div>
-        <button onClick={createProgression} className="flex items-center gap-2 bg-brand-primary text-white px-4 py-2 rounded-lg hover:opacity-90 transition-opacity">
-          <Plus size={18} /> New Sequence
-        </button>
+        <div className="flex items-center gap-3">
+          <button onClick={() => setShowImportModal(true)} className="flex items-center gap-2 border border-brand-primary text-brand-primary px-4 py-2 rounded-lg hover:bg-brand-primary hover:text-white transition-colors">
+            <Upload size={16} /> Import JSON
+          </button>
+          <button onClick={createProgression} className="flex items-center gap-2 bg-brand-primary text-white px-4 py-2 rounded-lg hover:opacity-90 transition-opacity">
+            <Plus size={18} /> New Sequence
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
