@@ -21,10 +21,6 @@ function getDiatonicRoots(key: Note): Set<string> {
 
 const STRING_LABELS = ['e', 'B', 'G', 'D', 'A', 'E']; // visual top to bottom (high e first)
 const VISUAL_TO_STRING_IDX = [5, 4, 3, 2, 1, 0];       // visual row index → string index (0=low E)
-const DURATION_LABELS: Record<string, string> = {
-  '16n': '16', '8n': '8', '4n': '4', '2n': '2', '1n': '1',
-};
-const DURATION_CYCLE: ArpeggioStep['duration'][] = ['16n', '8n', '4n', '2n', '1n'];
 
 function makePreset(name: string): ArpeggioStep[] {
   const eighth = '8n' as const;
@@ -75,13 +71,6 @@ function SequencerPanel({ slot, bpm, onPatternChange, onClose }: SequencerPanelP
       ? step.strings.filter(s => s !== stringIdx)
       : [...step.strings, stringIdx].sort((a, b) => a - b);
     const newSteps = steps.map((s, i) => i === stepIdx ? { ...s, strings: newStrings } : s);
-    onPatternChange({ steps: newSteps });
-  };
-
-  const cycleDuration = (stepIdx: number) => {
-    const cur = steps[stepIdx].duration;
-    const nextDur = DURATION_CYCLE[(DURATION_CYCLE.indexOf(cur) + 1) % DURATION_CYCLE.length];
-    const newSteps = steps.map((s, i) => i === stepIdx ? { ...s, duration: nextDur } : s);
     onPatternChange({ steps: newSteps });
   };
 
@@ -171,14 +160,21 @@ function SequencerPanel({ slot, bpm, onPatternChange, onClose }: SequencerPanelP
             <div className="flex items-center gap-1 mt-2">
               <span className="w-4 shrink-0" />
               {steps.map((step, stepIdx) => (
-                <button
+                <select
                   key={stepIdx}
-                  onClick={() => cycleDuration(stepIdx)}
-                  className="w-8 h-6 rounded border border-brand-line bg-brand-surface text-brand-secondary hover:border-brand-primary text-[11px] transition-colors"
-                  title={step.duration}
+                  value={step.duration}
+                  onChange={(e) => {
+                    const newSteps = steps.map((s, i) => i === stepIdx ? { ...s, duration: e.target.value as ArpeggioStep['duration'] } : s);
+                    onPatternChange({ steps: newSteps });
+                  }}
+                  className="w-8 h-6 rounded border border-brand-line bg-brand-surface text-brand-secondary text-[10px] cursor-pointer"
                 >
-                  {DURATION_LABELS[step.duration]}
-                </button>
+                  <option value="16n">16</option>
+                  <option value="8n">8</option>
+                  <option value="4n">4</option>
+                  <option value="2n">2</option>
+                  <option value="1n">1</option>
+                </select>
               ))}
             </div>
           </div>
