@@ -91,7 +91,7 @@ export function EarTraining() {
   function handleTentative(i: number) {
     if (selected !== null) return;
     setTentative(i);
-    playOptionAudio(round, i);
+    playOptionAudio(round, i).catch(() => {});
   }
 
   function handleConfirm() {
