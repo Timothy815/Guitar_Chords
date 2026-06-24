@@ -81,7 +81,7 @@ export function EarTraining() {
     advanceRound(next);
   }
 
-  function handleFretboardComplete(wasCorrect: boolean) {
+  function handleFretboardComplete(wasCorrect: boolean, _huntResult?: import('../lib/earTraining').HuntResult) {
     const typeKey = (round as FretboardRound).targetNote;
     setScore(prev => ({
       correct: prev.correct + (wasCorrect ? 1 : 0),
@@ -379,6 +379,7 @@ export function EarTraining() {
           round={round as FretboardRound}
           difficulty={difficulty}
           score={score}
+          isHuntMode={false}
           onComplete={handleFretboardComplete}
         />
       ) : settings.mode === 'study' ? (
