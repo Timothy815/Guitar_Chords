@@ -9,7 +9,7 @@ import {
   buildFretboardNotePool, makeFretboardRound,
   chordToNotes, playOptionAudio, playStudyCard,
 } from '../lib/earTraining';
-import { initAudio, playStrum, playNote } from '../lib/audio';
+import { initAudio, playStrum, playNote, startDrone, stopDrone } from '../lib/audio';
 import { FretboardTrainer } from '../components/FretboardTrainer';
 
 function makeRound(
@@ -28,6 +28,8 @@ export function EarTraining() {
   const [fretboardSubMode, setFretboardSubMode] = useState<'guess' | 'hunt'>('guess');
   const [biasTally, setBiasTally] = useState({ sharp: 0, flat: 0, correct: 0 });
   const [fretboardFocus, setFretboardFocus] = useState<FretboardFocus>({});
+  const [droneNote, setDroneNote] = useState<string | null>(null);
+  const [droneMode, setDroneMode] = useState<'off' | 'continuous' | 'cue'>('off');
   const [round, setRound] = useState<Round>(() => makeRound(loadSettings()));
   const [selected, setSelected] = useState<number | null>(null);
   const [tentative, setTentative] = useState<number | null>(null);
@@ -65,6 +67,15 @@ export function EarTraining() {
       setStudyIndex(0);
     }
   }, [settings.mode, settings.activeChordTypes, settings.activeIntervals]);
+
+  useEffect(() => {
+    if (settings.mode === 'fretboard' && droneMode === 'continuous' && droneNote) {
+      initAudio().then(() => startDrone(droneNote)).catch(() => {});
+    } else {
+      stopDrone();
+    }
+    return () => stopDrone();
+  }, [settings.mode, droneMode, droneNote]);
 
   const playRoundAudio = useCallback(async (r: Round) => {
     if (r.kind === 'fretboard') return;
@@ -349,6 +360,51 @@ export function EarTraining() {
               </div>
             </div>
 
+            {/* Drone controls — fretboard mode only */}
+            {settings.mode === 'fretboard' && (
+              <div className="space-y-2 pt-2 border-t border-brand-line">
+                <p className="text-xs font-semibold uppercase tracking-widest text-brand-secondary pt-1">Drone</p>
+
+                {/* Mode pills */}
+                <div className="flex gap-2 flex-wrap">
+                  {(['off', 'continuous', 'cue'] as const).map(mode => (
+                    <button
+                      key={mode}
+                      onClick={() => setDroneMode(mode)}
+                      className={cn(
+                        'px-3 py-1.5 rounded-md text-xs font-medium border transition-colors capitalize',
+                        droneMode === mode
+                          ? 'border-brand-primary text-brand-primary bg-brand-primary/10'
+                          : 'border-brand-line text-brand-secondary hover:border-brand-primary hover:text-brand-primary',
+                      )}
+                    >
+                      {mode === 'off' ? 'Off' : mode === 'continuous' ? 'Continuous' : 'Cue'}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Tonic note pills — hidden when Off */}
+                {droneMode !== 'off' && (
+                  <div className="flex gap-1.5 flex-wrap">
+                    {['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'].map(pitch => (
+                      <button
+                        key={pitch}
+                        onClick={() => setDroneNote(`${pitch}3`)}
+                        className={cn(
+                          'px-2.5 py-1 rounded text-xs font-medium border transition-colors',
+                          droneNote === `${pitch}3`
+                            ? 'bg-brand-primary text-white border-brand-primary'
+                            : 'border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-primary',
+                        )}
+                      >
+                        {pitch}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Type / interval checkboxes */}
             {settings.mode === 'study' ? (
               <>
@@ -462,6 +518,8 @@ export function EarTraining() {
           isHuntMode={fretboardSubMode === 'hunt'}
           focus={fretboardFocus}
           onFocusChange={handleFocusChange}
+          droneNote={droneNote}
+          droneMode={droneMode}
           onComplete={handleFretboardComplete}
         />
       ) : settings.mode === 'study' ? (
