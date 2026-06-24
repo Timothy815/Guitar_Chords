@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Volume2 } from 'lucide-react';
 import { Fretboard } from './Fretboard';
 import { FretboardFocusSelector } from './FretboardFocusSelector';
@@ -36,6 +36,7 @@ export function FretboardTrainer({
   const [locked, setLocked] = useState(true);
 
   // Hunt-only state
+  const mouseDownFiredRef = useRef(false);
   const [selectedPosition, setSelectedPosition] = useState<string | null>(null);
   const [selectedNote, setSelectedNote] = useState<string | null>(null); // full note+octave e.g. "C4"
   const [attemptCount, setAttemptCount] = useState(0);
@@ -88,6 +89,7 @@ export function FretboardTrainer({
     setFirstSelectionDirection(prev =>
       prev !== null ? prev : getAbsoluteDirection(noteStr, round.targetNote),
     );
+    mouseDownFiredRef.current = true;
     initAudio().then(() => startNote(noteStr)).catch(() => {});
   }, [isHuntMode, isRevealing, round.targetNote]);
 
@@ -106,7 +108,11 @@ export function FretboardTrainer({
     const key = `${stringIdx}-${fretIdx}`;
 
     if (isHuntMode) {
-      // Mouse: handled by mousedown/mouseup. Touch fallback: play short note.
+      // mousedown already handled this on pointer devices; only run for touch.
+      if (mouseDownFiredRef.current) {
+        mouseDownFiredRef.current = false;
+        return;
+      }
       setSelectedPosition(key);
       setSelectedNote(noteStr);
       setSelectionCount(c => c + 1);
