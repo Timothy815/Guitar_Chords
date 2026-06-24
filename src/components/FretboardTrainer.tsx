@@ -38,6 +38,7 @@ export function FretboardTrainer({ round, score, onComplete }: FretboardTrainerP
     if (pitchClass === round.targetNote) {
       setCorrectPositions(new Set([key]));
       setNoteRevealed(true);
+      setIsRevealing(true);
       setTimeout(() => onComplete(true), 600);
     } else {
       setWrongPosition(key);

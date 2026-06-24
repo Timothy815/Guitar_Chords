@@ -341,7 +341,7 @@ export function generateFretboardRound(difficulty: DifficultyLevel): FretboardRo
 export function getCorrectPositions(targetNote: string, fretsNum: number): Set<string> {
   const positions = new Set<string>();
   for (let s = 0; s < 6; s++) {
-    for (let f = 0; f < fretsNum; f++) {
+    for (let f = 0; f <= fretsNum; f++) {
       const note = getFretNote(s, f);
       if (note && note.replace(/\d$/, '') === targetNote) positions.add(`${s}-${f}`);
     }
