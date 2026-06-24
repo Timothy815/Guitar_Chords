@@ -72,6 +72,8 @@ export interface SessionScore {
   total: number;
   streak: number;
   byType: Record<string, { correct: number; total: number }>;
+  totalStars?: number;
+  huntAttempts?: number[];
 }
 
 export const CHORD_TYPE_DEFS: ChordTypeDef[] = [
@@ -352,4 +354,27 @@ export function getCorrectPositions(targetNote: string, fretsNum: number): Set<s
 export async function playFretboardRound(round: FretboardRound): Promise<void> {
   await initAudio();
   playNote(round.targetNote + '3', '2n');
+}
+
+export interface HuntResult {
+  stars: number;
+  attempts: number;
+  direction: 'sharp' | 'flat' | 'correct';
+}
+
+export function getSemitoneDistance(played: string, target: string): number {
+  const idx = (note: string) => ALL_NOTES.indexOf(note as Note);
+  const diff = Math.abs(idx(played) - idx(target));
+  return Math.min(diff, 12 - diff);
+}
+
+export function getSemitoneDirection(
+  played: string,
+  target: string,
+): 'sharp' | 'flat' | 'correct' {
+  const idx = (note: string) => ALL_NOTES.indexOf(note as Note);
+  const raw = idx(played) - idx(target);
+  const wrapped = ((raw % 12) + 12) % 12;
+  if (wrapped === 0) return 'correct';
+  return wrapped <= 6 ? 'sharp' : 'flat';
 }
