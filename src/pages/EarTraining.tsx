@@ -2,20 +2,24 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Volume2, ChevronDown, ChevronUp, Headphones } from 'lucide-react';
 import { cn } from '../lib/utils';
 import {
-  EarTrainingSettings, ChordRound, IntervalRound, Round, SessionScore, StudyCard,
+  EarTrainingSettings, ChordRound, IntervalRound, FretboardRound, Round, SessionScore, StudyCard,
   DifficultyLevel, CHORD_TYPE_DEFS, INTERVAL_DEFS, DIFFICULTY_PRESETS,
   loadSettings, saveSettings, initialScore,
-  generateChordRound, generateIntervalRound, generateStudyDeck, chordToNotes, playOptionAudio, playStudyCard,
+  generateChordRound, generateIntervalRound, generateStudyDeck, generateFretboardRound,
+  chordToNotes, playOptionAudio, playStudyCard, playFretboardRound,
 } from '../lib/earTraining';
 import { initAudio, playStrum, playNote } from '../lib/audio';
+import { FretboardTrainer } from '../components/FretboardTrainer';
 
-function makeRound(s: EarTrainingSettings): Round {
+function makeRound(s: EarTrainingSettings, difficulty: DifficultyLevel = 'Beginner'): Round {
   if (s.mode === 'chord') return generateChordRound(s.activeChordTypes);
+  if (s.mode === 'fretboard') return generateFretboardRound(difficulty);
   return generateIntervalRound(s.activeIntervals);
 }
 
 export function EarTraining() {
   const [settings, setSettings] = useState<EarTrainingSettings>(loadSettings);
+  const [difficulty, setDifficulty] = useState<DifficultyLevel>('Beginner');
   const [round, setRound] = useState<Round>(() => makeRound(loadSettings()));
   const [selected, setSelected] = useState<number | null>(null);
   const [tentative, setTentative] = useState<number | null>(null);
@@ -35,6 +39,7 @@ export function EarTraining() {
   }, [settings.mode, settings.activeChordTypes, settings.activeIntervals]);
 
   const playRoundAudio = useCallback(async (r: Round) => {
+    if (r.kind === 'fretboard') return;
     await initAudio();
     audioUnlocked.current = true;
     if (r.kind === 'chord') {
@@ -54,7 +59,7 @@ export function EarTraining() {
   }, [round, playRoundAudio]);
 
   function advanceRound(s: EarTrainingSettings = settings) {
-    const r = makeRound(s);
+    const r = makeRound(s, difficulty);
     setSelected(null);
     setTentative(null);
     setRound(r);
@@ -70,14 +75,38 @@ export function EarTraining() {
     setSettings(s => ({ ...s, mode: 'study' }));
   }
 
+  function handleFretboardMode() {
+    const next = { ...settings, mode: 'fretboard' as const };
+    setSettings(next);
+    advanceRound(next);
+  }
+
+  function handleFretboardComplete(wasCorrect: boolean) {
+    const typeKey = (round as FretboardRound).targetNote;
+    setScore(prev => ({
+      correct: prev.correct + (wasCorrect ? 1 : 0),
+      total: prev.total + 1,
+      streak: wasCorrect ? prev.streak + 1 : 0,
+      byType: {
+        ...prev.byType,
+        [typeKey]: {
+          correct: (prev.byType[typeKey]?.correct ?? 0) + (wasCorrect ? 1 : 0),
+          total: (prev.byType[typeKey]?.total ?? 0) + 1,
+        },
+      },
+    }));
+    advanceRound();
+  }
+
   function handleDifficulty(level: DifficultyLevel) {
+    setDifficulty(level);
     const next: EarTrainingSettings = {
       ...settings,
       activeChordTypes: [...DIFFICULTY_PRESETS.chord[level]],
       activeIntervals: [...DIFFICULTY_PRESETS.interval[level]],
     };
     setSettings(next);
-    if (next.mode !== 'study') advanceRound(next);
+    if (next.mode !== 'study' && next.mode !== 'fretboard') advanceRound(next);
   }
 
   function handleToggleChordType(id: string) {
@@ -198,6 +227,17 @@ export function EarTraining() {
           )}
         >
           Study
+        </button>
+        <button
+          onClick={handleFretboardMode}
+          className={cn(
+            'flex-1 py-2.5 text-sm font-medium transition-colors',
+            settings.mode === 'fretboard'
+              ? 'bg-brand-primary text-white'
+              : 'text-brand-secondary hover:bg-brand-sidebar'
+          )}
+        >
+          Fretboard
         </button>
       </div>
 
@@ -333,8 +373,15 @@ export function EarTraining() {
         )}
       </div>
 
-      {/* Round area / Study view */}
-      {settings.mode === 'study' ? (
+      {/* Round area / Study view / Fretboard trainer */}
+      {settings.mode === 'fretboard' ? (
+        <FretboardTrainer
+          round={round as FretboardRound}
+          difficulty={difficulty}
+          score={score}
+          onComplete={handleFretboardComplete}
+        />
+      ) : settings.mode === 'study' ? (
         studyDeck.length === 0 ? (
           <div className="rounded-lg border border-brand-line bg-brand-surface p-6 text-center text-brand-secondary text-sm">
             No cards — enable at least one chord type or interval in Settings.
