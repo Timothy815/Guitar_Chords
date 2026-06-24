@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Volume2 } from 'lucide-react';
 import { Fretboard } from './Fretboard';
+import { FretboardFocusSelector } from './FretboardFocusSelector';
 import {
-  FretboardRound, DifficultyLevel, SessionScore, HuntResult,
-  getCorrectPositions, playFretboardRound, getSemitoneDistance, getSemitoneDirection,
+  FretboardRound, DifficultyLevel, SessionScore, HuntResult, FretboardFocus,
+  getCorrectPositions, playFretboardRound, getAbsoluteSemitoneDistance, getAbsoluteDirection,
 } from '../lib/earTraining';
 import { getFretNote, initAudio, playNote, startNote, stopNote } from '../lib/audio';
 
@@ -12,10 +13,16 @@ interface FretboardTrainerProps {
   difficulty: DifficultyLevel;
   score: SessionScore;
   isHuntMode: boolean;
+  focus?: FretboardFocus;
+  onFocusChange?: (focus: FretboardFocus) => void;
   onComplete: (wasCorrect: boolean, huntResult?: HuntResult) => void;
 }
 
-export function FretboardTrainer({ round, score, isHuntMode, onComplete }: FretboardTrainerProps) {
+export function FretboardTrainer({
+  round, score, isHuntMode,
+  focus = {}, onFocusChange,
+  onComplete,
+}: FretboardTrainerProps) {
   // Shared state (Guess + Hunt)
   const [correctPositions, setCorrectPositions] = useState<Set<string>>(new Set());
   const [wrongPosition, setWrongPosition] = useState<string | null>(null);
@@ -24,10 +31,11 @@ export function FretboardTrainer({ round, score, isHuntMode, onComplete }: Fretb
 
   // Hunt-only state
   const [selectedPosition, setSelectedPosition] = useState<string | null>(null);
-  const [selectedNote, setSelectedNote] = useState<string | null>(null);
+  const [selectedNote, setSelectedNote] = useState<string | null>(null); // full note+octave e.g. "C4"
   const [attemptCount, setAttemptCount] = useState(0);
-  const [firstConfirmSemitones, setFirstConfirmSemitones] = useState<number | null>(null);
-  const [firstConfirmDirection, setFirstConfirmDirection] = useState<'sharp' | 'flat' | 'correct' | null>(null);
+  const [selectionCount, setSelectionCount] = useState(0);
+  const [firstSelectionSemitones, setFirstSelectionSemitones] = useState<number | null>(null);
+  const [firstSelectionDirection, setFirstSelectionDirection] = useState<'sharp' | 'flat' | 'correct' | null>(null);
   const [wrongConfirmFlash, setWrongConfirmFlash] = useState(false);
   const [roundFeedback, setRoundFeedback] = useState<string | null>(null);
 
@@ -39,8 +47,9 @@ export function FretboardTrainer({ round, score, isHuntMode, onComplete }: Fretb
     setSelectedPosition(null);
     setSelectedNote(null);
     setAttemptCount(0);
-    setFirstConfirmSemitones(null);
-    setFirstConfirmDirection(null);
+    setSelectionCount(0);
+    setFirstSelectionSemitones(null);
+    setFirstSelectionDirection(null);
     setWrongConfirmFlash(false);
     setRoundFeedback(null);
     playFretboardRound(round).catch(() => {});
@@ -50,12 +59,18 @@ export function FretboardTrainer({ round, score, isHuntMode, onComplete }: Fretb
     if (!isHuntMode || isRevealing) return;
     const noteStr = getFretNote(stringIdx, fretIdx);
     if (!noteStr) return;
-    const pitchClass = noteStr.replace(/\d$/, '');
     const key = `${stringIdx}-${fretIdx}`;
     setSelectedPosition(key);
-    setSelectedNote(pitchClass);
+    setSelectedNote(noteStr);
+    setSelectionCount(c => c + 1);
+    setFirstSelectionSemitones(prev =>
+      prev !== null ? prev : getAbsoluteSemitoneDistance(noteStr, round.targetNote),
+    );
+    setFirstSelectionDirection(prev =>
+      prev !== null ? prev : getAbsoluteDirection(noteStr, round.targetNote),
+    );
     initAudio().then(() => startNote(noteStr)).catch(() => {});
-  }, [isHuntMode, isRevealing]);
+  }, [isHuntMode, isRevealing, round.targetNote]);
 
   useEffect(() => {
     if (!isHuntMode) return;
@@ -68,19 +83,25 @@ export function FretboardTrainer({ round, score, isHuntMode, onComplete }: Fretb
     if (isRevealing) return;
     const noteStr = getFretNote(stringIdx, fretIdx);
     if (!noteStr) return;
-    const pitchClass = noteStr.replace(/\d$/, '');
     const key = `${stringIdx}-${fretIdx}`;
 
     if (isHuntMode) {
       // Mouse: handled by mousedown/mouseup. Touch fallback: play short note.
       setSelectedPosition(key);
-      setSelectedNote(pitchClass);
+      setSelectedNote(noteStr);
+      setSelectionCount(c => c + 1);
+      setFirstSelectionSemitones(prev =>
+        prev !== null ? prev : getAbsoluteSemitoneDistance(noteStr, round.targetNote),
+      );
+      setFirstSelectionDirection(prev =>
+        prev !== null ? prev : getAbsoluteDirection(noteStr, round.targetNote),
+      );
       initAudio().then(() => playNote(noteStr, '2n')).catch(() => {});
       return;
     }
 
-    // Guess mode — grade immediately
-    if (pitchClass === round.targetNote) {
+    // Guess mode — octave-precise grading
+    if (noteStr === round.targetNote) {
       setCorrectPositions(new Set([key]));
       setNoteRevealed(true);
       setIsRevealing(true);
@@ -99,26 +120,44 @@ export function FretboardTrainer({ round, score, isHuntMode, onComplete }: Fretb
     if (!selectedPosition || !selectedNote || isRevealing) return;
     const isCorrect = selectedNote === round.targetNote;
 
-    // Capture first-confirm stats (never overwritten on subsequent wrong confirms)
-    const semitones = firstConfirmSemitones ?? getSemitoneDistance(selectedNote, round.targetNote);
-    const direction = firstConfirmDirection ?? getSemitoneDirection(selectedNote, round.targetNote);
-    if (firstConfirmSemitones === null) {
-      setFirstConfirmSemitones(semitones);
-      setFirstConfirmDirection(direction);
-    }
+    const semitones =
+      firstSelectionSemitones ??
+      getAbsoluteSemitoneDistance(selectedNote, round.targetNote);
+    const direction =
+      firstSelectionDirection ??
+      getAbsoluteDirection(selectedNote, round.targetNote);
 
     if (isCorrect) {
       const stars = semitones === 0 ? 3 : semitones <= 2 ? 2 : semitones <= 5 ? 1 : 0;
       const attempts = attemptCount + 1;
+      const totalTaps = selectionCount;
       const starStr = '★'.repeat(stars) + '☆'.repeat(3 - stars);
-      const feedback = semitones === 0
-        ? '★★★  Found in 1 attempt  ·  Perfect — correct first try!'
-        : `${starStr}  Found in ${attempts} attempt${attempts !== 1 ? 's' : ''}  ·  ${semitones} semitone${semitones !== 1 ? 's' : ''} ${direction} on first try`;
+      const feedback =
+        semitones === 0 && totalTaps === 1
+          ? '★★★  Direct hit — confirmed first try'
+          : `${starStr}  ${totalTaps} tap${totalTaps !== 1 ? 's' : ''} · confirmed ${
+              attempts === 1
+                ? 'first try'
+                : attempts === 2
+                ? '2nd try'
+                : attempts === 3
+                ? '3rd try'
+                : `${attempts}th try`
+            } · first tap ${semitones} semitone${semitones !== 1 ? 's' : ''} ${direction}`;
       setRoundFeedback(feedback);
-      setCorrectPositions(new Set([selectedPosition])); // green dot renders on top of blue preview
+      setCorrectPositions(new Set([selectedPosition]));
       setIsRevealing(true);
       setNoteRevealed(true);
-      setTimeout(() => onComplete(true, { stars, attempts, direction }), 600);
+      setTimeout(() =>
+        onComplete(true, {
+          stars,
+          attempts,
+          selectionCount: totalTaps,
+          direction,
+          firstSelectionSemitones: semitones,
+        }),
+        600,
+      );
     } else {
       setIsRevealing(true);
       setWrongConfirmFlash(true);
@@ -128,7 +167,11 @@ export function FretboardTrainer({ round, score, isHuntMode, onComplete }: Fretb
         setIsRevealing(false);
       }, 600);
     }
-  }, [selectedPosition, selectedNote, isRevealing, round, firstConfirmSemitones, firstConfirmDirection, attemptCount, onComplete]);
+  }, [
+    selectedPosition, selectedNote, isRevealing, round,
+    firstSelectionSemitones, firstSelectionDirection,
+    attemptCount, selectionCount, onComplete,
+  ]);
 
   const accuracy = score.total > 0 ? Math.round((score.correct / score.total) * 100) : 0;
 
@@ -138,7 +181,7 @@ export function FretboardTrainer({ round, score, isHuntMode, onComplete }: Fretb
         <p className="text-sm font-medium text-brand-secondary">
           {isHuntMode ? 'Hunt the note' : 'Find the note'}
           {noteRevealed && (
-            <span className="ml-1 text-brand-ink font-bold">→ {round.targetNote}</span>
+            <span className="ml-1 text-brand-ink font-bold">→ {round.targetNote.replace(/\d$/, '')}</span>
           )}
         </p>
         <button
@@ -149,6 +192,14 @@ export function FretboardTrainer({ round, score, isHuntMode, onComplete }: Fretb
         </button>
       </div>
 
+      {isHuntMode && onFocusChange && (
+        <FretboardFocusSelector
+          focus={focus}
+          fretsNum={round.fretsNum}
+          onChange={onFocusChange}
+        />
+      )}
+
       <Fretboard
         fretsNum={round.fretsNum}
         onFretClick={handleFretClick}
@@ -157,6 +208,7 @@ export function FretboardTrainer({ round, score, isHuntMode, onComplete }: Fretb
         correctPositions={correctPositions}
         wrongPosition={isHuntMode && wrongConfirmFlash ? selectedPosition : wrongPosition}
         previewPosition={isHuntMode && !wrongConfirmFlash ? selectedPosition : null}
+        focusZone={isHuntMode ? focus : undefined}
         compact
       />
 
