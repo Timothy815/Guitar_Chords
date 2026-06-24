@@ -17,6 +17,7 @@ interface FretboardTrainerProps {
   onFocusChange?: (focus: FretboardFocus) => void;
   droneNote?: string | null;
   droneMode?: 'off' | 'continuous' | 'cue';
+  singMode?: boolean;
   onComplete: (wasCorrect: boolean, huntResult?: HuntResult) => void;
 }
 
@@ -24,6 +25,7 @@ export function FretboardTrainer({
   round, score, isHuntMode,
   focus = {}, onFocusChange,
   droneNote, droneMode,
+  singMode,
   onComplete,
 }: FretboardTrainerProps) {
   // Shared state (Guess + Hunt)
@@ -31,6 +33,7 @@ export function FretboardTrainer({
   const [wrongPosition, setWrongPosition] = useState<string | null>(null);
   const [isRevealing, setIsRevealing] = useState(false);
   const [noteRevealed, setNoteRevealed] = useState(false);
+  const [locked, setLocked] = useState(true);
 
   // Hunt-only state
   const [selectedPosition, setSelectedPosition] = useState<string | null>(null);
@@ -43,6 +46,7 @@ export function FretboardTrainer({
   const [roundFeedback, setRoundFeedback] = useState<string | null>(null);
 
   useEffect(() => {
+    if (singMode) setLocked(true);
     setCorrectPositions(new Set());
     setWrongPosition(null);
     setIsRevealing(false);
@@ -96,6 +100,7 @@ export function FretboardTrainer({
 
   const handleFretClick = useCallback((stringIdx: number, fretIdx: number) => {
     if (isRevealing) return;
+    if (singMode && locked) return;
     const noteStr = getFretNote(stringIdx, fretIdx);
     if (!noteStr) return;
     const key = `${stringIdx}-${fretIdx}`;
@@ -133,7 +138,7 @@ export function FretboardTrainer({
       }).catch(() => {});
       setTimeout(() => onComplete(false), 2000);
     }
-  }, [isRevealing, isHuntMode, round, onComplete]);
+  }, [isRevealing, isHuntMode, round, onComplete, singMode, locked]);
 
   const handleConfirm = useCallback(() => {
     if (!selectedPosition || !selectedNote || isRevealing) return;
@@ -195,10 +200,10 @@ export function FretboardTrainer({
   const accuracy = score.total > 0 ? Math.round((score.correct / score.total) * 100) : 0;
 
   return (
-    <div className="rounded-lg border border-brand-line bg-brand-surface p-6 space-y-4">
+    <div className="relative rounded-lg border border-brand-line bg-brand-surface p-6 space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium text-brand-secondary">
-          {isHuntMode ? 'Hunt the note' : 'Find the note'}
+          {isHuntMode ? 'Hunt the note' : singMode ? 'Sing the note' : 'Find the note'}
           {noteRevealed && (
             <span className="ml-1 text-brand-ink font-bold">→ {round.targetNote.replace(/\d$/, '')}</span>
           )}
@@ -230,6 +235,20 @@ export function FretboardTrainer({
         focusZone={isHuntMode ? focus : undefined}
         compact
       />
+
+      {singMode && locked && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-brand-bg/80 rounded-lg z-10">
+          <p className="text-sm text-brand-secondary text-center px-4">
+            Sing or hum the note, then tap Ready
+          </p>
+          <button
+            onClick={() => setLocked(false)}
+            className="px-6 py-2 rounded-lg bg-brand-primary text-white text-sm font-medium hover:bg-brand-primary/90 transition-colors"
+          >
+            Ready
+          </button>
+        </div>
+      )}
 
       {isHuntMode && (
         <div className="flex items-center justify-between min-h-[36px]">
