@@ -34,11 +34,6 @@ export function FretboardFocusSelector({ focus, fretsNum, onChange }: FretboardF
 
   const activeZone =
     FRET_ZONES.find(z => z.fretMin === focus.fretMin && z.fretMax === focus.fretMax) ?? null;
-  const isSpecificFret =
-    focus.fretMin !== undefined &&
-    focus.fretMin === focus.fretMax &&
-    activeZone === null;
-  const specificFretVal = isSpecificFret ? (focus.fretMin ?? '') : '';
 
   function toggleString(idx: number) {
     const next = stringIdxs.includes(idx)
@@ -93,22 +88,38 @@ export function FretboardFocusSelector({ focus, fretsNum, onChange }: FretboardF
             {zone.label}
           </button>
         ))}
-        <span className="text-brand-secondary ml-1 shrink-0">Fret:</span>
         <input
           type="number"
-          min={1}
+          min={0}
           max={fretsNum}
-          value={specificFretVal}
-          placeholder="—"
+          value={focus.fretMin ?? ''}
+          placeholder="0"
           onChange={e => {
             const v = parseInt(e.target.value, 10);
-            if (!isNaN(v) && v >= 1 && v <= fretsNum) {
-              onChange({ ...focus, fretMin: v, fretMax: v });
+            if (!isNaN(v) && v >= 0 && v <= fretsNum) {
+              onChange({ ...focus, fretMin: v, fretMax: focus.fretMax ?? fretsNum });
             } else if (e.target.value === '') {
-              onChange({ ...focus, fretMin: undefined, fretMax: undefined });
+              onChange({ ...focus, fretMin: undefined });
             }
           }}
-          className="w-12 text-center rounded border border-brand-line text-xs py-0.5 bg-brand-bg text-brand-ink focus:outline-none focus:border-brand-primary"
+          className="ml-2 w-10 text-center rounded border border-brand-line text-xs py-0.5 bg-brand-bg text-brand-ink focus:outline-none focus:border-brand-primary"
+        />
+        <span className="text-brand-secondary">–</span>
+        <input
+          type="number"
+          min={0}
+          max={fretsNum}
+          value={focus.fretMax ?? ''}
+          placeholder={String(fretsNum)}
+          onChange={e => {
+            const v = parseInt(e.target.value, 10);
+            if (!isNaN(v) && v >= 0 && v <= fretsNum) {
+              onChange({ ...focus, fretMin: focus.fretMin ?? 0, fretMax: v });
+            } else if (e.target.value === '') {
+              onChange({ ...focus, fretMax: undefined });
+            }
+          }}
+          className="w-10 text-center rounded border border-brand-line text-xs py-0.5 bg-brand-bg text-brand-ink focus:outline-none focus:border-brand-primary"
         />
       </div>
     </div>
