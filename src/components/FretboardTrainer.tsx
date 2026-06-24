@@ -200,7 +200,7 @@ export function FretboardTrainer({
   const accuracy = score.total > 0 ? Math.round((score.correct / score.total) * 100) : 0;
 
   return (
-    <div className="relative rounded-lg border border-brand-line bg-brand-surface p-6 space-y-4">
+    <div className="rounded-lg border border-brand-line bg-brand-surface p-6 space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium text-brand-secondary">
           {isHuntMode ? 'Hunt the note' : singMode ? 'Sing the note' : 'Find the note'}
@@ -224,31 +224,32 @@ export function FretboardTrainer({
         />
       )}
 
-      <Fretboard
-        fretsNum={round.fretsNum}
-        onFretClick={handleFretClick}
-        onFretMouseDown={isHuntMode ? handleFretMouseDown : undefined}
-        showNoteNames={false}
-        correctPositions={correctPositions}
-        wrongPosition={isHuntMode && wrongConfirmFlash ? selectedPosition : wrongPosition}
-        previewPosition={isHuntMode && !wrongConfirmFlash ? selectedPosition : null}
-        focusZone={isHuntMode ? focus : undefined}
-        compact
-      />
-
-      {singMode && locked && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-brand-bg/80 rounded-lg z-10">
-          <p className="text-sm text-brand-secondary text-center px-4">
-            Sing or hum the note, then tap Ready
-          </p>
-          <button
-            onClick={() => setLocked(false)}
-            className="px-6 py-2 rounded-lg bg-brand-primary text-white text-sm font-medium hover:bg-brand-primary/90 transition-colors"
-          >
-            Ready
-          </button>
-        </div>
-      )}
+      <div className="relative">
+        <Fretboard
+          fretsNum={round.fretsNum}
+          onFretClick={handleFretClick}
+          onFretMouseDown={isHuntMode ? handleFretMouseDown : undefined}
+          showNoteNames={false}
+          correctPositions={correctPositions}
+          wrongPosition={isHuntMode && wrongConfirmFlash ? selectedPosition : wrongPosition}
+          previewPosition={isHuntMode && !wrongConfirmFlash ? selectedPosition : null}
+          focusZone={isHuntMode ? focus : undefined}
+          compact
+        />
+        {singMode && locked && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-brand-bg/80 rounded-lg z-10">
+            <p className="text-sm text-brand-secondary text-center px-4">
+              Sing or hum the note, then tap Ready
+            </p>
+            <button
+              onClick={() => setLocked(false)}
+              className="px-6 py-2 rounded-lg bg-brand-primary text-white text-sm font-medium hover:bg-brand-primary/90 transition-colors"
+            >
+              Ready
+            </button>
+          </div>
+        )}
+      </div>
 
       {isHuntMode && (
         <div className="flex items-center justify-between min-h-[36px]">
