@@ -47,8 +47,13 @@ export function EarTraining() {
     const key = `${diff}|${JSON.stringify(focus)}`;
     if (deckKeyRef.current !== key || deckRef.current.length === 0) {
       const pool = buildFretboardNotePool(diff, focus);
+      const a: string[] = [];
+      for (const note of pool) {
+        const wrong = (score.byType[note]?.total ?? 0) - (score.byType[note]?.correct ?? 0);
+        const copies = Math.min(wrong + 1, 4);
+        for (let c = 0; c < copies; c++) a.push(note);
+      }
       // Fisher-Yates shuffle
-      const a = [...pool];
       for (let i = a.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [a[i], a[j]] = [a[j], a[i]];
