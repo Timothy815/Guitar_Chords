@@ -127,7 +127,11 @@ export function FretboardTrainer({
       setNoteRevealed(true);
       setIsRevealing(true);
       setTimeout(() => setWrongPosition(null), 600);
-      setTimeout(() => onComplete(false), 1500);
+      initAudio().then(() => {
+        playNote(noteStr, '2n');
+        setTimeout(() => playNote(round.targetNote, '2n'), 800);
+      }).catch(() => {});
+      setTimeout(() => onComplete(false), 2000);
     }
   }, [isRevealing, isHuntMode, round, onComplete]);
 
