@@ -15,12 +15,15 @@ interface FretboardTrainerProps {
   isHuntMode: boolean;
   focus?: FretboardFocus;
   onFocusChange?: (focus: FretboardFocus) => void;
+  droneNote?: string | null;
+  droneMode?: 'off' | 'continuous' | 'cue';
   onComplete: (wasCorrect: boolean, huntResult?: HuntResult) => void;
 }
 
 export function FretboardTrainer({
   round, score, isHuntMode,
   focus = {}, onFocusChange,
+  droneNote, droneMode,
   onComplete,
 }: FretboardTrainerProps) {
   // Shared state (Guess + Hunt)
@@ -52,7 +55,19 @@ export function FretboardTrainer({
     setFirstSelectionDirection(null);
     setWrongConfirmFlash(false);
     setRoundFeedback(null);
-    playFretboardRound(round).catch(() => {});
+
+    if (droneMode === 'cue' && droneNote) {
+      initAudio()
+        .then(() => {
+          playNote(droneNote, '2n');
+          setTimeout(() => playFretboardRound(round).catch(() => {}), 600);
+        })
+        .catch(() => {});
+    } else {
+      playFretboardRound(round).catch(() => {});
+    }
+    // droneMode and droneNote intentionally omitted from deps: effect must only
+    // fire when a new round starts, not when the user adjusts drone settings mid-round.
   }, [round]);
 
   const handleFretMouseDown = useCallback((stringIdx: number, fretIdx: number) => {
