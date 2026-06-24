@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Volume2, ChevronDown, ChevronUp, Headphones } from 'lucide-react';
 import { cn } from '../lib/utils';
 import {
-  EarTrainingSettings, ChordRound, IntervalRound, FretboardRound, HuntResult, Round, SessionScore, StudyCard,
+  EarTrainingSettings, ChordRound, IntervalRound, FretboardRound, HuntResult, FretboardFocus, Round, SessionScore, StudyCard,
   DifficultyLevel, CHORD_TYPE_DEFS, INTERVAL_DEFS, DIFFICULTY_PRESETS,
   loadSettings, saveSettings, initialScore,
   generateChordRound, generateIntervalRound, generateStudyDeck, generateFretboardRound,
@@ -11,9 +11,13 @@ import {
 import { initAudio, playStrum, playNote } from '../lib/audio';
 import { FretboardTrainer } from '../components/FretboardTrainer';
 
-function makeRound(s: EarTrainingSettings, difficulty: DifficultyLevel = 'Beginner'): Round {
+function makeRound(
+  s: EarTrainingSettings,
+  difficulty: DifficultyLevel = 'Beginner',
+  focus: FretboardFocus = {},
+): Round {
   if (s.mode === 'chord') return generateChordRound(s.activeChordTypes);
-  if (s.mode === 'fretboard') return generateFretboardRound(difficulty);
+  if (s.mode === 'fretboard') return generateFretboardRound(difficulty, focus);
   return generateIntervalRound(s.activeIntervals);
 }
 
@@ -22,6 +26,7 @@ export function EarTraining() {
   const [difficulty, setDifficulty] = useState<DifficultyLevel>('Beginner');
   const [fretboardSubMode, setFretboardSubMode] = useState<'guess' | 'hunt'>('guess');
   const [biasTally, setBiasTally] = useState({ sharp: 0, flat: 0, correct: 0 });
+  const [fretboardFocus, setFretboardFocus] = useState<FretboardFocus>({});
   const [round, setRound] = useState<Round>(() => makeRound(loadSettings()));
   const [selected, setSelected] = useState<number | null>(null);
   const [tentative, setTentative] = useState<number | null>(null);
@@ -60,8 +65,9 @@ export function EarTraining() {
     }
   }, [round, playRoundAudio]);
 
-  function advanceRound(s: EarTrainingSettings = settings) {
-    const r = makeRound(s, difficulty);
+  function advanceRound(s: EarTrainingSettings = settings, focusOverride?: FretboardFocus) {
+    const activeFocus = focusOverride ?? fretboardFocus;
+    const r = makeRound(s, difficulty, activeFocus);
     setSelected(null);
     setTentative(null);
     setRound(r);
@@ -91,6 +97,11 @@ export function EarTraining() {
     const next = { ...settings, mode: 'fretboard' as const };
     setSettings(next);
     advanceRound(next);
+  }
+
+  function handleFocusChange(focus: FretboardFocus) {
+    setFretboardFocus(focus);
+    advanceRound(settings, focus);
   }
 
   function handleFretboardComplete(wasCorrect: boolean, huntResult?: HuntResult) {
@@ -190,8 +201,9 @@ export function EarTraining() {
   function handleStartOver() {
     setScore(initialScore());
     setBiasTally({ sharp: 0, flat: 0, correct: 0 });
+    setFretboardFocus({});
     setShowSummary(false);
-    advanceRound();
+    advanceRound(settings, {});
   }
 
   function getOptionLabel(index: number): string {
@@ -419,6 +431,8 @@ export function EarTraining() {
           difficulty={difficulty}
           score={score}
           isHuntMode={fretboardSubMode === 'hunt'}
+          focus={fretboardFocus}
+          onFocusChange={handleFocusChange}
           onComplete={handleFretboardComplete}
         />
       ) : settings.mode === 'study' ? (
