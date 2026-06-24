@@ -25,7 +25,7 @@ function makeRound(
 export function EarTraining() {
   const [settings, setSettings] = useState<EarTrainingSettings>(loadSettings);
   const [difficulty, setDifficulty] = useState<DifficultyLevel>('Beginner');
-  const [fretboardSubMode, setFretboardSubMode] = useState<'guess' | 'hunt'>('guess');
+  const [fretboardSubMode, setFretboardSubMode] = useState<'guess' | 'hunt' | 'sing'>('guess');
   const [biasTally, setBiasTally] = useState({ sharp: 0, flat: 0, correct: 0 });
   const [fretboardFocus, setFretboardFocus] = useState<FretboardFocus>({});
   const [droneNote, setDroneNote] = useState<string | null>(null);
@@ -336,7 +336,7 @@ export function EarTraining() {
                     onClick={() => settings.mode === 'fretboard' ? handleFretboardDifficulty(level) : handleDifficulty(level)}
                     className={cn(
                       'px-3 py-1.5 rounded-md text-xs font-medium border transition-colors',
-                      settings.mode === 'fretboard' && fretboardSubMode === 'guess' && difficulty === level
+                      settings.mode === 'fretboard' && (fretboardSubMode === 'guess' || fretboardSubMode === 'sing') && difficulty === level
                         ? 'border-brand-primary text-brand-primary bg-brand-primary/10'
                         : 'border-brand-line text-brand-secondary hover:border-brand-primary hover:text-brand-primary'
                     )}
@@ -355,6 +355,19 @@ export function EarTraining() {
                     )}
                   >
                     Hunt
+                  </button>
+                )}
+                {settings.mode === 'fretboard' && (
+                  <button
+                    onClick={() => { setFretboardSubMode('sing'); advanceRound(); }}
+                    className={cn(
+                      'px-3 py-1.5 rounded-md text-xs font-medium border transition-colors',
+                      fretboardSubMode === 'sing'
+                        ? 'border-brand-primary text-brand-primary bg-brand-primary/10'
+                        : 'border-brand-line text-brand-secondary hover:border-brand-primary hover:text-brand-primary'
+                    )}
+                  >
+                    Sing
                   </button>
                 )}
               </div>
@@ -516,6 +529,7 @@ export function EarTraining() {
           difficulty={difficulty}
           score={score}
           isHuntMode={fretboardSubMode === 'hunt'}
+          singMode={fretboardSubMode === 'sing'}
           focus={fretboardFocus}
           onFocusChange={handleFocusChange}
           droneNote={droneNote}
