@@ -26,9 +26,11 @@ interface FretboardProps {
   fretRange?: [number, number]; // [startFret, endFret] to isolate scales
   playingNotes?: Set<string>;
   compact?: boolean; // removes min-width constraint and hides label toggle (for grid contexts)
+  correctPositions?: Set<string>;
+  wrongPosition?: string | null;
 }
 
-export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClick, showNoteNames = true, className, fretRange, playingNotes = new Set(), compact = false }: FretboardProps) {
+export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClick, showNoteNames = true, className, fretRange, playingNotes = new Set(), compact = false, correctPositions = new Set(), wrongPosition = null }: FretboardProps) {
   const [labelMode, setLabelMode] = useState<LabelMode>('none');
 
   const stringsNum = 6;
@@ -238,6 +240,30 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
               {renderNoteMarker(stringIdx, fretIdx)}
             </g>
           )
+        )}
+
+        {/* Trainer feedback dots */}
+        {(correctPositions.size > 0 || wrongPosition !== null) && Array.from({ length: stringsNum }).map((_, stringIdx) =>
+          Array.from({ length: fretsNum + 1 }).map((_, fretIdx) => {
+            const key = `${stringIdx}-${fretIdx}`;
+            const isCorrect = correctPositions.has(key);
+            const isWrong = wrongPosition === key;
+            if (!isCorrect && !isWrong) return null;
+            const visualStringIdx = 5 - stringIdx;
+            const x = fretIdx === 0 ? paddingX / 2 : paddingX + (fretIdx - 0.5) * fretSpacing;
+            const y = paddingY + visualStringIdx * stringSpacing;
+            return (
+              <circle
+                key={`trainer-${key}`}
+                cx={x}
+                cy={y}
+                r={fretIdx === 0 ? 10 : 14}
+                fill={isWrong ? '#ef4444' : '#22c55e'}
+                opacity={0.85}
+                style={{ pointerEvents: 'none' }}
+              />
+            );
+          })
         )}
 
         {/* Fret numbers — screen only */}
