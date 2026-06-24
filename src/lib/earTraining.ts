@@ -13,7 +13,7 @@ export interface IntervalDef {
 }
 
 export interface EarTrainingSettings {
-  mode: 'chord' | 'interval' | 'study';
+  mode: 'chord' | 'interval' | 'study' | 'fretboard';
   activeChordTypes: string[];
   activeIntervals: string[];
   settingsPanelOpen: boolean;
@@ -59,7 +59,13 @@ export interface IntervalRound {
   options: IntervalAnswer[];
 }
 
-export type Round = ChordRound | IntervalRound;
+export interface FretboardRound {
+  kind: 'fretboard';
+  targetNote: string;
+  fretsNum: number;
+}
+
+export type Round = ChordRound | IntervalRound | FretboardRound;
 
 export interface SessionScore {
   correct: number;
@@ -325,4 +331,25 @@ export async function playStudyCard(card: StudyCard): Promise<void> {
     playNote(card.rootNote, '2n');
     setTimeout(() => playNote(card.topNote, '2n'), 400);
   }
+}
+
+export function generateFretboardRound(difficulty: DifficultyLevel): FretboardRound {
+  const fretsMap: Record<DifficultyLevel, number> = { Beginner: 6, Intermediate: 10, Advanced: 13 };
+  return { kind: 'fretboard', targetNote: pickRandom([...ALL_NOTES]), fretsNum: fretsMap[difficulty] };
+}
+
+export function getCorrectPositions(targetNote: string, fretsNum: number): Set<string> {
+  const positions = new Set<string>();
+  for (let s = 0; s < 6; s++) {
+    for (let f = 0; f < fretsNum; f++) {
+      const note = getFretNote(s, f);
+      if (note && note.replace(/\d$/, '') === targetNote) positions.add(`${s}-${f}`);
+    }
+  }
+  return positions;
+}
+
+export async function playFretboardRound(round: FretboardRound): Promise<void> {
+  await initAudio();
+  playNote(round.targetNote + '3', '2n');
 }
