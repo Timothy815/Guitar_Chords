@@ -6,6 +6,7 @@ import {
   DifficultyLevel, CHORD_TYPE_DEFS, INTERVAL_DEFS, DIFFICULTY_PRESETS,
   loadSettings, saveSettings, initialScore,
   generateChordRound, generateIntervalRound, generateStudyDeck, generateFretboardRound,
+  buildFretboardNotePool, makeFretboardRound,
   chordToNotes, playOptionAudio, playStudyCard,
 } from '../lib/earTraining';
 import { initAudio, playStrum, playNote } from '../lib/audio';
@@ -35,6 +36,26 @@ export function EarTraining() {
   const [studyDeck, setStudyDeck] = useState<StudyCard[]>([]);
   const [studyIndex, setStudyIndex] = useState(0);
   const audioUnlocked = useRef(false);
+  const deckRef = useRef<string[]>([]);
+  const deckKeyRef = useRef<string>('');
+
+  const FRETS_FOR: Record<DifficultyLevel, number> = { Beginner: 6, Intermediate: 10, Advanced: 13 };
+
+  function nextFretboardNote(diff: DifficultyLevel, focus: FretboardFocus): string {
+    const key = `${diff}|${JSON.stringify(focus)}`;
+    if (deckKeyRef.current !== key || deckRef.current.length === 0) {
+      const pool = buildFretboardNotePool(diff, focus);
+      // Fisher-Yates shuffle
+      const a = [...pool];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      deckRef.current = a;
+      deckKeyRef.current = key;
+    }
+    return deckRef.current.pop()!;
+  }
 
   useEffect(() => { saveSettings(settings); }, [settings]);
 
@@ -67,7 +88,13 @@ export function EarTraining() {
 
   function advanceRound(s: EarTrainingSettings = settings, focusOverride?: FretboardFocus) {
     const activeFocus = focusOverride ?? fretboardFocus;
-    const r = makeRound(s, difficulty, activeFocus);
+    let r: Round;
+    if (s.mode === 'fretboard') {
+      const note = nextFretboardNote(difficulty, activeFocus);
+      r = makeFretboardRound(note, FRETS_FOR[difficulty]);
+    } else {
+      r = makeRound(s, difficulty, activeFocus);
+    }
     setSelected(null);
     setTentative(null);
     setRound(r);
@@ -199,6 +226,8 @@ export function EarTraining() {
   }
 
   function handleStartOver() {
+    deckRef.current = [];
+    deckKeyRef.current = '';
     setScore(initialScore());
     setBiasTally({ sharp: 0, flat: 0, correct: 0 });
     setFretboardFocus({});

@@ -30,6 +30,8 @@ function pillCls(active: boolean) {
 }
 
 export function FretboardFocusSelector({ focus, fretsNum, onChange }: FretboardFocusSelectorProps) {
+  const stringIdxs = focus.stringIdxs ?? [];
+
   const activeZone =
     FRET_ZONES.find(z => z.fretMin === focus.fretMin && z.fretMax === focus.fretMax) ?? null;
   const isSpecificFret =
@@ -38,22 +40,29 @@ export function FretboardFocusSelector({ focus, fretsNum, onChange }: FretboardF
     activeZone === null;
   const specificFretVal = isSpecificFret ? (focus.fretMin ?? '') : '';
 
+  function toggleString(idx: number) {
+    const next = stringIdxs.includes(idx)
+      ? stringIdxs.filter(i => i !== idx)
+      : [...stringIdxs, idx];
+    onChange({ ...focus, stringIdxs: next });
+  }
+
   return (
     <div className="space-y-1.5 text-xs pb-2">
-      {/* String row */}
+      {/* String row — multi-select */}
       <div className="flex items-center gap-1 flex-wrap">
         <span className="text-brand-secondary w-12 shrink-0">String:</span>
         <button
-          className={pillCls(focus.stringIdx === undefined)}
-          onClick={() => onChange({ ...focus, stringIdx: undefined })}
+          className={pillCls(stringIdxs.length === 0)}
+          onClick={() => onChange({ ...focus, stringIdxs: [] })}
         >
           All
         </button>
         {STRING_LABELS.map(([idx, label]) => (
           <button
             key={idx}
-            className={pillCls(focus.stringIdx === idx)}
-            onClick={() => onChange({ ...focus, stringIdx: idx })}
+            className={pillCls(stringIdxs.includes(idx))}
+            onClick={() => toggleString(idx)}
           >
             {label}
           </button>

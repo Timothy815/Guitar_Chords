@@ -15,7 +15,7 @@ function isInFocus(
   focus: FretboardFocus,
   fretsNum: number,
 ): boolean {
-  if (focus.stringIdx !== undefined && focus.stringIdx !== stringIdx) return false;
+  if (focus.stringIdxs && focus.stringIdxs.length > 0 && !focus.stringIdxs.includes(stringIdx)) return false;
   const fMin = focus.fretMin ?? 0;
   const fMax = focus.fretMax ?? fretsNum;
   return fretIdx >= fMin && fretIdx <= fMax;

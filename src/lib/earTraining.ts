@@ -335,16 +335,13 @@ export async function playStudyCard(card: StudyCard): Promise<void> {
   }
 }
 
-export function generateFretboardRound(
-  difficulty: DifficultyLevel,
-  focus: FretboardFocus = {},
-): FretboardRound {
+export function buildFretboardNotePool(difficulty: DifficultyLevel, focus: FretboardFocus = {}): string[] {
   const fretsMap: Record<DifficultyLevel, number> = { Beginner: 6, Intermediate: 10, Advanced: 13 };
   const fretsNum = fretsMap[difficulty];
-
   const pool = new Set<string>();
+
   for (let s = 0; s < 6; s++) {
-    if (focus.stringIdx !== undefined && focus.stringIdx !== s) continue;
+    if (focus.stringIdxs && focus.stringIdxs.length > 0 && !focus.stringIdxs.includes(s)) continue;
     for (let f = 0; f <= fretsNum; f++) {
       const fMin = focus.fretMin ?? 0;
       const fMax = focus.fretMax ?? fretsNum;
@@ -354,7 +351,6 @@ export function generateFretboardRound(
     }
   }
 
-  // Safety fallback: if focus produced an empty pool, use all reachable notes.
   if (pool.size === 0) {
     for (let s = 0; s < 6; s++) {
       for (let f = 0; f <= fretsNum; f++) {
@@ -364,7 +360,21 @@ export function generateFretboardRound(
     }
   }
 
-  const targetNote = pickRandom([...pool]);
+  return [...pool];
+}
+
+export function makeFretboardRound(targetNote: string, fretsNum: number): FretboardRound {
+  return { kind: 'fretboard', targetNote, fretsNum };
+}
+
+export function generateFretboardRound(
+  difficulty: DifficultyLevel,
+  focus: FretboardFocus = {},
+): FretboardRound {
+  const fretsMap: Record<DifficultyLevel, number> = { Beginner: 6, Intermediate: 10, Advanced: 13 };
+  const fretsNum = fretsMap[difficulty];
+  const pool = buildFretboardNotePool(difficulty, focus);
+  const targetNote = pickRandom(pool);
   return { kind: 'fretboard', targetNote, fretsNum };
 }
 
@@ -392,9 +402,9 @@ export interface HuntResult {
 }
 
 export interface FretboardFocus {
-  stringIdx?: number;   // 0 = low E … 5 = high E; undefined = all strings
-  fretMin?: number;     // inclusive; undefined = 0
-  fretMax?: number;     // inclusive; undefined = fretsNum
+  stringIdxs?: number[];  // [0..5]; empty or undefined = all strings
+  fretMin?: number;       // inclusive; undefined = 0
+  fretMax?: number;       // inclusive; undefined = fretsNum
 }
 
 function noteToMidi(noteStr: string): number {
