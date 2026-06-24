@@ -501,7 +501,7 @@ function SheetToggle({
         aria-checked={checked}
         onClick={disabled ? undefined : onChange}
         className={cn(
-          'relative w-10 h-6 rounded-full transition-colors focus:outline-none',
+          'relative w-10 h-6 rounded-full transition-colors focus:outline-none overflow-hidden',
           checked ? 'bg-brand-primary' : 'bg-brand-line'
         )}
       >
