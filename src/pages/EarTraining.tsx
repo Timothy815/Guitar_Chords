@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Volume2, ChevronDown, ChevronUp, Headphones } from 'lucide-react';
 import { cn } from '../lib/utils';
 import {
-  EarTrainingSettings, ChordRound, IntervalRound, FretboardRound, Round, SessionScore, StudyCard,
+  EarTrainingSettings, ChordRound, IntervalRound, FretboardRound, HuntResult, Round, SessionScore, StudyCard,
   DifficultyLevel, CHORD_TYPE_DEFS, INTERVAL_DEFS, DIFFICULTY_PRESETS,
   loadSettings, saveSettings, initialScore,
   generateChordRound, generateIntervalRound, generateStudyDeck, generateFretboardRound,
@@ -20,6 +20,8 @@ function makeRound(s: EarTrainingSettings, difficulty: DifficultyLevel = 'Beginn
 export function EarTraining() {
   const [settings, setSettings] = useState<EarTrainingSettings>(loadSettings);
   const [difficulty, setDifficulty] = useState<DifficultyLevel>('Beginner');
+  const [fretboardSubMode, setFretboardSubMode] = useState<'guess' | 'hunt'>('guess');
+  const [biasTally, setBiasTally] = useState({ sharp: 0, flat: 0, correct: 0 });
   const [round, setRound] = useState<Round>(() => makeRound(loadSettings()));
   const [selected, setSelected] = useState<number | null>(null);
   const [tentative, setTentative] = useState<number | null>(null);
@@ -75,13 +77,23 @@ export function EarTraining() {
     setSettings(s => ({ ...s, mode: 'study' }));
   }
 
+  function handleFretboardDifficulty(level: DifficultyLevel | 'Hunt') {
+    if (level === 'Hunt') {
+      setFretboardSubMode('hunt');
+      setDifficulty('Advanced');
+    } else {
+      setFretboardSubMode('guess');
+      setDifficulty(level);
+    }
+  }
+
   function handleFretboardMode() {
     const next = { ...settings, mode: 'fretboard' as const };
     setSettings(next);
     advanceRound(next);
   }
 
-  function handleFretboardComplete(wasCorrect: boolean, _huntResult?: import('../lib/earTraining').HuntResult) {
+  function handleFretboardComplete(wasCorrect: boolean, huntResult?: HuntResult) {
     const typeKey = (round as FretboardRound).targetNote;
     setScore(prev => ({
       correct: prev.correct + (wasCorrect ? 1 : 0),
@@ -94,7 +106,15 @@ export function EarTraining() {
           total: (prev.byType[typeKey]?.total ?? 0) + 1,
         },
       },
+      totalStars: huntResult ? (prev.totalStars ?? 0) + huntResult.stars : prev.totalStars,
+      huntAttempts: huntResult ? [...(prev.huntAttempts ?? []), huntResult.attempts] : prev.huntAttempts,
     }));
+    if (huntResult) {
+      setBiasTally(prev => ({
+        ...prev,
+        [huntResult.direction]: prev[huntResult.direction] + 1,
+      }));
+    }
     advanceRound();
   }
 
@@ -169,6 +189,7 @@ export function EarTraining() {
 
   function handleStartOver() {
     setScore(initialScore());
+    setBiasTally({ sharp: 0, flat: 0, correct: 0 });
     setShowSummary(false);
     advanceRound();
   }
@@ -256,16 +277,34 @@ export function EarTraining() {
             {/* Difficulty presets */}
             <div className="pt-3">
               <p className="text-xs font-semibold uppercase tracking-widest text-brand-secondary mb-2">Difficulty</p>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 {(['Beginner', 'Intermediate', 'Advanced'] as DifficultyLevel[]).map(level => (
                   <button
                     key={level}
-                    onClick={() => handleDifficulty(level)}
-                    className="px-3 py-1.5 rounded-md text-xs font-medium border border-brand-line text-brand-secondary hover:border-brand-primary hover:text-brand-primary transition-colors"
+                    onClick={() => settings.mode === 'fretboard' ? handleFretboardDifficulty(level) : handleDifficulty(level)}
+                    className={cn(
+                      'px-3 py-1.5 rounded-md text-xs font-medium border transition-colors',
+                      settings.mode === 'fretboard' && fretboardSubMode === 'guess' && difficulty === level
+                        ? 'border-brand-primary text-brand-primary bg-brand-primary/10'
+                        : 'border-brand-line text-brand-secondary hover:border-brand-primary hover:text-brand-primary'
+                    )}
                   >
                     {level}
                   </button>
                 ))}
+                {settings.mode === 'fretboard' && (
+                  <button
+                    onClick={() => handleFretboardDifficulty('Hunt')}
+                    className={cn(
+                      'px-3 py-1.5 rounded-md text-xs font-medium border transition-colors',
+                      fretboardSubMode === 'hunt'
+                        ? 'border-brand-primary text-brand-primary bg-brand-primary/10'
+                        : 'border-brand-line text-brand-secondary hover:border-brand-primary hover:text-brand-primary'
+                    )}
+                  >
+                    Hunt
+                  </button>
+                )}
               </div>
             </div>
 
@@ -379,7 +418,7 @@ export function EarTraining() {
           round={round as FretboardRound}
           difficulty={difficulty}
           score={score}
-          isHuntMode={false}
+          isHuntMode={fretboardSubMode === 'hunt'}
           onComplete={handleFretboardComplete}
         />
       ) : settings.mode === 'study' ? (
@@ -557,6 +596,23 @@ export function EarTraining() {
                   ))}
                 </tbody>
               </table>
+            )}
+
+            {score.huntAttempts && score.huntAttempts.length > 0 && (
+              <div className="pt-2 border-t border-brand-line space-y-1">
+                <p className="text-sm font-medium text-brand-ink">Hunt Mode</p>
+                <p className="text-xs text-brand-secondary">
+                  Avg stars: {((score.totalStars ?? 0) / score.huntAttempts.length).toFixed(1)} / 3
+                  &nbsp;·&nbsp;
+                  Avg attempts: {(score.huntAttempts.reduce((a, b) => a + b, 0) / score.huntAttempts.length).toFixed(1)}
+                </p>
+                {biasTally.sharp > biasTally.flat + 2 && (
+                  <p className="text-xs text-brand-secondary">Tendency: guessing sharp ↑</p>
+                )}
+                {biasTally.flat > biasTally.sharp + 2 && (
+                  <p className="text-xs text-brand-secondary">Tendency: guessing flat ↓</p>
+                )}
+              </div>
             )}
 
             <div className="flex gap-3 pt-1">
