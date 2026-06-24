@@ -30,7 +30,7 @@ export function ChordSheet({ progression, showDiagrams, showChart }: ChordSheetP
           <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-4">
             Chord Reference
           </h2>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             {uniqueChords.map((chord, i) => (
               <React.Fragment key={chord.name ?? i}>
                 <ChordCard
