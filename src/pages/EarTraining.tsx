@@ -10,9 +10,8 @@ import {
 import { initAudio, playStrum, playNote } from '../lib/audio';
 
 function makeRound(s: EarTrainingSettings): Round {
-  return s.mode === 'chord'
-    ? generateChordRound(s.activeChordTypes)
-    : generateIntervalRound(s.activeIntervals);
+  if (s.mode === 'chord') return generateChordRound(s.activeChordTypes);
+  return generateIntervalRound(s.activeIntervals);
 }
 
 export function EarTraining() {
@@ -164,7 +163,7 @@ export function EarTraining() {
     : 0;
 
   return (
-    <div className="max-w-2xl mx-auto pb-24 space-y-4">
+    <div className={cn('max-w-2xl mx-auto space-y-4', settings.mode !== 'study' && 'pb-24')}>
       {/* Page header */}
       <div className="flex items-center gap-3 mb-2">
         <div className="w-8 h-8 bg-brand-primary rounded-lg flex items-center justify-center">
@@ -455,23 +454,23 @@ export function EarTraining() {
 
       {/* Fixed score bar */}
       {settings.mode !== 'study' && (
-      <div className="fixed bottom-0 left-0 right-0 bg-brand-surface border-t border-brand-line px-6 py-3 flex items-center justify-between z-10 print:hidden">
-        <div className="flex items-center gap-4 text-sm">
-          <span className="font-medium text-brand-ink">
-            {score.correct}
-            <span className="text-brand-secondary font-normal"> / {score.total} correct</span>
-          </span>
-          {score.streak >= 2 && (
-            <span className="text-orange-500 font-medium">🔥 {score.streak} streak</span>
-          )}
+        <div className="fixed bottom-0 left-0 right-0 bg-brand-surface border-t border-brand-line px-6 py-3 flex items-center justify-between z-10 print:hidden">
+          <div className="flex items-center gap-4 text-sm">
+            <span className="font-medium text-brand-ink">
+              {score.correct}
+              <span className="text-brand-secondary font-normal"> / {score.total} correct</span>
+            </span>
+            {score.streak >= 2 && (
+              <span className="text-orange-500 font-medium">🔥 {score.streak} streak</span>
+            )}
+          </div>
+          <button
+            onClick={() => setShowSummary(true)}
+            className="px-3 py-1.5 rounded-md text-xs font-medium border border-brand-line text-brand-secondary hover:border-brand-primary hover:text-brand-primary transition-colors"
+          >
+            End Session
+          </button>
         </div>
-        <button
-          onClick={() => setShowSummary(true)}
-          className="px-3 py-1.5 rounded-md text-xs font-medium border border-brand-line text-brand-secondary hover:border-brand-primary hover:text-brand-primary transition-colors"
-        >
-          End Session
-        </button>
-      </div>
       )}
 
       {/* Session summary modal */}
