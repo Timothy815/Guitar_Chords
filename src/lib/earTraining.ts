@@ -353,7 +353,8 @@ export function getCorrectPositions(targetNote: string, fretsNum: number): Set<s
 
 export async function playFretboardRound(round: FretboardRound): Promise<void> {
   await initAudio();
-  playNote(round.targetNote + '3', '2n');
+  const octave = pickRandom([2, 3, 4]);
+  playNote(round.targetNote + octave, '2n');
 }
 
 export interface HuntResult {
