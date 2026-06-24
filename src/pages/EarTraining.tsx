@@ -269,6 +269,13 @@ export function EarTraining() {
     ? Math.round((score.correct / score.total) * 100)
     : 0;
 
+  const weakNotes = settings.mode === 'fretboard'
+    ? Object.entries(score.byType)
+        .map(([note, data]: [string, { correct: number; total: number }]) => ({ note, wrong: data.total - data.correct, total: data.total }))
+        .filter(e => e.wrong > 0)
+        .sort((a, b) => b.wrong - a.wrong || a.note.localeCompare(b.note))
+    : [];
+
   return (
     <div className={cn('max-w-2xl mx-auto space-y-4', settings.mode !== 'study' && 'pb-24')}>
       {/* Page header */}
@@ -670,6 +677,13 @@ export function EarTraining() {
             {score.streak >= 2 && (
               <span className="text-orange-500 font-medium">🔥 {score.streak} streak</span>
             )}
+            {weakNotes.length > 0 && (
+              <span className="text-brand-secondary">
+                Weak: <span className="text-brand-ink font-medium">
+                  {weakNotes.slice(0, 3).map(e => e.note.replace(/\d$/, '')).join(' · ')}
+                </span>
+              </span>
+            )}
           </div>
           <button
             onClick={() => setShowSummary(true)}
@@ -697,25 +711,48 @@ export function EarTraining() {
               <span className="ml-2 text-sm text-brand-secondary">({accuracy}%)</span>
             </p>
 
-            {Object.keys(score.byType).length > 0 && (
-              <table className="w-full text-sm border-collapse">
-                <thead>
-                  <tr className="border-b border-brand-line text-left">
-                    <th className="pb-1.5 font-medium text-brand-secondary">Type</th>
-                    <th className="pb-1.5 font-medium text-brand-secondary text-right">Correct</th>
-                    <th className="pb-1.5 font-medium text-brand-secondary text-right">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Object.entries(score.byType).map(([type, data]: [string, { correct: number; total: number }]) => (
-                    <tr key={type} className="border-b border-brand-line/40">
-                      <td className="py-1.5 text-brand-ink">{type}</td>
-                      <td className="py-1.5 text-right text-green-600 font-medium">{data.correct}</td>
-                      <td className="py-1.5 text-right text-brand-secondary">{data.total}</td>
+            {settings.mode === 'fretboard' ? (
+              weakNotes.length > 0 && (
+                <table className="w-full text-sm border-collapse">
+                  <thead>
+                    <tr className="border-b border-brand-line text-left">
+                      <th className="pb-1.5 font-medium text-brand-secondary">Note</th>
+                      <th className="pb-1.5 font-medium text-brand-secondary text-right">Wrong</th>
+                      <th className="pb-1.5 font-medium text-brand-secondary text-right">Attempted</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {weakNotes.map(({ note, wrong, total }) => (
+                      <tr key={note} className="border-b border-brand-line/40">
+                        <td className="py-1.5 text-brand-ink">{note.replace(/\d$/, '')}</td>
+                        <td className="py-1.5 text-right text-red-500 font-medium">{wrong}</td>
+                        <td className="py-1.5 text-right text-brand-secondary">{total}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )
+            ) : (
+              Object.keys(score.byType).length > 0 && (
+                <table className="w-full text-sm border-collapse">
+                  <thead>
+                    <tr className="border-b border-brand-line text-left">
+                      <th className="pb-1.5 font-medium text-brand-secondary">Type</th>
+                      <th className="pb-1.5 font-medium text-brand-secondary text-right">Correct</th>
+                      <th className="pb-1.5 font-medium text-brand-secondary text-right">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(score.byType).map(([type, data]: [string, { correct: number; total: number }]) => (
+                      <tr key={type} className="border-b border-brand-line/40">
+                        <td className="py-1.5 text-brand-ink">{type}</td>
+                        <td className="py-1.5 text-right text-green-600 font-medium">{data.correct}</td>
+                        <td className="py-1.5 text-right text-brand-secondary">{data.total}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )
             )}
 
             {score.huntAttempts && score.huntAttempts.length > 0 && (
