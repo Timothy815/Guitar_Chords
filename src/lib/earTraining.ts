@@ -13,7 +13,7 @@ export interface IntervalDef {
 }
 
 export interface EarTrainingSettings {
-  mode: 'chord' | 'interval' | 'study' | 'fretboard';
+  mode: 'chord' | 'interval' | 'study' | 'fretboard' | 'plan';
   activeChordTypes: string[];
   activeIntervals: string[];
   settingsPanelOpen: boolean;
