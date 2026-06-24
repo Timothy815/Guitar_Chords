@@ -5,7 +5,7 @@ import {
   FretboardRound, DifficultyLevel, SessionScore, HuntResult,
   getCorrectPositions, playFretboardRound, getSemitoneDistance, getSemitoneDirection,
 } from '../lib/earTraining';
-import { getFretNote, initAudio, playNote } from '../lib/audio';
+import { getFretNote, initAudio, playNote, startNote, stopNote } from '../lib/audio';
 
 interface FretboardTrainerProps {
   round: FretboardRound;
@@ -46,6 +46,24 @@ export function FretboardTrainer({ round, score, isHuntMode, onComplete }: Fretb
     playFretboardRound(round).catch(() => {});
   }, [round]);
 
+  const handleFretMouseDown = useCallback((stringIdx: number, fretIdx: number) => {
+    if (!isHuntMode || isRevealing) return;
+    const noteStr = getFretNote(stringIdx, fretIdx);
+    if (!noteStr) return;
+    const pitchClass = noteStr.replace(/\d$/, '');
+    const key = `${stringIdx}-${fretIdx}`;
+    setSelectedPosition(key);
+    setSelectedNote(pitchClass);
+    initAudio().then(() => startNote(noteStr)).catch(() => {});
+  }, [isHuntMode, isRevealing]);
+
+  useEffect(() => {
+    if (!isHuntMode) return;
+    const release = () => stopNote();
+    window.addEventListener('mouseup', release);
+    return () => window.removeEventListener('mouseup', release);
+  }, [isHuntMode]);
+
   const handleFretClick = useCallback((stringIdx: number, fretIdx: number) => {
     if (isRevealing) return;
     const noteStr = getFretNote(stringIdx, fretIdx);
@@ -54,9 +72,10 @@ export function FretboardTrainer({ round, score, isHuntMode, onComplete }: Fretb
     const key = `${stringIdx}-${fretIdx}`;
 
     if (isHuntMode) {
+      // Mouse: handled by mousedown/mouseup. Touch fallback: play short note.
       setSelectedPosition(key);
       setSelectedNote(pitchClass);
-      initAudio().then(() => playNote(noteStr, '8n')).catch(() => {});
+      initAudio().then(() => playNote(noteStr, '2n')).catch(() => {});
       return;
     }
 
@@ -133,6 +152,7 @@ export function FretboardTrainer({ round, score, isHuntMode, onComplete }: Fretb
       <Fretboard
         fretsNum={round.fretsNum}
         onFretClick={handleFretClick}
+        onFretMouseDown={isHuntMode ? handleFretMouseDown : undefined}
         showNoteNames={false}
         correctPositions={correctPositions}
         wrongPosition={isHuntMode && wrongConfirmFlash ? selectedPosition : wrongPosition}

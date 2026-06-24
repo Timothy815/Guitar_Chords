@@ -21,6 +21,7 @@ interface FretboardProps {
   scale?: ScalePattern;
   onNoteClick?: (note: string) => void;
   onFretClick?: (stringIdx: number, fretIdx: number) => void;
+  onFretMouseDown?: (stringIdx: number, fretIdx: number) => void;
   showNoteNames?: boolean;
   className?: string; // Additional classes
   fretRange?: [number, number]; // [startFret, endFret] to isolate scales
@@ -31,7 +32,7 @@ interface FretboardProps {
   previewPosition?: string | null;
 }
 
-export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClick, showNoteNames = true, className, fretRange, playingNotes = new Set(), compact = false, correctPositions = new Set(), wrongPosition = null, previewPosition = null }: FretboardProps) {
+export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClick, onFretMouseDown, showNoteNames = true, className, fretRange, playingNotes = new Set(), compact = false, correctPositions = new Set(), wrongPosition = null, previewPosition = null }: FretboardProps) {
   const [labelMode, setLabelMode] = useState<LabelMode>('none');
 
   const stringsNum = 6;
@@ -236,6 +237,7 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
                 height={30}
                 fill="transparent"
                 onClick={() => (!chord && !scale || onFretClick) ? handleDotClick(stringIdx, fretIdx) : null}
+                onMouseDown={onFretMouseDown ? () => onFretMouseDown(stringIdx, fretIdx) : undefined}
                 className={(!chord && !scale || onFretClick) ? "cursor-pointer hover:fill-brand-secondary/20 transition-colors" : ""}
               />
               {renderNoteMarker(stringIdx, fretIdx)}

@@ -176,6 +176,17 @@ export function playNote(noteInfo: string, duration: number | string = "2n") {
   if (onNotePlayCallback) onNotePlayCallback(noteInfo);
 }
 
+export function startNote(noteInfo: string) {
+  if (!isInitialized || !sampler) return;
+  sampler.triggerAttack(noteInfo);
+  if (onNotePlayCallback) onNotePlayCallback(noteInfo);
+}
+
+export function stopNote() {
+  if (!isInitialized || !sampler) return;
+  sampler.releaseAll();
+}
+
 export function playStrum(notes: string[], duration: number | string = "1m", direction: 'down' | 'up' | 'up-down' | 'down-up' = 'down') {
   if (!isInitialized || !sampler) return;
   const now = Tone.now();
