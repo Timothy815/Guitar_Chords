@@ -766,135 +766,139 @@ export function EarTraining() {
       )}
 
       {/* Round area / Study view / Fretboard trainer */}
-      {settings.mode === 'fretboard' ? (
-        <FretboardTrainer
-          round={round as FretboardRound}
-          difficulty={difficulty}
-          score={score}
-          isHuntMode={fretboardSubMode === 'hunt'}
-          singMode={fretboardSubMode === 'sing'}
-          focus={fretboardFocus}
-          onFocusChange={handleFocusChange}
-          droneNote={droneNote}
-          droneMode={droneMode}
-          onComplete={handleFretboardComplete}
-        />
-      ) : settings.mode === 'study' ? (
-        studyDeck.length === 0 ? (
-          <div className="rounded-lg border border-brand-line bg-brand-surface p-6 text-center text-brand-secondary text-sm">
-            No cards — enable at least one chord type or interval in Settings.
-          </div>
-        ) : (
-          <div className="rounded-lg border border-brand-line bg-brand-surface p-8 flex flex-col items-center gap-6">
-            {/* Category chip */}
-            <span className="text-xs font-semibold uppercase tracking-widest px-2.5 py-1 rounded-full border border-brand-line text-brand-secondary">
-              {studyDeck[studyIndex].kind === 'chord' ? 'Chord' : 'Interval'}
-            </span>
+      {settings.mode !== 'plan' && (
+        <>
+          {settings.mode === 'fretboard' ? (
+            <FretboardTrainer
+              round={round as FretboardRound}
+              difficulty={difficulty}
+              score={score}
+              isHuntMode={fretboardSubMode === 'hunt'}
+              singMode={fretboardSubMode === 'sing'}
+              focus={fretboardFocus}
+              onFocusChange={handleFocusChange}
+              droneNote={droneNote}
+              droneMode={droneMode}
+              onComplete={handleFretboardComplete}
+            />
+          ) : settings.mode === 'study' ? (
+            studyDeck.length === 0 ? (
+              <div className="rounded-lg border border-brand-line bg-brand-surface p-6 text-center text-brand-secondary text-sm">
+                No cards — enable at least one chord type or interval in Settings.
+              </div>
+            ) : (
+              <div className="rounded-lg border border-brand-line bg-brand-surface p-8 flex flex-col items-center gap-6">
+                {/* Category chip */}
+                <span className="text-xs font-semibold uppercase tracking-widest px-2.5 py-1 rounded-full border border-brand-line text-brand-secondary">
+                  {studyDeck[studyIndex].kind === 'chord' ? 'Chord' : 'Interval'}
+                </span>
 
-            {/* Name */}
-            <p className="text-3xl font-serif font-bold text-brand-ink text-center">
-              {studyDeck[studyIndex].kind === 'chord'
-                ? studyDeck[studyIndex].displayLabel
-                : studyDeck[studyIndex].label}
-            </p>
+                {/* Name */}
+                <p className="text-3xl font-serif font-bold text-brand-ink text-center">
+                  {studyDeck[studyIndex].kind === 'chord'
+                    ? studyDeck[studyIndex].displayLabel
+                    : studyDeck[studyIndex].label}
+                </p>
 
-            {/* Play button */}
-            <button
-              onClick={() => playStudyCard(studyDeck[studyIndex]).catch(() => {})}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-brand-primary text-white text-sm font-medium hover:bg-brand-primary/90 transition-colors"
-            >
-              <Volume2 size={18} /> Play
-            </button>
-
-            {/* Navigation */}
-            <div className="flex items-center gap-4 pt-2">
-              <button
-                onClick={() => setStudyIndex(i => i - 1)}
-                disabled={studyIndex === 0}
-                className="p-2 rounded-lg border border-brand-line text-brand-secondary hover:border-brand-primary hover:text-brand-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                aria-label="Previous card"
-              >
-                ←
-              </button>
-              <span className="text-sm text-brand-secondary tabular-nums">
-                {studyIndex + 1} / {studyDeck.length}
-              </span>
-              <button
-                onClick={() => setStudyIndex(i => i + 1)}
-                disabled={studyIndex === studyDeck.length - 1}
-                className="p-2 rounded-lg border border-brand-line text-brand-secondary hover:border-brand-primary hover:text-brand-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                aria-label="Next card"
-              >
-                →
-              </button>
-            </div>
-          </div>
-        )
-      ) : (
-        <div className="rounded-lg border border-brand-line bg-brand-surface p-6 space-y-6">
-          {/* Replay button — also serves as the first user gesture to unlock audio */}
-          <div className="flex justify-center">
-            <button
-              onClick={() => playRoundAudio(round)}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-brand-primary text-white text-sm font-medium hover:bg-brand-primary/90 transition-colors"
-            >
-              <Volume2 size={18} /> Replay
-            </button>
-          </div>
-
-          {/* Answer options — 2×2 grid */}
-          <div className="grid grid-cols-2 gap-3">
-            {Array.from({ length: 4 }, (_, i) => {
-              const answered = selected !== null;
-              const correct = isOptionCorrect(i);
-              const isSelected = selected === i;
-              const isTentative = tentative === i;
-              const hasTentative = tentative !== null;
-              return (
+                {/* Play button */}
                 <button
-                  key={i}
-                  onClick={() => handleTentative(i)}
-                  disabled={answered}
-                  className={cn(
-                    'p-4 rounded-lg border-2 text-sm font-medium transition-colors text-center leading-snug',
-                    !answered && !hasTentative && 'border-brand-line hover:border-brand-primary hover:bg-brand-sidebar cursor-pointer text-brand-ink',
-                    !answered && isTentative && 'border-brand-primary bg-brand-primary/10 cursor-pointer text-brand-ink',
-                    !answered && hasTentative && !isTentative && 'border-brand-line cursor-pointer text-brand-ink opacity-60 hover:opacity-90',
-                    answered && correct && 'border-green-500 bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300',
-                    answered && !correct && isSelected && 'border-red-500 bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300',
-                    answered && !correct && !isSelected && 'border-brand-line text-brand-secondary opacity-50',
-                  )}
+                  onClick={() => playStudyCard(studyDeck[studyIndex]).catch(() => {})}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-brand-primary text-white text-sm font-medium hover:bg-brand-primary/90 transition-colors"
                 >
-                  {getOptionLabel(i)}
+                  <Volume2 size={18} /> Play
                 </button>
-              );
-            })}
-          </div>
 
-          {/* Confirm button — appears after tentative pick */}
-          {tentative !== null && selected === null && (
-            <div className="flex justify-end">
-              <button
-                onClick={handleConfirm}
-                className="px-5 py-2.5 rounded-lg bg-brand-primary text-white text-sm font-medium hover:bg-brand-primary/90 transition-colors"
-              >
-                Confirm
-              </button>
+                {/* Navigation */}
+                <div className="flex items-center gap-4 pt-2">
+                  <button
+                    onClick={() => setStudyIndex(i => i - 1)}
+                    disabled={studyIndex === 0}
+                    className="p-2 rounded-lg border border-brand-line text-brand-secondary hover:border-brand-primary hover:text-brand-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    aria-label="Previous card"
+                  >
+                    ←
+                  </button>
+                  <span className="text-sm text-brand-secondary tabular-nums">
+                    {studyIndex + 1} / {studyDeck.length}
+                  </span>
+                  <button
+                    onClick={() => setStudyIndex(i => i + 1)}
+                    disabled={studyIndex === studyDeck.length - 1}
+                    className="p-2 rounded-lg border border-brand-line text-brand-secondary hover:border-brand-primary hover:text-brand-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    aria-label="Next card"
+                  >
+                    →
+                  </button>
+                </div>
+              </div>
+            )
+          ) : (
+            <div className="rounded-lg border border-brand-line bg-brand-surface p-6 space-y-6">
+              {/* Replay button — also serves as the first user gesture to unlock audio */}
+              <div className="flex justify-center">
+                <button
+                  onClick={() => playRoundAudio(round)}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-brand-primary text-white text-sm font-medium hover:bg-brand-primary/90 transition-colors"
+                >
+                  <Volume2 size={18} /> Replay
+                </button>
+              </div>
+
+              {/* Answer options — 2×2 grid */}
+              <div className="grid grid-cols-2 gap-3">
+                {Array.from({ length: 4 }, (_, i) => {
+                  const answered = selected !== null;
+                  const correct = isOptionCorrect(i);
+                  const isSelected = selected === i;
+                  const isTentative = tentative === i;
+                  const hasTentative = tentative !== null;
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => handleTentative(i)}
+                      disabled={answered}
+                      className={cn(
+                        'p-4 rounded-lg border-2 text-sm font-medium transition-colors text-center leading-snug',
+                        !answered && !hasTentative && 'border-brand-line hover:border-brand-primary hover:bg-brand-sidebar cursor-pointer text-brand-ink',
+                        !answered && isTentative && 'border-brand-primary bg-brand-primary/10 cursor-pointer text-brand-ink',
+                        !answered && hasTentative && !isTentative && 'border-brand-line cursor-pointer text-brand-ink opacity-60 hover:opacity-90',
+                        answered && correct && 'border-green-500 bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300',
+                        answered && !correct && isSelected && 'border-red-500 bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300',
+                        answered && !correct && !isSelected && 'border-brand-line text-brand-secondary opacity-50',
+                      )}
+                    >
+                      {getOptionLabel(i)}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Confirm button — appears after tentative pick */}
+              {tentative !== null && selected === null && (
+                <div className="flex justify-end">
+                  <button
+                    onClick={handleConfirm}
+                    className="px-5 py-2.5 rounded-lg bg-brand-primary text-white text-sm font-medium hover:bg-brand-primary/90 transition-colors"
+                  >
+                    Confirm
+                  </button>
+                </div>
+              )}
+
+              {/* Next button — appears after answering */}
+              {selected !== null && (
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => advanceRound()}
+                    className="px-5 py-2.5 rounded-lg bg-brand-primary text-white text-sm font-medium hover:bg-brand-primary/90 transition-colors"
+                  >
+                    Next →
+                  </button>
+                </div>
+              )}
             </div>
           )}
-
-          {/* Next button — appears after answering */}
-          {selected !== null && (
-            <div className="flex justify-end">
-              <button
-                onClick={() => advanceRound()}
-                className="px-5 py-2.5 rounded-lg bg-brand-primary text-white text-sm font-medium hover:bg-brand-primary/90 transition-colors"
-              >
-                Next →
-              </button>
-            </div>
-          )}
-        </div>
+        </>
       )}
 
       {/* Fixed score bar */}
