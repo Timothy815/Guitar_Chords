@@ -5,7 +5,7 @@ import {
   EarTrainingSettings, ChordRound, IntervalRound, Round, SessionScore,
   DifficultyLevel, CHORD_TYPE_DEFS, INTERVAL_DEFS, DIFFICULTY_PRESETS,
   loadSettings, saveSettings, initialScore,
-  generateChordRound, generateIntervalRound, chordToNotes,
+  generateChordRound, generateIntervalRound, chordToNotes, playOptionAudio,
 } from '../lib/earTraining';
 import { initAudio, playStrum, playNote } from '../lib/audio';
 
@@ -19,6 +19,7 @@ export function EarTraining() {
   const [settings, setSettings] = useState<EarTrainingSettings>(loadSettings);
   const [round, setRound] = useState<Round>(() => makeRound(loadSettings()));
   const [selected, setSelected] = useState<number | null>(null);
+  const [tentative, setTentative] = useState<number | null>(null);
   const [score, setScore] = useState<SessionScore>(initialScore);
   const [showSummary, setShowSummary] = useState(false);
   const audioUnlocked = useRef(false);
@@ -47,6 +48,7 @@ export function EarTraining() {
   function advanceRound(s: EarTrainingSettings = settings) {
     const r = makeRound(s);
     setSelected(null);
+    setTentative(null);
     setRound(r);
   }
 
@@ -84,6 +86,17 @@ export function EarTraining() {
       }
       return { ...s, activeIntervals: [...s.activeIntervals, label] };
     });
+  }
+
+  function handleTentative(i: number) {
+    if (selected !== null) return;
+    setTentative(i);
+    playOptionAudio(round, i);
+  }
+
+  function handleConfirm() {
+    if (tentative === null || selected !== null) return;
+    handleSelect(tentative);
   }
 
   function handleSelect(index: number) {
@@ -274,14 +287,22 @@ export function EarTraining() {
             const answered = selected !== null;
             const correct = isOptionCorrect(i);
             const isSelected = selected === i;
+            const isTentative = tentative === i;
+            const hasTentative = tentative !== null;
             return (
               <button
                 key={i}
-                onClick={() => handleSelect(i)}
+                onClick={() => handleTentative(i)}
                 disabled={answered}
                 className={cn(
                   'p-4 rounded-lg border-2 text-sm font-medium transition-colors text-center leading-snug',
-                  !answered && 'border-brand-line hover:border-brand-primary hover:bg-brand-sidebar cursor-pointer text-brand-ink',
+                  // Unanswered — no tentative pick yet
+                  !answered && !hasTentative && 'border-brand-line hover:border-brand-primary hover:bg-brand-sidebar cursor-pointer text-brand-ink',
+                  // Unanswered — this card is the tentative pick
+                  !answered && isTentative && 'border-brand-primary bg-brand-primary/10 cursor-pointer text-brand-ink',
+                  // Unanswered — another card is the tentative pick
+                  !answered && hasTentative && !isTentative && 'border-brand-line cursor-pointer text-brand-ink opacity-60 hover:opacity-90',
+                  // Answered states (unchanged)
                   answered && correct && 'border-green-500 bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300',
                   answered && !correct && isSelected && 'border-red-500 bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300',
                   answered && !correct && !isSelected && 'border-brand-line text-brand-secondary opacity-50',
@@ -292,6 +313,18 @@ export function EarTraining() {
             );
           })}
         </div>
+
+        {/* Confirm button — appears after tentative pick */}
+        {tentative !== null && selected === null && (
+          <div className="flex justify-end">
+            <button
+              onClick={handleConfirm}
+              className="px-5 py-2.5 rounded-lg bg-brand-primary text-white text-sm font-medium hover:bg-brand-primary/90 transition-colors"
+            >
+              Confirm
+            </button>
+          </div>
+        )}
 
         {/* Next button — appears after answering */}
         {selected !== null && (
