@@ -57,11 +57,13 @@ export function EarTraining() {
   }
 
   function handleDifficulty(level: DifficultyLevel) {
-    setSettings(s => ({
-      ...s,
+    const next: EarTrainingSettings = {
+      ...settings,
       activeChordTypes: [...DIFFICULTY_PRESETS.chord[level]],
       activeIntervals: [...DIFFICULTY_PRESETS.interval[level]],
-    }));
+    };
+    setSettings(next);
+    advanceRound(next);
   }
 
   function handleToggleChordType(id: string) {
@@ -325,8 +327,14 @@ export function EarTraining() {
 
       {/* Session summary modal */}
       {showSummary && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-brand-surface rounded-xl border border-brand-line p-6 max-w-md w-full space-y-4">
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowSummary(false)}
+        >
+          <div
+            className="bg-brand-surface rounded-xl border border-brand-line p-6 max-w-md w-full space-y-4"
+            onClick={e => e.stopPropagation()}
+          >
             <h2 className="text-xl font-serif font-bold text-brand-ink">Session Complete</h2>
             <p className="text-brand-ink">
               <span className="text-2xl font-bold">{score.correct}</span>

@@ -236,9 +236,10 @@ export function generateIntervalRound(activeIntervals: string[]): IntervalRound 
     topNote: addSemitones(rootNote, correctDef.semitones),
   };
 
-  // Distractors drawn from full INTERVAL_DEFS (minus correct) to always have 3.
+  // Prefer distractors from active set; fall back to full pool only when active < 4.
+  const distractorSource = activeDefs.length >= 4 ? activeDefs : INTERVAL_DEFS;
   const distractorPool = shuffle(
-    INTERVAL_DEFS.filter(d => d.semitones !== correctDef.semitones)
+    distractorSource.filter(d => d.semitones !== correctDef.semitones)
   );
   const distractors: IntervalAnswer[] = distractorPool.slice(0, 3).map(def => ({
     semitones: def.semitones,
