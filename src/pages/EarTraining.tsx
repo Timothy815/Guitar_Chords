@@ -394,9 +394,21 @@ export function EarTraining() {
         >
           Fretboard
         </button>
+        <button
+          onClick={handlePlanMode}
+          className={cn(
+            'flex-1 py-2.5 text-sm font-medium transition-colors',
+            settings.mode === 'plan'
+              ? 'bg-brand-primary text-white'
+              : 'text-brand-secondary hover:bg-brand-sidebar'
+          )}
+        >
+          Plan
+        </button>
       </div>
 
       {/* Settings panel */}
+      {settings.mode !== 'plan' && (
       <div className="rounded-lg border border-brand-line bg-brand-surface overflow-hidden">
         <button
           onClick={() => setSettings(s => ({ ...s, settingsPanelOpen: !s.settingsPanelOpen }))}
@@ -603,6 +615,155 @@ export function EarTraining() {
           </div>
         )}
       </div>
+      )}
+
+      {/* Plan tab body */}
+      {settings.mode === 'plan' && (
+        <>
+          {/* Stage ladder */}
+          <div className="rounded-lg border border-brand-line bg-brand-surface overflow-hidden">
+            {planPracticing ? (
+              /* Collapsed header while practicing */
+              <div className="px-4 py-3 flex items-center justify-between">
+                <span className="text-sm font-medium text-brand-ink">
+                  Plan · Stage {planProgress.stageIndex + 1} of {PLAN_STAGES.length} · {PLAN_STAGES[planProgress.stageIndex].label}
+                </span>
+                <button
+                  onClick={() => setPlanPracticing(false)}
+                  className="text-xs text-brand-secondary hover:text-brand-primary transition-colors"
+                >
+                  View ladder ↑
+                </button>
+              </div>
+            ) : (
+              /* Full ladder */
+              <div className="divide-y divide-brand-line">
+                {PLAN_STAGES.map((stage: PlanStage, i: number) => {
+                  const completed = !!planProgress.completedStages[i];
+                  const current = i === planProgress.stageIndex;
+                  const locked = i > planProgress.stageIndex;
+                  return (
+                    <div
+                      key={i}
+                      className={cn(
+                        'px-4 py-3 flex items-center gap-3',
+                        locked && 'opacity-40'
+                      )}
+                    >
+                      <span className="w-5 shrink-0 flex items-center justify-center">
+                        {completed
+                          ? <Check size={14} className="text-green-500" />
+                          : current
+                            ? <span className="text-brand-primary font-bold text-sm">→</span>
+                            : <span className="text-brand-line text-sm">·</span>}
+                      </span>
+                      <span className={cn(
+                        'flex-1 text-sm',
+                        current ? 'font-medium text-brand-ink' : 'text-brand-secondary'
+                      )}>
+                        {stage.label}
+                      </span>
+                      {completed && (
+                        <span className="text-xs text-brand-secondary">
+                          {planProgress.completedStages[i].accuracy}%
+                        </span>
+                      )}
+                      {current && (
+                        <button
+                          onClick={handlePlanStart}
+                          className="px-3 py-1 rounded-md bg-brand-primary text-white text-xs font-medium hover:bg-brand-primary/90 transition-colors"
+                        >
+                          Start
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Practice area — only shown after Start is clicked */}
+          {planPracticing && (() => {
+            const stage = PLAN_STAGES[planProgress.stageIndex];
+            if (stage.mode === 'fretboard') {
+              return (
+                <FretboardTrainer
+                  round={round as FretboardRound}
+                  difficulty={difficulty}
+                  score={score}
+                  isHuntMode={fretboardSubMode === 'hunt'}
+                  singMode={fretboardSubMode === 'sing'}
+                  focus={fretboardFocus}
+                  onFocusChange={handleFocusChange}
+                  droneNote={droneNote}
+                  droneMode={droneMode}
+                  onComplete={handleFretboardComplete}
+                />
+              );
+            }
+            return (
+              <div className="rounded-lg border border-brand-line bg-brand-surface p-6 space-y-6">
+                <div className="flex justify-center">
+                  <button
+                    onClick={() => playRoundAudio(round)}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-brand-primary text-white text-sm font-medium hover:bg-brand-primary/90 transition-colors"
+                  >
+                    <Volume2 size={18} /> Replay
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  {Array.from({ length: 4 }, (_, i) => {
+                    const answered = selected !== null;
+                    const correct = isOptionCorrect(i);
+                    const isSelected = selected === i;
+                    const isTentative = tentative === i;
+                    const hasTentative = tentative !== null;
+                    return (
+                      <button
+                        key={i}
+                        onClick={() => handleTentative(i)}
+                        disabled={answered}
+                        className={cn(
+                          'p-4 rounded-lg border-2 text-sm font-medium transition-colors text-center leading-snug',
+                          !answered && !hasTentative && 'border-brand-line hover:border-brand-primary hover:bg-brand-sidebar cursor-pointer text-brand-ink',
+                          !answered && isTentative && 'border-brand-primary bg-brand-primary/10 cursor-pointer text-brand-ink',
+                          !answered && hasTentative && !isTentative && 'border-brand-line cursor-pointer text-brand-ink opacity-60 hover:opacity-90',
+                          answered && correct && 'border-green-500 bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300',
+                          answered && !correct && isSelected && 'border-red-500 bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300',
+                          answered && !correct && !isSelected && 'border-brand-line text-brand-secondary opacity-50',
+                        )}
+                      >
+                        {getOptionLabel(i)}
+                      </button>
+                    );
+                  })}
+                </div>
+                {tentative !== null && selected === null && (
+                  <div className="flex justify-end">
+                    <button
+                      onClick={handleConfirm}
+                      className="px-5 py-2.5 rounded-lg bg-brand-primary text-white text-sm font-medium hover:bg-brand-primary/90 transition-colors"
+                    >
+                      Confirm
+                    </button>
+                  </div>
+                )}
+                {selected !== null && (
+                  <div className="flex justify-end">
+                    <button
+                      onClick={() => advanceRound()}
+                      className="px-5 py-2.5 rounded-lg bg-brand-primary text-white text-sm font-medium hover:bg-brand-primary/90 transition-colors"
+                    >
+                      Next →
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </>
+      )}
 
       {/* Round area / Study view / Fretboard trainer */}
       {settings.mode === 'fretboard' ? (
@@ -747,7 +908,14 @@ export function EarTraining() {
             {score.streak >= 2 && (
               <span className="text-orange-500 font-medium">🔥 {score.streak} streak</span>
             )}
-            {weakNotes.length > 0 && (
+            {settings.mode === 'plan' && planPracticing ? (
+              <span className={cn(
+                'text-sm font-medium tabular-nums',
+                score.total >= 20 && accuracy >= 85 ? 'text-green-600' : 'text-brand-secondary'
+              )}>
+                {score.total} / 20 rounds · {accuracy}%
+              </span>
+            ) : weakNotes.length > 0 && (
               <span className="text-brand-secondary">
                 Weak: <span className="text-brand-ink font-medium">
                   {weakNotes.slice(0, 3).map(e => e.note.replace(/\d$/, '')).join(' · ')}
@@ -755,12 +923,46 @@ export function EarTraining() {
               </span>
             )}
           </div>
-          <button
-            onClick={() => setShowSummary(true)}
-            className="px-3 py-1.5 rounded-md text-xs font-medium border border-brand-line text-brand-secondary hover:border-brand-primary hover:text-brand-primary transition-colors"
-          >
-            End Session
-          </button>
+          {settings.mode !== 'plan' && (
+            <button
+              onClick={() => setShowSummary(true)}
+              className="px-3 py-1.5 rounded-md text-xs font-medium border border-brand-line text-brand-secondary hover:border-brand-primary hover:text-brand-primary transition-colors"
+            >
+              End Session
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Plan stage complete modal */}
+      {showPlanComplete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-brand-surface rounded-xl border border-brand-line p-6 max-w-sm w-full space-y-4 text-center">
+            <h2 className="text-xl font-serif font-bold text-brand-ink">
+              {showPlanComplete.isFinal ? 'Plan complete! 🎉' : 'Stage complete!'}
+            </h2>
+            <p className="text-brand-secondary text-sm">
+              {showPlanComplete.stageLabel} — {showPlanComplete.accuracy}% accuracy
+            </p>
+            {showPlanComplete.isFinal ? (
+              <button
+                onClick={() => {
+                  setPlanProgress(resetPlanProgress());
+                  setShowPlanComplete(null);
+                }}
+                className="w-full py-2.5 rounded-lg bg-brand-primary text-white text-sm font-medium hover:bg-brand-primary/90 transition-colors"
+              >
+                Start over
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowPlanComplete(null)}
+                className="w-full py-2.5 rounded-lg bg-brand-primary text-white text-sm font-medium hover:bg-brand-primary/90 transition-colors"
+              >
+                Continue → {PLAN_STAGES[planProgress.stageIndex].label}
+              </button>
+            )}
+          </div>
         </div>
       )}
 
