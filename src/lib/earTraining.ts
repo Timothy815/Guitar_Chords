@@ -335,17 +335,44 @@ export async function playStudyCard(card: StudyCard): Promise<void> {
   }
 }
 
-export function generateFretboardRound(difficulty: DifficultyLevel): FretboardRound {
+export function generateFretboardRound(
+  difficulty: DifficultyLevel,
+  focus: FretboardFocus = {},
+): FretboardRound {
   const fretsMap: Record<DifficultyLevel, number> = { Beginner: 6, Intermediate: 10, Advanced: 13 };
-  return { kind: 'fretboard', targetNote: pickRandom([...ALL_NOTES]), fretsNum: fretsMap[difficulty] };
+  const fretsNum = fretsMap[difficulty];
+
+  const pool = new Set<string>();
+  for (let s = 0; s < 6; s++) {
+    if (focus.stringIdx !== undefined && focus.stringIdx !== s) continue;
+    for (let f = 0; f <= fretsNum; f++) {
+      const fMin = focus.fretMin ?? 0;
+      const fMax = focus.fretMax ?? fretsNum;
+      if (f < fMin || f > fMax) continue;
+      const note = getFretNote(s, f);
+      if (note) pool.add(note);
+    }
+  }
+
+  // Safety fallback: if focus produced an empty pool, use all reachable notes.
+  if (pool.size === 0) {
+    for (let s = 0; s < 6; s++) {
+      for (let f = 0; f <= fretsNum; f++) {
+        const note = getFretNote(s, f);
+        if (note) pool.add(note);
+      }
+    }
+  }
+
+  const targetNote = pickRandom([...pool]);
+  return { kind: 'fretboard', targetNote, fretsNum };
 }
 
 export function getCorrectPositions(targetNote: string, fretsNum: number): Set<string> {
   const positions = new Set<string>();
   for (let s = 0; s < 6; s++) {
     for (let f = 0; f <= fretsNum; f++) {
-      const note = getFretNote(s, f);
-      if (note && note.replace(/\d$/, '') === targetNote) positions.add(`${s}-${f}`);
+      if (getFretNote(s, f) === targetNote) positions.add(`${s}-${f}`);
     }
   }
   return positions;
@@ -353,14 +380,42 @@ export function getCorrectPositions(targetNote: string, fretsNum: number): Set<s
 
 export async function playFretboardRound(round: FretboardRound): Promise<void> {
   await initAudio();
-  const octave = pickRandom([2, 3, 4]);
-  playNote(round.targetNote + octave, '2n');
+  playNote(round.targetNote, '2n');
 }
 
 export interface HuntResult {
   stars: number;
-  attempts: number;
+  attempts: number;           // confirm presses before success
+  selectionCount: number;     // total fret taps before confirm
   direction: 'sharp' | 'flat' | 'correct';
+  firstSelectionSemitones: number;  // absolute semitones, first tap to target
+}
+
+export interface FretboardFocus {
+  stringIdx?: number;   // 0 = low E … 5 = high E; undefined = all strings
+  fretMin?: number;     // inclusive; undefined = 0
+  fretMax?: number;     // inclusive; undefined = fretsNum
+}
+
+function noteToMidi(noteStr: string): number {
+  const match = noteStr.match(/^([A-G]#?)(\d)$/);
+  if (!match) return 0;
+  const pitchClass = ALL_NOTES.indexOf(match[1] as Note);
+  const octave = parseInt(match[2], 10);
+  return octave * 12 + pitchClass;
+}
+
+export function getAbsoluteSemitoneDistance(a: string, b: string): number {
+  return Math.abs(noteToMidi(a) - noteToMidi(b));
+}
+
+export function getAbsoluteDirection(
+  played: string,
+  target: string,
+): 'sharp' | 'flat' | 'correct' {
+  const diff = noteToMidi(played) - noteToMidi(target);
+  if (diff === 0) return 'correct';
+  return diff > 0 ? 'sharp' : 'flat';
 }
 
 export function getSemitoneDistance(played: string, target: string): number {
