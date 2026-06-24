@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import { Dictionary } from './pages/Dictionary';
 import { Progressions } from './pages/Progressions';
-import { Music, Calendar, BookOpen, Sun, Moon, Disc } from 'lucide-react';
+import { EarTraining } from './pages/EarTraining';
+import { Music, Calendar, BookOpen, Sun, Moon, Disc, Headphones } from 'lucide-react';
 
 function Layout({ children }: { children: React.ReactNode }) {
   const [isDark, setIsDark] = useState(() => {
@@ -54,6 +55,12 @@ function Layout({ children }: { children: React.ReactNode }) {
               >
                 <Calendar size={16} /> Practice
               </NavLink>
+              <NavLink
+                to="/ear-training"
+                className={({isActive}) => `flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${isActive ? 'bg-brand-sidebar text-brand-ink' : 'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar/50'}`}
+              >
+                <Headphones size={16} /> Ear Training
+              </NavLink>
             </nav>
             <div className="w-px h-6 bg-brand-line"></div>
             <button 
@@ -87,6 +94,7 @@ export default function App() {
           <Route path="/progressions" element={<Progressions />} />
           <Route path="/caged" element={<Caged />} />
           <Route path="/circle" element={<Circle />} />
+          <Route path="/ear-training" element={<EarTraining />} />
         </Routes>
       </Layout>
     </BrowserRouter>
