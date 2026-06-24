@@ -1,6 +1,6 @@
 import { ChordShape, Note } from '../types';
 import { ALL_NOTES, COMMON_CHORDS } from '../data/guitarData';
-import { getFretNote } from './audio';
+import { getFretNote, initAudio, playStrum, playNote } from './audio';
 
 export interface ChordTypeDef {
   id: string;
@@ -267,4 +267,17 @@ export function saveSettings(settings: EarTrainingSettings): void {
 
 export function initialScore(): SessionScore {
   return { correct: 0, total: 0, streak: 0, byType: {} };
+}
+
+export async function playOptionAudio(round: Round, index: number): Promise<void> {
+  await initAudio();
+  if (round.kind === 'chord') {
+    const cr = round as ChordRound;
+    playStrum(chordToNotes(cr.options[index].chord), '2n');
+  } else {
+    const ir = round as IntervalRound;
+    const opt = ir.options[index];
+    playNote(opt.rootNote, '2n');
+    setTimeout(() => playNote(opt.topNote, '2n'), 400);
+  }
 }
