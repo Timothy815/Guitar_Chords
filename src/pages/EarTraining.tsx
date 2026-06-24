@@ -6,7 +6,7 @@ import {
   DifficultyLevel, CHORD_TYPE_DEFS, INTERVAL_DEFS, DIFFICULTY_PRESETS,
   loadSettings, saveSettings, initialScore,
   generateChordRound, generateIntervalRound, generateStudyDeck, generateFretboardRound,
-  chordToNotes, playOptionAudio, playStudyCard, playFretboardRound,
+  chordToNotes, playOptionAudio, playStudyCard,
 } from '../lib/earTraining';
 import { initAudio, playStrum, playNote } from '../lib/audio';
 import { FretboardTrainer } from '../components/FretboardTrainer';
