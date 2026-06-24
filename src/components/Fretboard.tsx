@@ -28,9 +28,10 @@ interface FretboardProps {
   compact?: boolean; // removes min-width constraint and hides label toggle (for grid contexts)
   correctPositions?: Set<string>;
   wrongPosition?: string | null;
+  previewPosition?: string | null;
 }
 
-export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClick, showNoteNames = true, className, fretRange, playingNotes = new Set(), compact = false, correctPositions = new Set(), wrongPosition = null }: FretboardProps) {
+export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClick, showNoteNames = true, className, fretRange, playingNotes = new Set(), compact = false, correctPositions = new Set(), wrongPosition = null, previewPosition = null }: FretboardProps) {
   const [labelMode, setLabelMode] = useState<LabelMode>('none');
 
   const stringsNum = 6;
@@ -241,6 +242,29 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
             </g>
           )
         )}
+
+        {/* Preview dot (Hunt mode) — blue circle with pitch-class label */}
+        {previewPosition && (() => {
+          const [sStr, fStr] = previewPosition.split('-');
+          const sIdx = Number(sStr);
+          const fIdx = Number(fStr);
+          const visualStringIdx = 5 - sIdx;
+          const x = fIdx === 0 ? paddingX / 2 : paddingX + (fIdx - 0.5) * fretSpacing;
+          const y = paddingY + visualStringIdx * stringSpacing;
+          const r = fIdx === 0 ? 10 : 14;
+          const noteStr = getFretNote(sIdx, fIdx);
+          const pitchClass = noteStr ? noteStr.replace(/\d$/, '') : '';
+          return (
+            <g key="preview" style={{ pointerEvents: 'none' }}>
+              <circle cx={x} cy={y} r={r} fill="#3b82f6" opacity={0.9} />
+              {pitchClass && (
+                <text x={x} y={y + 5} textAnchor="middle" fill="white" fontSize={11} fontWeight="bold">
+                  {pitchClass}
+                </text>
+              )}
+            </g>
+          );
+        })()}
 
         {/* Trainer feedback dots */}
         {(correctPositions.size > 0 || wrongPosition !== null) && Array.from({ length: stringsNum }).map((_, stringIdx) =>
