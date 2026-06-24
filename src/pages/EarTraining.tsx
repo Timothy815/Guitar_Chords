@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Volume2, ChevronDown, ChevronUp, Headphones } from 'lucide-react';
+import { Volume2, ChevronDown, ChevronUp, Headphones, Check } from 'lucide-react';
+import confetti from 'canvas-confetti';
 import { cn } from '../lib/utils';
 import {
   EarTrainingSettings, ChordRound, IntervalRound, FretboardRound, HuntResult, FretboardFocus, Round, SessionScore, StudyCard,
@@ -11,6 +12,7 @@ import {
 } from '../lib/earTraining';
 import { initAudio, playStrum, playNote, startDrone, stopDrone } from '../lib/audio';
 import { FretboardTrainer } from '../components/FretboardTrainer';
+import { PlanProgress, PlanStage, PLAN_STAGES, loadPlanProgress, savePlanProgress, resetPlanProgress } from '../lib/planProgress';
 
 function makeRound(
   s: EarTrainingSettings,
@@ -40,6 +42,9 @@ export function EarTraining() {
   const audioUnlocked = useRef(false);
   const deckRef = useRef<string[]>([]);
   const deckKeyRef = useRef<string>('');
+  const [planProgress, setPlanProgress] = useState<PlanProgress>(loadPlanProgress);
+  const [planPracticing, setPlanPracticing] = useState(false);
+  const [showPlanComplete, setShowPlanComplete] = useState<{ accuracy: number; stageLabel: string; isFinal: boolean } | null>(null);
 
   const FRETS_FOR: Record<DifficultyLevel, number> = { Beginner: 6, Intermediate: 10, Advanced: 13 };
 
@@ -65,6 +70,7 @@ export function EarTraining() {
   }
 
   useEffect(() => { saveSettings(settings); }, [settings]);
+  useEffect(() => { savePlanProgress(planProgress); }, [planProgress]);
 
   useEffect(() => {
     if (settings.mode === 'study') {
@@ -104,12 +110,15 @@ export function EarTraining() {
 
   function advanceRound(s: EarTrainingSettings = settings, focusOverride?: FretboardFocus) {
     const activeFocus = focusOverride ?? fretboardFocus;
+    const effectiveMode = s.mode === 'plan'
+      ? PLAN_STAGES[planProgress.stageIndex].mode
+      : s.mode;
     let r: Round;
-    if (s.mode === 'fretboard') {
+    if (effectiveMode === 'fretboard') {
       const note = nextFretboardNote(difficulty, activeFocus);
       r = makeFretboardRound(note, FRETS_FOR[difficulty]);
     } else {
-      r = makeRound(s, difficulty, activeFocus);
+      r = makeRound({ ...s, mode: effectiveMode }, difficulty, activeFocus);
     }
     setSelected(null);
     setTentative(null);
@@ -142,6 +151,55 @@ export function EarTraining() {
     advanceRound(next);
   }
 
+  function handlePlanMode() {
+    setSettings(s => ({ ...s, mode: 'plan' }));
+    setPlanPracticing(false);
+  }
+
+  function handlePlanStart() {
+    const stage = PLAN_STAGES[planProgress.stageIndex];
+    const next: EarTrainingSettings = {
+      ...settings,
+      mode: 'plan',
+      activeChordTypes: stage.mode === 'chord'
+        ? [...DIFFICULTY_PRESETS.chord[stage.difficulty]]
+        : settings.activeChordTypes,
+      activeIntervals: stage.mode === 'interval'
+        ? [...DIFFICULTY_PRESETS.interval[stage.difficulty]]
+        : settings.activeIntervals,
+    };
+    setSettings(next);
+    setDifficulty(stage.difficulty);
+    setFretboardSubMode(stage.subMode ?? 'guess');
+    setScore(initialScore());
+    deckRef.current = [];
+    deckKeyRef.current = '';
+    setPlanPracticing(true);
+    advanceRound(next);
+  }
+
+  function handlePlanAdvance(accuracyFraction: number) {
+    const accuracyPct = Math.round(accuracyFraction * 100);
+    const currentStage = PLAN_STAGES[planProgress.stageIndex];
+    const nextIndex = planProgress.stageIndex + 1;
+    const isFinal = nextIndex >= PLAN_STAGES.length;
+    const updatedProgress: PlanProgress = {
+      stageIndex: isFinal ? planProgress.stageIndex : nextIndex,
+      completedStages: {
+        ...planProgress.completedStages,
+        [planProgress.stageIndex]: {
+          accuracy: accuracyPct,
+          completedAt: new Date().toISOString(),
+        },
+      },
+    };
+    setPlanProgress(updatedProgress);
+    setScore(initialScore());
+    setPlanPracticing(false);
+    confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+    setShowPlanComplete({ accuracy: accuracyPct, stageLabel: currentStage.label, isFinal });
+  }
+
   function handleFocusChange(focus: FretboardFocus) {
     setFretboardFocus(focus);
     advanceRound(settings, focus);
@@ -149,6 +207,8 @@ export function EarTraining() {
 
   function handleFretboardComplete(wasCorrect: boolean, huntResult?: HuntResult) {
     const typeKey = (round as FretboardRound).targetNote;
+    const newCorrect = score.correct + (wasCorrect ? 1 : 0);
+    const newTotal = score.total + 1;
     setScore(prev => ({
       correct: prev.correct + (wasCorrect ? 1 : 0),
       total: prev.total + 1,
@@ -168,6 +228,10 @@ export function EarTraining() {
         ...prev,
         [huntResult.direction]: prev[huntResult.direction] + 1,
       }));
+    }
+    if (settings.mode === 'plan' && planPracticing && newTotal >= 20 && newCorrect / newTotal >= 0.85) {
+      handlePlanAdvance(newCorrect / newTotal);
+      return;
     }
     advanceRound();
   }
@@ -222,10 +286,12 @@ export function EarTraining() {
       ? (round as ChordRound).options[index].displayLabel === (round as ChordRound).correct.displayLabel
       : (round as IntervalRound).options[index].label === (round as IntervalRound).correct.label;
 
-    // Track score keyed by the correct answer's display label.
     const typeKey = round.kind === 'chord'
       ? (round as ChordRound).correct.typeLabel
       : (round as IntervalRound).correct.label;
+
+    const newCorrect = score.correct + (isCorrect ? 1 : 0);
+    const newTotal = score.total + 1;
 
     setScore(prev => ({
       correct: prev.correct + (isCorrect ? 1 : 0),
@@ -239,6 +305,10 @@ export function EarTraining() {
         },
       },
     }));
+
+    if (settings.mode === 'plan' && planPracticing && newTotal >= 20 && newCorrect / newTotal >= 0.85) {
+      handlePlanAdvance(newCorrect / newTotal);
+    }
   }
 
   function handleStartOver() {
