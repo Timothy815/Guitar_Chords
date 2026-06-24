@@ -8,6 +8,7 @@ let clickSynth: Tone.MembraneSynth;
 let isInitialized = false;
 let currentInstrument = "acoustic_guitar_steel";
 let initPromise: Promise<void> | null = null;
+let droneOsc: Tone.Oscillator | null = null;
 
 export function getInstrument() {
   return currentInstrument;
@@ -185,6 +186,26 @@ export function startNote(noteInfo: string) {
 export function stopNote() {
   if (!isInitialized || !sampler) return;
   sampler.releaseAll();
+}
+
+export function startDrone(noteStr: string): void {
+  if (!isInitialized) return;
+  const freq = Tone.Frequency(noteStr).toFrequency();
+  if (droneOsc) {
+    // Already running — just re-tune without restarting.
+    droneOsc.frequency.value = freq;
+    return;
+  }
+  droneOsc = new Tone.Oscillator(freq, 'sine').toDestination();
+  droneOsc.volume.value = -18;
+  droneOsc.start();
+}
+
+export function stopDrone(): void {
+  if (!droneOsc) return;
+  droneOsc.stop();
+  droneOsc.dispose();
+  droneOsc = null;
 }
 
 export function playStrum(notes: string[], duration: number | string = "1m", direction: 'down' | 'up' | 'up-down' | 'down-up' = 'down') {
