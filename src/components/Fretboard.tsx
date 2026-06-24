@@ -3,10 +3,23 @@ import { ChordShape, ScalePattern, STANDARD_TUNING } from '../types';
 import { getFretNote, playNote } from '../lib/audio';
 import { cn } from '../lib/utils';
 import { ALL_NOTES } from '../data/guitarData';
+import { FretboardFocus } from '../lib/earTraining';
 
 type LabelMode = 'none' | 'note' | 'interval';
 
 const INTERVAL_NAMES = ['1', 'b2', '2', 'b3', '3', '4', 'b5', '5', 'b6', '6', 'b7', '7'];
+
+function isInFocus(
+  stringIdx: number,
+  fretIdx: number,
+  focus: FretboardFocus,
+  fretsNum: number,
+): boolean {
+  if (focus.stringIdx !== undefined && focus.stringIdx !== stringIdx) return false;
+  const fMin = focus.fretMin ?? 0;
+  const fMax = focus.fretMax ?? fretsNum;
+  return fretIdx >= fMin && fretIdx <= fMax;
+}
 
 function getIntervalName(root: string, note: string): string {
   const rootIdx = ALL_NOTES.indexOf(root as any);
@@ -30,9 +43,10 @@ interface FretboardProps {
   correctPositions?: Set<string>;
   wrongPosition?: string | null;
   previewPosition?: string | null;
+  focusZone?: FretboardFocus;
 }
 
-export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClick, onFretMouseDown, showNoteNames = true, className, fretRange, playingNotes = new Set(), compact = false, correctPositions = new Set(), wrongPosition = null, previewPosition = null }: FretboardProps) {
+export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClick, onFretMouseDown, showNoteNames = true, className, fretRange, playingNotes = new Set(), compact = false, correctPositions = new Set(), wrongPosition = null, previewPosition = null, focusZone }: FretboardProps) {
   const [labelMode, setLabelMode] = useState<LabelMode>('none');
 
   const stringsNum = 6;
@@ -243,6 +257,28 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
               {renderNoteMarker(stringIdx, fretIdx)}
             </g>
           )
+        )}
+
+        {/* Dimming overlay — dims frets outside the active focus zone */}
+        {focusZone && Array.from({ length: stringsNum }).map((_, stringIdx) =>
+          Array.from({ length: fretsNum + 1 }).map((_, fretIdx) => {
+            if (isInFocus(stringIdx, fretIdx, focusZone, fretsNum)) return null;
+            const visualStringIdx = 5 - stringIdx;
+            const x = fretIdx === 0 ? 0 : paddingX + (fretIdx - 1) * fretSpacing;
+            const y = paddingY + visualStringIdx * stringSpacing - 15;
+            const width = fretIdx === 0 ? paddingX : fretSpacing;
+            return (
+              <rect
+                key={`dim-${stringIdx}-${fretIdx}`}
+                x={x}
+                y={y}
+                width={width}
+                height={30}
+                fill="rgba(0,0,0,0.35)"
+                style={{ pointerEvents: 'none' }}
+              />
+            );
+          })
         )}
 
         {/* Preview dot (Hunt mode) — blue circle with pitch-class label */}
