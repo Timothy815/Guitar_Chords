@@ -126,7 +126,7 @@ export function EarTraining() {
       setFretboardSubMode('hunt');
       setDifficulty('Advanced');
     } else {
-      setFretboardSubMode('guess');
+      if (fretboardSubMode !== 'sing') setFretboardSubMode('guess');
       setDifficulty(level);
     }
   }
