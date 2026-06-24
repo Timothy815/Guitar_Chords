@@ -13,7 +13,7 @@ export interface IntervalDef {
 }
 
 export interface EarTrainingSettings {
-  mode: 'chord' | 'interval';
+  mode: 'chord' | 'interval' | 'study';
   activeChordTypes: string[];
   activeIntervals: string[];
   settingsPanelOpen: boolean;
@@ -33,6 +33,19 @@ export interface IntervalAnswer {
   rootNote: string;
   topNote: string;
 }
+
+export type StudyCard =
+  | {
+      kind: 'chord';
+      displayLabel: string;
+      chord: ChordShape;
+    }
+  | {
+      kind: 'interval';
+      label: string;
+      rootNote: string;
+      topNote: string;
+    };
 
 export interface ChordRound {
   kind: 'chord';
@@ -279,5 +292,37 @@ export async function playOptionAudio(round: Round, index: number): Promise<void
     const opt = ir.options[index];
     playNote(opt.rootNote, '2n');
     setTimeout(() => playNote(opt.topNote, '2n'), 400);
+  }
+}
+
+export function generateStudyDeck(activeChordTypes: string[], activeIntervals: string[]): StudyCard[] {
+  // One randomly-picked shape per root+type combo across all 12 roots.
+  const chordCards: StudyCard[] = [];
+  const seen = new Set<string>();
+  for (const entry of shuffle(buildChordPool(activeChordTypes))) {
+    const key = `${entry.root}-${entry.type}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      chordCards.push({ kind: 'chord', displayLabel: `${entry.root} ${entry.typeLabel}`, chord: entry.chord });
+    }
+  }
+
+  // One card per active interval, random root note each time.
+  const activeDefs = INTERVAL_DEFS.filter(d => activeIntervals.includes(d.label));
+  const intervalCards: StudyCard[] = activeDefs.map(def => {
+    const rootNote = pickRandom(INTERVAL_ROOTS);
+    return { kind: 'interval', label: def.label, rootNote, topNote: addSemitones(rootNote, def.semitones) };
+  });
+
+  return shuffle([...chordCards, ...intervalCards]);
+}
+
+export async function playStudyCard(card: StudyCard): Promise<void> {
+  await initAudio();
+  if (card.kind === 'chord') {
+    playStrum(chordToNotes(card.chord), '2n');
+  } else {
+    playNote(card.rootNote, '2n');
+    setTimeout(() => playNote(card.topNote, '2n'), 400);
   }
 }
