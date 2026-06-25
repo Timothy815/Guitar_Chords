@@ -37,7 +37,7 @@ function huntCellColor(avg: number): string {
 export function EarTraining() {
   const [settings, setSettings] = useState<EarTrainingSettings>(loadSettings);
   const [difficulty, setDifficulty] = useState<DifficultyLevel>('Beginner');
-  const [fretboardSubMode, setFretboardSubMode] = useState<'guess' | 'hunt' | 'sing'>('guess');
+  const [fretboardSubMode, setFretboardSubMode] = useState<'guess' | 'hunt' | 'sing' | 'singhunt'>('guess');
   const [biasTally, setBiasTally] = useState({ sharp: 0, flat: 0, correct: 0 });
   const [fretboardFocus, setFretboardFocus] = useState<FretboardFocus>({});
   const [droneNote, setDroneNote] = useState<string | null>(null);
@@ -146,9 +146,13 @@ export function EarTraining() {
     setSettings(s => ({ ...s, mode: 'study' }));
   }
 
-  function handleFretboardDifficulty(level: DifficultyLevel | 'Hunt') {
+  function handleFretboardDifficulty(level: DifficultyLevel | 'Hunt' | 'SingHunt') {
     if (level === 'Hunt') {
       setFretboardSubMode('hunt');
+      setHuntSessionRounds([]);
+      setDifficulty('Advanced');
+    } else if (level === 'SingHunt') {
+      setFretboardSubMode('singhunt');
       setHuntSessionRounds([]);
       setDifficulty('Advanced');
     } else {
@@ -471,7 +475,7 @@ export function EarTraining() {
                     onClick={() => settings.mode === 'fretboard' ? handleFretboardDifficulty(level) : handleDifficulty(level)}
                     className={cn(
                       'px-3 py-1.5 rounded-md text-xs font-medium border transition-colors',
-                      settings.mode === 'fretboard' && (fretboardSubMode === 'guess' || fretboardSubMode === 'sing') && difficulty === level
+                      settings.mode === 'fretboard' && (fretboardSubMode === 'guess' || fretboardSubMode === 'sing') && difficulty === level && fretboardSubMode !== 'singhunt'
                         ? 'border-brand-primary text-brand-primary bg-brand-primary/10'
                         : 'border-brand-line text-brand-secondary hover:border-brand-primary hover:text-brand-primary'
                     )}
@@ -503,6 +507,19 @@ export function EarTraining() {
                     )}
                   >
                     Sing
+                  </button>
+                )}
+                {settings.mode === 'fretboard' && (
+                  <button
+                    onClick={() => handleFretboardDifficulty('SingHunt')}
+                    className={cn(
+                      'px-3 py-1.5 rounded-md text-xs font-medium border transition-colors',
+                      fretboardSubMode === 'singhunt'
+                        ? 'border-brand-primary text-brand-primary bg-brand-primary/10'
+                        : 'border-brand-line text-brand-secondary hover:border-brand-primary hover:text-brand-primary'
+                    )}
+                  >
+                    Sing+Hunt
                   </button>
                 )}
               </div>
@@ -733,14 +750,14 @@ export function EarTraining() {
                   round={round as FretboardRound}
                   difficulty={difficulty}
                   score={score}
-                  isHuntMode={fretboardSubMode === 'hunt'}
-                  singMode={fretboardSubMode === 'sing'}
+                  isHuntMode={fretboardSubMode === 'hunt' || fretboardSubMode === 'singhunt'}
+                  singMode={fretboardSubMode === 'sing' || fretboardSubMode === 'singhunt'}
                   focus={fretboardFocus}
                   onFocusChange={handleFocusChange}
                   droneNote={droneNote}
                   droneMode={droneMode}
-                  sessionAvgSemitones={fretboardSubMode === 'hunt' ? sessionAvgSemitones : undefined}
-                  sessionAvgTaps={fretboardSubMode === 'hunt' ? sessionAvgTaps : undefined}
+                  sessionAvgSemitones={fretboardSubMode === 'hunt' || fretboardSubMode === 'singhunt' ? sessionAvgSemitones : undefined}
+                  sessionAvgTaps={fretboardSubMode === 'hunt' || fretboardSubMode === 'singhunt' ? sessionAvgTaps : undefined}
                   onComplete={handleFretboardComplete}
                 />
               );
@@ -816,14 +833,14 @@ export function EarTraining() {
               round={round as FretboardRound}
               difficulty={difficulty}
               score={score}
-              isHuntMode={fretboardSubMode === 'hunt'}
-              singMode={fretboardSubMode === 'sing'}
+              isHuntMode={fretboardSubMode === 'hunt' || fretboardSubMode === 'singhunt'}
+              singMode={fretboardSubMode === 'sing' || fretboardSubMode === 'singhunt'}
               focus={fretboardFocus}
               onFocusChange={handleFocusChange}
               droneNote={droneNote}
               droneMode={droneMode}
-              sessionAvgSemitones={fretboardSubMode === 'hunt' ? sessionAvgSemitones : undefined}
-              sessionAvgTaps={fretboardSubMode === 'hunt' ? sessionAvgTaps : undefined}
+              sessionAvgSemitones={fretboardSubMode === 'hunt' || fretboardSubMode === 'singhunt' ? sessionAvgSemitones : undefined}
+              sessionAvgTaps={fretboardSubMode === 'hunt' || fretboardSubMode === 'singhunt' ? sessionAvgTaps : undefined}
               onComplete={handleFretboardComplete}
             />
           ) : settings.mode === 'study' ? (
@@ -1076,7 +1093,7 @@ export function EarTraining() {
               )
             )}
 
-            {fretboardSubMode === 'hunt' && score.huntAttempts && score.huntAttempts.length > 0 && (() => {
+            {(fretboardSubMode === 'hunt' || fretboardSubMode === 'singhunt') && score.huntAttempts && score.huntAttempts.length > 0 && (() => {
               const huntHistory = loadHuntHistory();
 
               // Sparkline: last 8 calendar dates with ≥5 entries
