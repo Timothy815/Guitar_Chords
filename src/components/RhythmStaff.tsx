@@ -11,6 +11,7 @@ interface RhythmStaffProps {
 
 const STAFF_H = 110;
 const CLEF_EXTRA = 70; // extra px for clef + time signature on first stave
+const MIN_MEASURE_W = 180; // minimum px per measure before horizontal scroll kicks in
 
 function makeStaveNote(unit: RhythmUnit): StaveNote {
   const isDotted = unit.duration === 'hd' || unit.duration === 'qd';
@@ -151,7 +152,8 @@ export function RhythmStaff({ round, placedUnits, feedback, onSwap }: RhythmStaf
   }, [round, placedUnits, feedback, isDark]);
 
   return (
-    <div ref={wrapRef} className="relative overflow-x-auto">
+    <div className="overflow-x-auto">
+      <div ref={wrapRef} className="relative" style={{ minWidth: CLEF_EXTRA + MIN_MEASURE_W * round.measures }}>
       <div ref={vexRef} style={{ height: STAFF_H }} />
       {!feedback && noteXs.map((x, i) => (
         <div
@@ -171,6 +173,7 @@ export function RhythmStaff({ round, placedUnits, feedback, onSwap }: RhythmStaf
           }}
         />
       ))}
+      </div>
     </div>
   );
 }
