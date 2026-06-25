@@ -7,11 +7,12 @@ import {
   DifficultyLevel, CHORD_TYPE_DEFS, INTERVAL_DEFS, DIFFICULTY_PRESETS,
   loadSettings, saveSettings, initialScore,
   generateChordRound, generateIntervalRound, generateStudyDeck, generateFretboardRound,
-  buildFretboardNotePool, makeFretboardRound,
+  buildFretboardNotePool, makeFretboardRound, buildKeyboardNotePool,
   chordToNotes, playOptionAudio, playStudyCard,
 } from '../lib/earTraining';
 import { initAudio, playStrum, playNote, startDrone, stopDrone } from '../lib/audio';
 import { FretboardTrainer } from '../components/FretboardTrainer';
+import { PianoTrainer } from '../components/PianoTrainer';
 import { PlanProgress, PlanStage, PLAN_STAGES, loadPlanProgress, savePlanProgress, resetPlanProgress } from '../lib/planProgress';
 import { HuntHistoryEntry, appendHuntEntries, loadHuntHistory } from '../lib/huntHistory';
 import {
@@ -56,6 +57,7 @@ export function EarTraining() {
   const [fretboardSubMode, setFretboardSubMode] = useState<'guess' | 'hunt' | 'sing' | 'singhunt'>('guess');
   const [biasTally, setBiasTally] = useState({ sharp: 0, flat: 0, correct: 0 });
   const [fretboardFocus, setFretboardFocus] = useState<FretboardFocus>({});
+  const [pianoView, setPianoView] = useState(false);
   const [droneNote, setDroneNote] = useState<string | null>(null);
   const [droneMode, setDroneMode] = useState<'off' | 'continuous' | 'cue'>('off');
   const [round, setRound] = useState<Round>(() => makeRound(loadSettings()));
@@ -145,8 +147,15 @@ export function EarTraining() {
       : s.mode;
     let r: Round;
     if (effectiveMode === 'fretboard') {
-      const note = nextFretboardNote(difficulty, activeFocus);
-      r = makeFretboardRound(note, FRETS_FOR[difficulty]);
+      let note: string;
+      if (pianoView) {
+        const kbPool = buildKeyboardNotePool(activeFocus.octaveMin ?? 2, activeFocus.octaveMax ?? 4);
+        note = kbPool[Math.floor(Math.random() * kbPool.length)];
+        r = makeFretboardRound(note, 13);
+      } else {
+        note = nextFretboardNote(difficulty, activeFocus);
+        r = makeFretboardRound(note, FRETS_FOR[difficulty]);
+      }
     } else {
       r = makeRound({ ...s, mode: effectiveMode }, difficulty, activeFocus);
     }
@@ -962,20 +971,61 @@ export function EarTraining() {
       {settings.mode !== 'plan' && (
         <>
           {settings.mode === 'fretboard' ? (
-            <FretboardTrainer
-              round={round as FretboardRound}
-              difficulty={difficulty}
-              score={score}
-              isHuntMode={fretboardSubMode === 'hunt' || fretboardSubMode === 'singhunt'}
-              singMode={fretboardSubMode === 'sing' || fretboardSubMode === 'singhunt'}
-              focus={fretboardFocus}
-              onFocusChange={handleFocusChange}
-              droneNote={droneNote}
-              droneMode={droneMode}
-              sessionAvgSemitones={fretboardSubMode === 'hunt' || fretboardSubMode === 'singhunt' ? sessionAvgSemitones : undefined}
-              sessionAvgTaps={fretboardSubMode === 'hunt' || fretboardSubMode === 'singhunt' ? sessionAvgTaps : undefined}
-              onComplete={handleFretboardComplete}
-            />
+            <div className="space-y-3">
+              {/* Fretboard | Piano toggle */}
+              <div className="flex items-center justify-center gap-1 p-1 rounded-lg bg-brand-sidebar border border-brand-line w-fit mx-auto">
+                <button
+                  onClick={() => { setPianoView(false); advanceRound(); }}
+                  className={cn(
+                    'px-4 py-1.5 rounded-md text-sm font-medium transition-colors',
+                    !pianoView
+                      ? 'bg-brand-surface text-brand-ink shadow-sm'
+                      : 'text-brand-secondary hover:text-brand-ink',
+                  )}
+                >
+                  Fretboard
+                </button>
+                <button
+                  onClick={() => { setPianoView(true); advanceRound(); }}
+                  className={cn(
+                    'px-4 py-1.5 rounded-md text-sm font-medium transition-colors',
+                    pianoView
+                      ? 'bg-brand-surface text-brand-ink shadow-sm'
+                      : 'text-brand-secondary hover:text-brand-ink',
+                  )}
+                >
+                  Piano
+                </button>
+              </div>
+
+              {pianoView ? (
+                <PianoTrainer
+                  round={round as FretboardRound}
+                  score={score}
+                  octaveMin={fretboardFocus.octaveMin ?? 2}
+                  octaveMax={fretboardFocus.octaveMax ?? 4}
+                  mode={fretboardSubMode}
+                  droneNote={droneNote}
+                  droneMode={droneMode}
+                  onComplete={handleFretboardComplete}
+                />
+              ) : (
+                <FretboardTrainer
+                  round={round as FretboardRound}
+                  difficulty={difficulty}
+                  score={score}
+                  isHuntMode={fretboardSubMode === 'hunt' || fretboardSubMode === 'singhunt'}
+                  singMode={fretboardSubMode === 'sing' || fretboardSubMode === 'singhunt'}
+                  focus={fretboardFocus}
+                  onFocusChange={handleFocusChange}
+                  droneNote={droneNote}
+                  droneMode={droneMode}
+                  sessionAvgSemitones={fretboardSubMode === 'hunt' || fretboardSubMode === 'singhunt' ? sessionAvgSemitones : undefined}
+                  sessionAvgTaps={fretboardSubMode === 'hunt' || fretboardSubMode === 'singhunt' ? sessionAvgTaps : undefined}
+                  onComplete={handleFretboardComplete}
+                />
+              )}
+            </div>
           ) : settings.mode === 'study' ? (
             studyDeck.length === 0 ? (
               <div className="rounded-lg border border-brand-line bg-brand-surface p-6 text-center text-brand-secondary text-sm">
