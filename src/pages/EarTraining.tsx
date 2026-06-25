@@ -36,6 +36,11 @@ import { ALL_NOTES } from '../data/guitarData';
 import { RhythmRound, RhythmSettings, RhythmDuration, generateRhythmRound } from '../lib/rhythmTraining';
 import { RhythmTrainer } from '../components/RhythmTrainer';
 
+function RhythmRoundLoader({ onLoad }: { onLoad: () => void }) {
+  useEffect(() => { onLoad(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return <div className="rounded-lg border border-brand-line bg-brand-surface p-6 text-center text-brand-secondary text-sm">Loading…</div>;
+}
+
 function makeRound(
   s: EarTrainingSettings,
   difficulty: DifficultyLevel = 'Beginner',
@@ -1249,12 +1254,16 @@ export function EarTraining() {
               </div>
             )
           ) : settings.mode === 'rhythm' ? (
-            <RhythmTrainer
-              round={round as RhythmRound}
-              score={score}
-              settings={rhythmSettings}
-              onComplete={handleRhythmComplete}
-            />
+            round.kind === 'rhythm' ? (
+              <RhythmTrainer
+                round={round as RhythmRound}
+                score={score}
+                settings={rhythmSettings}
+                onComplete={handleRhythmComplete}
+              />
+            ) : (
+              <RhythmRoundLoader onLoad={() => advanceRound()} />
+            )
           ) : (
             <div className="rounded-lg border border-brand-line bg-brand-surface p-6 space-y-6">
               {/* Replay button — also serves as the first user gesture to unlock audio */}

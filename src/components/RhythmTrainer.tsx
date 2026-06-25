@@ -94,12 +94,13 @@ export function RhythmTrainer({ round, score, settings, onComplete }: RhythmTrai
 
   // Pre-compute beat positions and count labels for the original round
   const countLabels: { label: string; isRest: boolean; widthPct: number }[] = (() => {
-    const totalBeats = beatsPerMeasure(round.timeSignature) * round.measures;
+    if (!round.units) return [];
+    const tb = beatsPerMeasure(round.timeSignature) * round.measures;
     let cursor = 0;
     return round.units.map(unit => {
       const label = getCountLabel(cursor, round.timeSignature);
       cursor += durationBeats(unit.duration);
-      return { label, isRest: unit.isRest, widthPct: (durationBeats(unit.duration) / totalBeats) * 100 };
+      return { label, isRest: unit.isRest, widthPct: (durationBeats(unit.duration) / tb) * 100 };
     });
   })();
 
