@@ -7,6 +7,9 @@ import {
   getCorrectPositions, playFretboardRound, getAbsoluteSemitoneDistance, getAbsoluteDirection,
 } from '../lib/earTraining';
 import { getFretNote, initAudio, playNote, startNote, stopNote } from '../lib/audio';
+import {
+  loadHuntHistory, exportToCsv, mergeHuntEntries, parseFromCsv,
+} from '../lib/huntHistory';
 
 interface FretboardTrainerProps {
   round: FretboardRound;
@@ -18,7 +21,15 @@ interface FretboardTrainerProps {
   droneNote?: string | null;
   droneMode?: 'off' | 'continuous' | 'cue';
   singMode?: boolean;
+  sessionAvgSemitones?: number;
+  sessionAvgTaps?: number;
   onComplete: (wasCorrect: boolean, huntResult?: HuntResult) => void;
+}
+
+function liveColor(semi: number, taps: number): string {
+  if (semi <= 1.5 && taps <= 1.5) return '#27ae60';
+  if (semi <= 3.0 && taps <= 2.5) return '#f1c40f';
+  return '#c0392b';
 }
 
 export function FretboardTrainer({
@@ -26,6 +37,8 @@ export function FretboardTrainer({
   focus = {}, onFocusChange,
   droneNote, droneMode,
   singMode,
+  sessionAvgSemitones,
+  sessionAvgTaps,
   onComplete,
 }: FretboardTrainerProps) {
   // Shared state (Guess + Hunt)
@@ -37,6 +50,8 @@ export function FretboardTrainer({
 
   // Hunt-only state
   const mouseDownFiredRef = useRef(false);
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const [importMsg, setImportMsg] = useState<string | null>(null);
   const [selectedPosition, setSelectedPosition] = useState<string | null>(null);
   const [selectedNote, setSelectedNote] = useState<string | null>(null); // full note+octave e.g. "C4"
   const [attemptCount, setAttemptCount] = useState(0);
@@ -203,6 +218,32 @@ export function FretboardTrainer({
     attemptCount, selectionCount, onComplete,
   ]);
 
+  const handleExportCsv = useCallback(() => {
+    const csv = exportToCsv(loadHuntHistory());
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'guitar-hunt-stats.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }, []);
+
+  const handleImportCsv = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const text = await file.text();
+    const parsed = parseFromCsv(text);
+    if (parsed.length === 0) {
+      setImportMsg('Import failed — check file format.');
+    } else {
+      mergeHuntEntries(parsed);
+      setImportMsg(`Imported ${parsed.length} rows`);
+    }
+    e.target.value = '';
+    setTimeout(() => setImportMsg(null), 3000);
+  }, []);
+
   const accuracy = score.total > 0 ? Math.round((score.correct / score.total) * 100) : 0;
 
   return (
@@ -222,12 +263,42 @@ export function FretboardTrainer({
         </button>
       </div>
 
-      {isHuntMode && onFocusChange && (
-        <FretboardFocusSelector
-          focus={focus}
-          fretsNum={round.fretsNum}
-          onChange={onFocusChange}
-        />
+      {isHuntMode && (
+        <div className="space-y-2">
+          {onFocusChange && (
+            <FretboardFocusSelector
+              focus={focus}
+              fretsNum={round.fretsNum}
+              onChange={onFocusChange}
+            />
+          )}
+          <div className="flex items-center gap-2 justify-end">
+            <button
+              onClick={handleExportCsv}
+              className="px-3 py-1 rounded-md text-xs font-medium border border-brand-line text-brand-secondary hover:border-brand-primary hover:text-brand-primary transition-colors"
+            >
+              Export CSV
+            </button>
+            <button
+              onClick={() => importInputRef.current?.click()}
+              className="px-3 py-1 rounded-md text-xs font-medium border border-brand-line text-brand-secondary hover:border-brand-primary hover:text-brand-primary transition-colors"
+            >
+              Import CSV
+            </button>
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".csv"
+              className="hidden"
+              onChange={handleImportCsv}
+            />
+          </div>
+          {importMsg && (
+            <p className={`text-xs ${importMsg.startsWith('Import failed') ? 'text-red-500' : 'text-green-600'}`}>
+              {importMsg}
+            </p>
+          )}
+        </div>
       )}
 
       <div className="relative">
@@ -272,6 +343,15 @@ export function FretboardTrainer({
             Confirm
           </button>
         </div>
+      )}
+
+      {isHuntMode && sessionAvgSemitones !== undefined && (
+        <p
+          className="text-xs text-center tabular-nums"
+          style={{ color: liveColor(sessionAvgSemitones, sessionAvgTaps ?? 0) }}
+        >
+          Session avg: {sessionAvgSemitones.toFixed(1)} semi · {(sessionAvgTaps ?? 0).toFixed(1)} taps
+        </p>
       )}
 
       {score.total > 0 && (
