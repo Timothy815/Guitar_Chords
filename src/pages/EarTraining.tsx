@@ -1111,26 +1111,127 @@ export function EarTraining() {
                 </table>
               )
             ) : (
-              Object.keys(score.byType).length > 0 && (
-                <table className="w-full text-sm border-collapse">
-                  <thead>
-                    <tr className="border-b border-brand-line text-left">
-                      <th className="pb-1.5 font-medium text-brand-secondary">Type</th>
-                      <th className="pb-1.5 font-medium text-brand-secondary text-right">Correct</th>
-                      <th className="pb-1.5 font-medium text-brand-secondary text-right">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Object.entries(score.byType).map(([type, data]: [string, { correct: number; total: number }]) => (
-                      <tr key={type} className="border-b border-brand-line/40">
-                        <td className="py-1.5 text-brand-ink">{type}</td>
-                        <td className="py-1.5 text-right text-green-600 font-medium">{data.correct}</td>
-                        <td className="py-1.5 text-right text-brand-secondary">{data.total}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )
+              Object.keys(score.byType).length > 0 && (() => {
+                // Normalize to common shape for easier processing
+                const typeEntries: Array<{ date: string; type: string; correct: boolean; responseTimeMs: number }> =
+                  settings.mode === 'chord'
+                    ? loadChordHistory().map(e => ({ date: e.date, type: e.typeLabel, correct: e.correct, responseTimeMs: e.responseTimeMs }))
+                    : loadIntervalHistory().map(e => ({ date: e.date, type: e.label, correct: e.correct, responseTimeMs: e.responseTimeMs }));
+
+                // All-time stats per type
+                const allTime: Record<string, { correct: number; total: number; totalRtMs: number }> = {};
+                for (const e of typeEntries) {
+                  if (!allTime[e.type]) allTime[e.type] = { correct: 0, total: 0, totalRtMs: 0 };
+                  if (e.correct) allTime[e.type].correct++;
+                  allTime[e.type].total++;
+                  allTime[e.type].totalRtMs += e.responseTimeMs;
+                }
+
+                // Rows: types from this session, sorted weakest first
+                const rows = Object.keys(score.byType)
+                  .map(type => {
+                    const d = allTime[type] ?? { correct: 0, total: 0, totalRtMs: 0 };
+                    return {
+                      type,
+                      acc: d.total > 0 ? d.correct / d.total : 0,
+                      avgRtS: d.total > 0 ? d.totalRtMs / d.total / 1000 : 0,
+                      hasData: d.total > 0,
+                    };
+                  })
+                  .sort((a, b) => a.acc - b.acc);
+
+                // Sparkline: overall accuracy per calendar date, last 8 dates with ≥3 entries
+                const byDate: Record<string, { correct: number; total: number }> = {};
+                for (const e of typeEntries) {
+                  if (!byDate[e.date]) byDate[e.date] = { correct: 0, total: 0 };
+                  if (e.correct) byDate[e.date].correct++;
+                  byDate[e.date].total++;
+                }
+                const sparkDates = Object.entries(byDate)
+                  .filter(([, d]) => d.total >= 3)
+                  .sort(([a], [b]) => a.localeCompare(b))
+                  .slice(-8);
+                const sparkPoints = sparkDates.map(([, d]) => (d.correct / d.total) * 100);
+
+                // Weakest types: ≥5 attempts, bottom 3 by accuracy
+                const weakest = Object.entries(allTime)
+                  .filter(([, d]) => d.total >= 5)
+                  .sort(([, a], [, b]) => a.correct / a.total - b.correct / b.total)
+                  .slice(0, 3)
+                  .map(([type, d]) => `${type} (${Math.round((d.correct / d.total) * 100)}%)`);
+
+                const accColor = (acc: number) =>
+                  acc >= 0.8 ? '#27ae60' : acc >= 0.6 ? '#f1c40f' : '#c0392b';
+
+                return (
+                  <div className="space-y-3">
+                    {/* Per-type accuracy table */}
+                    <table className="w-full text-sm border-collapse">
+                      <thead>
+                        <tr className="border-b border-brand-line text-left">
+                          <th className="pb-1.5 font-medium text-brand-secondary">Type</th>
+                          <th className="pb-1.5 font-medium text-brand-secondary text-right">All-time</th>
+                          <th className="pb-1.5 font-medium text-brand-secondary text-right">Avg time</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map(({ type, acc, avgRtS, hasData }) => (
+                          <tr key={type} className="border-b border-brand-line/40">
+                            <td className="py-1.5 text-brand-ink">{type}</td>
+                            <td
+                              className="py-1.5 text-right font-medium"
+                              style={{ color: hasData ? accColor(acc) : undefined }}
+                            >
+                              {hasData ? `${Math.round(acc * 100)}%` : '—'}
+                            </td>
+                            <td className="py-1.5 text-right text-brand-secondary">
+                              {hasData ? `${avgRtS.toFixed(1)}s` : '—'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+
+                    {/* Sparkline */}
+                    {sparkPoints.length >= 2 && (() => {
+                      const W = 300, H = 48, PAD = 6;
+                      const plotW = W - 2 * PAD;
+                      const plotH = H - 2 * PAD;
+                      const pts = sparkPoints.map((v, i) => ({
+                        x: PAD + (i / (sparkPoints.length - 1)) * plotW,
+                        y: PAD + (1 - v / 100) * plotH,
+                      }));
+                      const last = sparkPoints[sparkPoints.length - 1];
+                      const lineColor = last >= 80 ? '#27ae60' : last >= 60 ? '#f1c40f' : '#c0392b';
+                      return (
+                        <div>
+                          <p className="text-xs text-brand-secondary mb-1">
+                            Accuracy trend (last {sparkPoints.length} sessions)
+                          </p>
+                          <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-12">
+                            <polyline
+                              points={pts.map(p => `${p.x},${p.y}`).join(' ')}
+                              fill="none"
+                              stroke={lineColor}
+                              strokeWidth="2"
+                            />
+                            {pts.map((p, i) => (
+                              <circle key={i} cx={p.x} cy={p.y} r={4} fill={lineColor} />
+                            ))}
+                          </svg>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Weakest types */}
+                    {weakest.length >= 3 && (
+                      <p className="text-xs text-brand-secondary">
+                        Focus on: {weakest.join(' · ')}
+                      </p>
+                    )}
+                  </div>
+                );
+              })()
             )}
 
             {(fretboardSubMode === 'hunt' || fretboardSubMode === 'singhunt') && score.huntAttempts && score.huntAttempts.length > 0 && (() => {
