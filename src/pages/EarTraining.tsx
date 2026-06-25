@@ -73,6 +73,8 @@ export function EarTraining() {
   const [planPracticing, setPlanPracticing] = useState(false);
   const [showPlanComplete, setShowPlanComplete] = useState<{ accuracy: number; stageLabel: string; isFinal: boolean } | null>(null);
   const [huntSessionRounds, setHuntSessionRounds] = useState<Array<{ firstTapSemitones: number; tapCount: number }>>([]);
+  const practiceImportRef = useRef<HTMLInputElement>(null);
+  const [practiceImportMsg, setPracticeImportMsg] = useState<string | null>(null);
 
   const FRETS_FOR: Record<DifficultyLevel, number> = { Beginner: 6, Intermediate: 10, Advanced: 13 };
 
@@ -399,6 +401,43 @@ export function EarTraining() {
     advanceRound(settings, {});
   }
 
+  function handlePracticeExport() {
+    const [csv, filename] = settings.mode === 'chord'
+      ? [exportChordToCsv(loadChordHistory()), 'guitar-chord-stats.csv']
+      : [exportIntervalToCsv(loadIntervalHistory()), 'guitar-interval-stats.csv'];
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 100);
+  }
+
+  function handlePracticeImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const text = ev.target?.result as string;
+        if (settings.mode === 'chord') {
+          const parsed = parseChordFromCsv(text);
+          mergeChordEntries(parsed);
+          setPracticeImportMsg(`Imported ${parsed.length} rows`);
+        } else {
+          const parsed = parseIntervalFromCsv(text);
+          mergeIntervalEntries(parsed);
+          setPracticeImportMsg(`Imported ${parsed.length} rows`);
+        }
+      } catch {
+        setPracticeImportMsg('Import failed — check file format');
+      }
+      if (practiceImportRef.current) practiceImportRef.current.value = '';
+    };
+    reader.readAsText(file);
+  }
+
   function getOptionLabel(index: number): string {
     if (round.kind === 'chord') return (round as ChordRound).options[index].displayLabel;
     return (round as IntervalRound).options[index].label;
@@ -710,6 +749,60 @@ export function EarTraining() {
                 </div>
               </div>
             )}
+
+            {/* Weakest types hint + Export/Import — chord/interval only */}
+            {(settings.mode === 'chord' || settings.mode === 'interval') && (() => {
+              const history = (settings.mode === 'chord' ? loadChordHistory() : loadIntervalHistory()) as Array<ChordHistoryEntry | IntervalHistoryEntry>;
+              const stats: Record<string, { correct: number; total: number }> = {};
+              for (const e of history) {
+                const k = settings.mode === 'chord'
+                  ? (e as unknown as ChordHistoryEntry).typeLabel
+                  : (e as unknown as IntervalHistoryEntry).label;
+                if (!stats[k]) stats[k] = { correct: 0, total: 0 };
+                if (e.correct) stats[k].correct++;
+                stats[k].total++;
+              }
+              const weakest = Object.entries(stats)
+                .filter(([, d]) => d.total >= 5)
+                .sort(([, a], [, b]) => a.correct / a.total - b.correct / b.total)
+                .slice(0, 3)
+                .map(([type, d]) => `${type} (${Math.round((d.correct / d.total) * 100)}%)`);
+              return (
+                <div className="space-y-2 pt-1">
+                  {weakest.length >= 3 && (
+                    <p className="text-xs text-brand-secondary">
+                      Weakest: {weakest.join(' · ')}
+                    </p>
+                  )}
+                  <div className="flex gap-2 flex-wrap items-center">
+                    <button
+                      onClick={handlePracticeExport}
+                      className="px-2.5 py-1 text-xs border border-brand-line text-brand-secondary rounded hover:border-brand-primary hover:text-brand-primary transition-colors"
+                    >
+                      Export CSV
+                    </button>
+                    <button
+                      onClick={() => practiceImportRef.current?.click()}
+                      className="px-2.5 py-1 text-xs border border-brand-line text-brand-secondary rounded hover:border-brand-primary hover:text-brand-primary transition-colors"
+                    >
+                      Import CSV
+                    </button>
+                    <input
+                      type="file"
+                      accept=".csv"
+                      ref={practiceImportRef}
+                      className="hidden"
+                      onChange={handlePracticeImport}
+                    />
+                    {practiceImportMsg && (
+                      <p className={`text-xs ${practiceImportMsg.startsWith('Import failed') ? 'text-red-500' : 'text-green-600'}`}>
+                        {practiceImportMsg}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
       </div>
