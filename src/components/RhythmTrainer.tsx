@@ -1,0 +1,193 @@
+import React, { useEffect, useState, useCallback } from 'react';
+import { cn } from '../lib/utils';
+import {
+  RhythmRound, RhythmUnit, RhythmSettings, RhythmDuration,
+  durationBeats, beatsPerMeasure,
+} from '../lib/rhythmTraining';
+import { SessionScore } from '../lib/earTraining';
+import { initAudio, playRhythmRound, stopRhythm } from '../lib/audio';
+import { RhythmStaff } from './RhythmStaff';
+
+interface RhythmTrainerProps {
+  round: RhythmRound;
+  score: SessionScore;
+  settings: RhythmSettings;
+  onComplete: (wasCorrect: boolean) => void;
+}
+
+const DURATION_LABELS: Record<RhythmDuration, string> = {
+  w: 'W', h: 'H', hd: 'H.', q: 'Q', qd: 'Q.', '8': '8', '16': '16',
+};
+
+export function RhythmTrainer({ round, score, settings, onComplete }: RhythmTrainerProps) {
+  const [placedUnits, setPlacedUnits] = useState<RhythmUnit[]>([]);
+  const [selectedDuration, setSelectedDuration] = useState<RhythmDuration>('q');
+  const [isRest, setIsRest] = useState(false);
+  const [feedback, setFeedback] = useState<('correct' | 'wrong' | null)[] | null>(null);
+
+  const totalBeats = beatsPerMeasure(round.timeSignature) * round.measures;
+  const usedBeats = placedUnits.reduce((s, u) => s + durationBeats(u.duration), 0);
+  const remainingBeats = Math.max(0, totalBeats - usedBeats);
+
+  const handlePlay = useCallback(() => {
+    initAudio().then(() => playRhythmRound(round)).catch(() => {});
+  }, [round]);
+
+  // Auto-play on new round
+  useEffect(() => {
+    setPlacedUnits([]);
+    setSelectedDuration('q');
+    setIsRest(false);
+    setFeedback(null);
+    initAudio().then(() => playRhythmRound(round)).catch(() => {});
+    return () => stopRhythm();
+  }, [round]);
+
+  function handlePlaceImmediate(dur: RhythmDuration) {
+    if (durationBeats(dur) > remainingBeats + 0.001 || !!feedback) return;
+    setPlacedUnits(prev => [...prev, { duration: dur, isRest }]);
+  }
+
+  function handleDelete() {
+    if (feedback) return;
+    setPlacedUnits(prev => prev.slice(0, -1));
+  }
+
+  function handleSubmit() {
+    if (remainingBeats > 0.001 || feedback) return;
+    const fb = round.units.map((correct, i) => {
+      const placed = placedUnits[i];
+      if (!placed) return 'wrong' as const;
+      return placed.duration === correct.duration && placed.isRest === correct.isRest
+        ? 'correct' as const
+        : 'wrong' as const;
+    });
+    setFeedback(fb);
+  }
+
+  function handleSwap(i: number, j: number) {
+    if (feedback) return;
+    setPlacedUnits(prev => {
+      const next = [...prev];
+      [next[i], next[j]] = [next[j], next[i]];
+      return next;
+    });
+  }
+
+  function handleNext() {
+    const allCorrect = feedback !== null && feedback.every(f => f === 'correct');
+    stopRhythm();
+    onComplete(allCorrect);
+  }
+
+  const canSubmit = remainingBeats < 0.001 && !feedback;
+
+  return (
+    <div className="rounded-lg border border-brand-line bg-brand-surface p-4 space-y-4">
+      {/* Score badge */}
+      <div className="flex items-center justify-between text-xs text-brand-secondary">
+        <span>Round {score.total + 1}</span>
+        <span>{score.correct}/{score.total} correct</span>
+      </div>
+
+      {/* Staff */}
+      <RhythmStaff
+        round={round}
+        placedUnits={placedUnits}
+        feedback={feedback}
+        onSwap={handleSwap}
+      />
+
+      {/* Remaining beat indicator */}
+      {!feedback && (
+        <p className="text-xs text-brand-secondary text-center">
+          {remainingBeats > 0.001
+            ? `${remainingBeats.toFixed(2).replace(/\.?0+$/, '')} beats remaining`
+            : 'All beats filled — ready to submit'}
+        </p>
+      )}
+
+      {/* Feedback result */}
+      {feedback && (
+        <p className={cn(
+          'text-sm font-semibold text-center',
+          feedback.every(f => f === 'correct') ? 'text-green-600' : 'text-red-500',
+        )}>
+          {feedback.every(f => f === 'correct') ? 'Correct! 🎯' : 'Not quite — review in green/red above'}
+        </p>
+      )}
+
+      {/* Palette */}
+      {!feedback && (
+        <div className="space-y-2">
+          <div className="flex gap-1.5 flex-wrap items-center">
+            {settings.enabledDurations.map(dur => (
+              <button
+                key={dur}
+                onClick={() => { setSelectedDuration(dur); handlePlaceImmediate(dur); }}
+                disabled={durationBeats(dur) > remainingBeats + 0.001}
+                className={cn(
+                  'w-10 h-10 rounded-lg text-sm font-bold border transition-colors',
+                  selectedDuration === dur
+                    ? 'bg-brand-primary text-white border-brand-primary'
+                    : 'border-brand-line text-brand-ink hover:border-brand-primary/60',
+                  durationBeats(dur) > remainingBeats + 0.001 && 'opacity-40 cursor-not-allowed',
+                )}
+              >
+                {DURATION_LABELS[dur]}
+              </button>
+            ))}
+            {settings.enableRests && (
+              <button
+                onClick={() => setIsRest(r => !r)}
+                className={cn(
+                  'px-3 h-10 rounded-lg text-sm font-medium border transition-colors',
+                  isRest
+                    ? 'bg-brand-primary text-white border-brand-primary'
+                    : 'border-brand-line text-brand-secondary hover:border-brand-primary/60',
+                )}
+              >
+                Rest
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Controls */}
+      <div className="flex gap-2 flex-wrap">
+        <button
+          onClick={handlePlay}
+          className="px-4 py-2 rounded-lg text-sm font-medium bg-brand-primary text-white hover:bg-brand-primary/90 transition-colors"
+        >
+          ▶ Play
+        </button>
+        {!feedback && (
+          <button
+            onClick={handleDelete}
+            disabled={placedUnits.length === 0}
+            className="px-4 py-2 rounded-lg text-sm font-medium border border-brand-line text-brand-secondary hover:border-brand-primary/60 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            ← Delete
+          </button>
+        )}
+        {canSubmit && !feedback && (
+          <button
+            onClick={handleSubmit}
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-green-600 text-white hover:bg-green-700 transition-colors"
+          >
+            Submit
+          </button>
+        )}
+        {feedback && (
+          <button
+            onClick={handleNext}
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-brand-primary text-white hover:bg-brand-primary/90 transition-colors"
+          >
+            Next →
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
