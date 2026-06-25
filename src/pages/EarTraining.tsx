@@ -81,6 +81,7 @@ export function EarTraining() {
     enabledDurations: ['h', 'q'],
     enableRests: false,
     bpm: 80,
+    enableLeadIn: true,
   });
   const [showPlanComplete, setShowPlanComplete] = useState<{ accuracy: number; stageLabel: string; isFinal: boolean } | null>(null);
   const [huntSessionRounds, setHuntSessionRounds] = useState<Array<{ firstTapSemitones: number; tapCount: number }>>([]);
@@ -883,7 +884,7 @@ export function EarTraining() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <button
                     onClick={() => setRhythmSettings(r => ({ ...r, enableRests: !r.enableRests }))}
                     className={cn(
@@ -894,6 +895,17 @@ export function EarTraining() {
                     )}
                   >
                     {rhythmSettings.enableRests ? 'Rests: On' : 'Rests: Off'}
+                  </button>
+                  <button
+                    onClick={() => setRhythmSettings(r => ({ ...r, enableLeadIn: !r.enableLeadIn }))}
+                    className={cn(
+                      'px-3 py-1 rounded text-xs font-medium border transition-colors',
+                      rhythmSettings.enableLeadIn
+                        ? 'bg-brand-primary text-white border-brand-primary'
+                        : 'border-brand-line text-brand-secondary hover:border-brand-primary/60',
+                    )}
+                  >
+                    {rhythmSettings.enableLeadIn ? 'Count-in: On' : 'Count-in: Off'}
                   </button>
                 </div>
               </div>

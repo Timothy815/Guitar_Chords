@@ -30,8 +30,8 @@ export function RhythmTrainer({ round, score, settings, onComplete }: RhythmTrai
   const remainingBeats = Math.max(0, totalBeats - usedBeats);
 
   const handlePlay = useCallback(() => {
-    initAudio().then(() => playRhythmRound(round)).catch(() => {});
-  }, [round]);
+    initAudio().then(() => playRhythmRound(round, settings.enableLeadIn)).catch(() => {});
+  }, [round, settings.enableLeadIn]);
 
   // Auto-play on new round
   useEffect(() => {
@@ -39,7 +39,7 @@ export function RhythmTrainer({ round, score, settings, onComplete }: RhythmTrai
     setSelectedDuration('q');
     setIsRest(false);
     setFeedback(null);
-    initAudio().then(() => playRhythmRound(round)).catch(() => {});
+    initAudio().then(() => playRhythmRound(round, settings.enableLeadIn)).catch(() => {});
     return () => stopRhythm();
   }, [round]);
 

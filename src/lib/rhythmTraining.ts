@@ -20,6 +20,7 @@ export interface RhythmSettings {
   enabledDurations: RhythmDuration[];
   enableRests: boolean;
   bpm: number;
+  enableLeadIn: boolean;
 }
 
 export function durationBeats(duration: RhythmDuration): number {

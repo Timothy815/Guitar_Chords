@@ -424,73 +424,52 @@ export function playProgressionWithPatterns(
 export function stopRhythm(): void {
   Tone.Transport.stop();
   Tone.Transport.cancel();
+  Tone.Transport.loop = false;
 }
 
-export function playRhythmRound(round: RhythmRound): void {
+export function playRhythmRound(round: RhythmRound, enableLeadIn = true): void {
   stopRhythm();
 
   const spb = 60 / round.bpm;         // seconds per quarter-note beat
   const bpb = beatsPerMeasure(round.timeSignature);
   const is6_8 = round.timeSignature === '6/8';
+  const patternStart = enableLeadIn ? bpb * spb : 0;
+  const patternDuration = bpb * round.measures * spb;
 
   Tone.Transport.bpm.value = round.bpm;
 
-  // Count-in: one measure of clicks (no claps)
-  if (is6_8) {
-    // Heavy click on dotted-quarter beats (0 and 1.5), light on eighths
-    ([0, 1.5] as number[]).forEach(b => {
-      Tone.Transport.schedule(t => { clickSynth.triggerAttackRelease('C5', '32n', t); }, b * spb);
-    });
-    ([0.5, 1.0, 2.0, 2.5] as number[]).forEach(b => {
-      Tone.Transport.schedule(t => { clickSynth.triggerAttackRelease('C4', '32n', t); }, b * spb);
-    });
-  } else {
-    for (let b = 0; b < bpb; b++) {
-      const note = b === 0 ? 'C5' : 'C4';
-      Tone.Transport.schedule(t => { clickSynth.triggerAttackRelease(note, '32n', t); }, b * spb);
-    }
-  }
-
-  // Pattern starts after count-in
-  const patternStart = bpb * spb;
-
-  // Beat clicks throughout the pattern
-  if (is6_8) {
-    for (let m = 0; m < round.measures; m++) {
-      const mOffset = m * bpb * spb;
+  // Count-in (one measure of metronome clicks, no note hits)
+  if (enableLeadIn) {
+    if (is6_8) {
       ([0, 1.5] as number[]).forEach(b => {
-        Tone.Transport.schedule(
-          t => { clickSynth.triggerAttackRelease('C5', '32n', t); },
-          patternStart + mOffset + b * spb,
-        );
+        Tone.Transport.schedule(t => { clickSynth.triggerAttackRelease('C5', '32n', t); }, b * spb);
       });
       ([0.5, 1.0, 2.0, 2.5] as number[]).forEach(b => {
-        Tone.Transport.schedule(
-          t => { clickSynth.triggerAttackRelease('C4', '32n', t); },
-          patternStart + mOffset + b * spb,
-        );
+        Tone.Transport.schedule(t => { clickSynth.triggerAttackRelease('C4', '32n', t); }, b * spb);
       });
-    }
-  } else {
-    const totalPatternBeats = bpb * round.measures;
-    for (let b = 0; b < totalPatternBeats; b++) {
-      const note = b % bpb === 0 ? 'C5' : 'C4';
-      Tone.Transport.schedule(
-        t => { clickSynth.triggerAttackRelease(note, '32n', t); },
-        patternStart + b * spb,
-      );
+    } else {
+      for (let b = 0; b < bpb; b++) {
+        const note = b === 0 ? 'C5' : 'C4';
+        Tone.Transport.schedule(t => { clickSynth.triggerAttackRelease(note, '32n', t); }, b * spb);
+      }
     }
   }
 
-  // Note onsets on non-rest unit positions — high-pitched click clearly distinct from beat clicks
+  // Rhythm pattern: kick drum hits on note onsets — completely different timbre from the metronome
+  // No beat clicks during pattern so count-in and rhythm are unmistakably distinct
   let cursor = 0;
   for (const unit of round.units) {
     if (!unit.isRest) {
       const t = patternStart + cursor * spb;
-      Tone.Transport.schedule(time => { clickSynth.triggerAttackRelease('C6', '16n', time); }, t);
+      Tone.Transport.schedule(time => { kickSynth.triggerAttackRelease('C1', '8n', time, 0.9); }, t);
     }
     cursor += durationBeats(unit.duration);
   }
+
+  // Loop just the pattern so the user can count along as many times as they like
+  Tone.Transport.loop = true;
+  Tone.Transport.loopStart = patternStart;
+  Tone.Transport.loopEnd = patternStart + patternDuration;
 
   Tone.Transport.position = 0;
   Tone.Transport.start();
