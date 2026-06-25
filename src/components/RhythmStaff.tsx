@@ -45,6 +45,15 @@ export function RhythmStaff({ round, placedUnits, feedback, onSwap }: RhythmStaf
   const wrapRef = useRef<HTMLDivElement>(null);
   const [noteXs, setNoteXs] = useState<number[]>([]);
   const [dragSrc, setDragSrc] = useState<number | null>(null);
+  const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains('dark'));
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDark(document.documentElement.classList.contains('dark'));
+    });
+    observer.observe(document.documentElement, { attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const clear = () => setDragSrc(null);
@@ -57,10 +66,15 @@ export function RhythmStaff({ round, placedUnits, feedback, onSwap }: RhythmStaf
     if (!div) return;
     div.innerHTML = '';
 
+    const inkColor = isDark ? '#e5e7eb' : '#000000';
+    const placeholderColor = isDark ? '#4b5563' : '#cccccc';
+
     const W = Math.max((wrapRef.current?.clientWidth ?? 700) - 8, 400);
     const renderer = new Renderer(div, Renderer.Backends.SVG);
     renderer.resize(W, STAFF_H);
     const ctx = renderer.getContext();
+    ctx.setFillStyle(inkColor);
+    ctx.setStrokeStyle(inkColor);
 
     const bpb = beatsPerMeasure(round.timeSignature);
     const perMeasureW = (W - CLEF_EXTRA) / round.measures;
@@ -101,10 +115,10 @@ export function RhythmStaff({ round, placedUnits, feedback, onSwap }: RhythmStaf
 
         // Determine global index for feedback
         const globalIdx = measureBuckets.slice(0, m).reduce((s, b) => s + b.length, 0) + i;
-        let fill = '#000000';
+        let fill = inkColor;
         if (feedback) {
           const fb = feedback[globalIdx];
-          fill = fb === 'correct' ? '#27ae60' : fb === 'wrong' ? '#c0392b' : '#000000';
+          fill = fb === 'correct' ? '#27ae60' : fb === 'wrong' ? '#c0392b' : inkColor;
         }
         note.setStyle({ fillStyle: fill, strokeStyle: fill });
         allNotes.push(note);
@@ -116,7 +130,7 @@ export function RhythmStaff({ round, placedUnits, feedback, onSwap }: RhythmStaf
 
       for (const ph of placeholders) {
         const note = makeStaveNote(ph);
-        note.setStyle({ fillStyle: '#cccccc', strokeStyle: '#cccccc' });
+        note.setStyle({ fillStyle: placeholderColor, strokeStyle: placeholderColor });
         allNotes.push(note);
       }
 
@@ -134,7 +148,7 @@ export function RhythmStaff({ round, placedUnits, feedback, onSwap }: RhythmStaf
     // Capture placed note x-positions for drag overlays
     const xs = placedNoteRefs.map(n => n.getAbsoluteX());
     setNoteXs(xs);
-  }, [round, placedUnits, feedback]);
+  }, [round, placedUnits, feedback, isDark]);
 
   return (
     <div ref={wrapRef} className="relative overflow-x-auto">
