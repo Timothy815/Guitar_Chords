@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Renderer, Stave, StaveNote, Voice, Formatter, Beam, Dot } from 'vexflow';
-import { RhythmRound, RhythmUnit, durationBeats, beatsPerMeasure, vexDuration } from '../lib/rhythmTraining';
+import { RhythmRound, RhythmUnit, TimeSignature, durationBeats, beatsPerMeasure, vexDuration } from '../lib/rhythmTraining';
 
 interface RhythmStaffProps {
   round: RhythmRound;
@@ -18,6 +18,13 @@ function makeStaveNote(unit: RhythmUnit): StaveNote {
   const note = new StaveNote({ keys: ['b/4'], duration: dur });
   if (isDotted) note.addModifier(new Dot(), 0);
   return note;
+}
+
+function voiceParams(ts: TimeSignature): { numBeats: number; beatValue: number } {
+  if (ts === '4/4') return { numBeats: 4, beatValue: 4 };
+  if (ts === '2/4') return { numBeats: 2, beatValue: 4 };
+  if (ts === '3/4') return { numBeats: 3, beatValue: 4 };
+  return { numBeats: 6, beatValue: 8 }; // 6/8
 }
 
 function fillPlaceholders(remaining: number): RhythmUnit[] {
@@ -38,6 +45,12 @@ export function RhythmStaff({ round, placedUnits, feedback, onSwap }: RhythmStaf
   const wrapRef = useRef<HTMLDivElement>(null);
   const [noteXs, setNoteXs] = useState<number[]>([]);
   const [dragSrc, setDragSrc] = useState<number | null>(null);
+
+  useEffect(() => {
+    const clear = () => setDragSrc(null);
+    window.addEventListener('mouseup', clear);
+    return () => window.removeEventListener('mouseup', clear);
+  }, []);
 
   useEffect(() => {
     const div = vexRef.current;
@@ -107,7 +120,8 @@ export function RhythmStaff({ round, placedUnits, feedback, onSwap }: RhythmStaf
         allNotes.push(note);
       }
 
-      const voice = new Voice({ numBeats: 4, beatValue: 4 }).setStrict(false);
+      const { numBeats, beatValue } = voiceParams(round.timeSignature);
+      const voice = new Voice({ numBeats, beatValue }).setStrict(false);
       voice.addTickables(allNotes);
       const usableW = staveW - 20;
       new Formatter().joinVoices([voice]).format([voice], usableW);
