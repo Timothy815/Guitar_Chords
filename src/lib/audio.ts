@@ -16,6 +16,10 @@ let pianoSampler: Tone.Sampler | null = null;
 let isPianoInitialized = false;
 let pianoInitPromise: Promise<void> | null = null;
 
+// Rhythm training dedicated synths (lazy-initialized, independent of main audio chain)
+let rhythmTickSynth: Tone.Synth | null = null;   // drumstick-click metronome
+let rhythmHitSynth: Tone.MembraneSynth | null = null;  // loud note-onset hit
+
 export function getInstrument() {
   return currentInstrument;
 }
@@ -430,6 +434,23 @@ export function stopRhythm(): void {
 export function playRhythmRound(round: RhythmRound, enableLeadIn = true): void {
   stopRhythm();
 
+  // Lazy-init dedicated rhythm synths
+  if (!rhythmTickSynth) {
+    rhythmTickSynth = new Tone.Synth({
+      oscillator: { type: 'triangle' },
+      envelope: { attack: 0.001, decay: 0.025, sustain: 0, release: 0.01 },
+    }).toDestination();
+    rhythmTickSynth.volume.value = -14;  // quiet background tick
+  }
+  if (!rhythmHitSynth) {
+    rhythmHitSynth = new Tone.MembraneSynth({
+      pitchDecay: 0.04,
+      octaves: 4,
+      envelope: { attack: 0.001, decay: 0.15, sustain: 0, release: 0.1 },
+    }).toDestination();
+    rhythmHitSynth.volume.value = 2;  // loud and clear
+  }
+
   const spb = 60 / round.bpm;         // seconds per quarter-note beat
   const bpb = beatsPerMeasure(round.timeSignature);
   const is6_8 = round.timeSignature === '6/8';
@@ -437,50 +458,43 @@ export function playRhythmRound(round: RhythmRound, enableLeadIn = true): void {
 
   Tone.Transport.bpm.value = round.bpm;
 
-  // Count-in (one measure of metronome clicks, no note hits) — moderate volume, not overpowering
+  // Helper: schedule a tick (drumstick click) — accent on beat 1, softer otherwise
+  const tick = (t: number, accent: boolean) => {
+    const freq = accent ? 1200 : 900;
+    const vel  = accent ? 0.7  : 0.45;
+    Tone.Transport.schedule(time => { rhythmTickSynth!.triggerAttackRelease(freq, '32n', time, vel); }, t);
+  };
+
+  // Count-in ticks
   if (enableLeadIn) {
     if (is6_8) {
-      ([0, 1.5] as number[]).forEach(b => {
-        Tone.Transport.schedule(t => { clickSynth.triggerAttackRelease('C5', '32n', t, 0.5); }, b * spb);
-      });
-      ([0.5, 1.0, 2.0, 2.5] as number[]).forEach(b => {
-        Tone.Transport.schedule(t => { clickSynth.triggerAttackRelease('C4', '32n', t, 0.4); }, b * spb);
-      });
+      ([0, 1.5] as number[]).forEach((b, i) => tick(b * spb, i === 0));
+      ([0.5, 1.0, 2.0, 2.5] as number[]).forEach(b => tick(b * spb, false));
     } else {
-      for (let b = 0; b < bpb; b++) {
-        const note = b === 0 ? 'C5' : 'C4';
-        const vel = b === 0 ? 0.5 : 0.4;
-        Tone.Transport.schedule(t => { clickSynth.triggerAttackRelease(note, '32n', t, vel); }, b * spb);
-      }
+      for (let b = 0; b < bpb; b++) tick(b * spb, b === 0);
     }
   }
 
-  // Subtle background beat clicks during pattern — like a clock ticking, well under the snare
+  // Background ticks during pattern (quieter than count-in — just enough to count along)
   const totalPatternBeats = bpb * round.measures;
   if (is6_8) {
     for (let m = 0; m < round.measures; m++) {
       const mOff = m * bpb * spb;
-      ([0, 1.5] as number[]).forEach(b => {
-        Tone.Transport.schedule(t => { clickSynth.triggerAttackRelease('C5', '32n', t, 0.25); }, patternStart + mOff + b * spb);
-      });
-      ([0.5, 1.0, 2.0, 2.5] as number[]).forEach(b => {
-        Tone.Transport.schedule(t => { clickSynth.triggerAttackRelease('C4', '32n', t, 0.2); }, patternStart + mOff + b * spb);
-      });
+      ([0, 1.5] as number[]).forEach((b, i) => tick(patternStart + mOff + b * spb, m === 0 && i === 0));
+      ([0.5, 1.0, 2.0, 2.5] as number[]).forEach(b => tick(patternStart + mOff + b * spb, false));
     }
   } else {
     for (let b = 0; b < totalPatternBeats; b++) {
-      const note = b % bpb === 0 ? 'C5' : 'C4';
-      const vel = b % bpb === 0 ? 0.25 : 0.2;
-      Tone.Transport.schedule(t => { clickSynth.triggerAttackRelease(note, '32n', t, vel); }, patternStart + b * spb);
+      tick(patternStart + b * spb, b % bpb === 0);
     }
   }
 
-  // Snare hits on note onsets — clearly louder than the background clicks
+  // Note onsets — loud membrane hit, clearly dominant over the ticks
   let cursor = 0;
   for (const unit of round.units) {
     if (!unit.isRest) {
       const t = patternStart + cursor * spb;
-      Tone.Transport.schedule(time => { kickSynth.triggerAttackRelease('C2', '8n', time, 0.8); }, t);
+      Tone.Transport.schedule(time => { rhythmHitSynth!.triggerAttackRelease('C3', '8n', time, 1.0); }, t);
     }
     cursor += durationBeats(unit.duration);
   }
