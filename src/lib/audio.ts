@@ -434,7 +434,6 @@ export function playRhythmRound(round: RhythmRound, enableLeadIn = true): void {
   const bpb = beatsPerMeasure(round.timeSignature);
   const is6_8 = round.timeSignature === '6/8';
   const patternStart = enableLeadIn ? bpb * spb : 0;
-  const patternDuration = bpb * round.measures * spb;
 
   Tone.Transport.bpm.value = round.bpm;
 
@@ -466,11 +465,7 @@ export function playRhythmRound(round: RhythmRound, enableLeadIn = true): void {
     cursor += durationBeats(unit.duration);
   }
 
-  // Loop just the pattern so the user can count along as many times as they like
-  Tone.Transport.loop = true;
-  Tone.Transport.loopStart = patternStart;
-  Tone.Transport.loopEnd = patternStart + patternDuration;
-
+  Tone.Transport.loop = false;
   Tone.Transport.position = 0;
   Tone.Transport.start();
 }
