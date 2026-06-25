@@ -131,6 +131,7 @@ export function EarTraining() {
 
   const playRoundAudio = useCallback(async (r: Round) => {
     if (r.kind === 'fretboard') return;
+    if (r.kind === 'rhythm') return;
     await initAudio();
     audioUnlocked.current = true;
     if (r.kind === 'chord') {
