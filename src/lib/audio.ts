@@ -460,7 +460,7 @@ export function playRhythmRound(round: RhythmRound, enableLeadIn = true): void {
   for (const unit of round.units) {
     if (!unit.isRest) {
       const t = patternStart + cursor * spb;
-      Tone.Transport.schedule(time => { kickSynth.triggerAttackRelease('C1', '8n', time, 0.9); }, t);
+      Tone.Transport.schedule(time => { snareSynth.triggerAttackRelease('16n', time, 0.9); }, t);
     }
     cursor += durationBeats(unit.duration);
   }
