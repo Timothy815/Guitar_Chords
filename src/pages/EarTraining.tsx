@@ -13,6 +13,7 @@ import {
 import { initAudio, playStrum, playNote, startDrone, stopDrone } from '../lib/audio';
 import { FretboardTrainer } from '../components/FretboardTrainer';
 import { PlanProgress, PlanStage, PLAN_STAGES, loadPlanProgress, savePlanProgress, resetPlanProgress } from '../lib/planProgress';
+import { HuntHistoryEntry, appendHuntEntries } from '../lib/huntHistory';
 
 function makeRound(
   s: EarTrainingSettings,
@@ -45,6 +46,7 @@ export function EarTraining() {
   const [planProgress, setPlanProgress] = useState<PlanProgress>(loadPlanProgress);
   const [planPracticing, setPlanPracticing] = useState(false);
   const [showPlanComplete, setShowPlanComplete] = useState<{ accuracy: number; stageLabel: string; isFinal: boolean } | null>(null);
+  const [huntSessionRounds, setHuntSessionRounds] = useState<Array<{ firstTapSemitones: number; tapCount: number }>>([]);
 
   const FRETS_FOR: Record<DifficultyLevel, number> = { Beginner: 6, Intermediate: 10, Advanced: 13 };
 
@@ -229,6 +231,26 @@ export function EarTraining() {
         [huntResult.direction]: prev[huntResult.direction] + 1,
       }));
     }
+    if (huntResult && wasCorrect) {
+      const fr = round as FretboardRound;
+      const match = fr.targetNote.match(/^([A-G]#?)(\d)$/);
+      if (match) {
+        const entry: HuntHistoryEntry = {
+          date: new Date().toISOString().slice(0, 10),
+          note: match[1],
+          octave: parseInt(match[2], 10),
+          firstTapSemitones: huntResult.firstSelectionSemitones,
+          tapCount: huntResult.selectionCount,
+          fretMin: fretboardFocus.fretMin ?? 0,
+          fretMax: fretboardFocus.fretMax ?? FRETS_FOR[difficulty],
+        };
+        appendHuntEntries([entry]);
+      }
+      setHuntSessionRounds(prev => [
+        ...prev,
+        { firstTapSemitones: huntResult.firstSelectionSemitones, tapCount: huntResult.selectionCount },
+      ]);
+    }
     if (settings.mode === 'plan' && planPracticing && newTotal >= 20 && newCorrect / newTotal >= 0.85) {
       handlePlanAdvance(newCorrect / newTotal);
       return;
@@ -318,6 +340,7 @@ export function EarTraining() {
     setBiasTally({ sharp: 0, flat: 0, correct: 0 });
     setFretboardFocus({});
     setShowSummary(false);
+    setHuntSessionRounds([]);
     advanceRound(settings, {});
   }
 
@@ -345,6 +368,13 @@ export function EarTraining() {
         .filter(e => e.wrong > 0)
         .sort((a, b) => b.wrong - a.wrong || a.note.localeCompare(b.note))
     : [];
+
+  const sessionAvgSemitones = huntSessionRounds.length >= 3
+    ? huntSessionRounds.reduce((s, r) => s + r.firstTapSemitones, 0) / huntSessionRounds.length
+    : undefined;
+  const sessionAvgTaps = huntSessionRounds.length >= 3
+    ? huntSessionRounds.reduce((s, r) => s + r.tapCount, 0) / huntSessionRounds.length
+    : undefined;
 
   return (
     <div className={cn('max-w-2xl mx-auto space-y-4', settings.mode !== 'study' && 'pb-24')}>
@@ -698,6 +728,8 @@ export function EarTraining() {
                   onFocusChange={handleFocusChange}
                   droneNote={droneNote}
                   droneMode={droneMode}
+                  sessionAvgSemitones={fretboardSubMode === 'hunt' ? sessionAvgSemitones : undefined}
+                  sessionAvgTaps={fretboardSubMode === 'hunt' ? sessionAvgTaps : undefined}
                   onComplete={handleFretboardComplete}
                 />
               );
@@ -779,6 +811,8 @@ export function EarTraining() {
               onFocusChange={handleFocusChange}
               droneNote={droneNote}
               droneMode={droneMode}
+              sessionAvgSemitones={fretboardSubMode === 'hunt' ? sessionAvgSemitones : undefined}
+              sessionAvgTaps={fretboardSubMode === 'hunt' ? sessionAvgTaps : undefined}
               onComplete={handleFretboardComplete}
             />
           ) : settings.mode === 'study' ? (
