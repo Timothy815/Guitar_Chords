@@ -1,10 +1,13 @@
 import * as Tone from 'tone';
 import { Note, STANDARD_TUNING, Tuning, ArpeggioPattern } from '../types';
+import type { RhythmRound } from './rhythmTraining';
+import { durationBeats, beatsPerMeasure } from './rhythmTraining';
 
 let sampler: Tone.Sampler | null = null;
 let kickSynth: Tone.MembraneSynth;
 let snareSynth: Tone.NoiseSynth;
 let clickSynth: Tone.MembraneSynth;
+let clapSynth: Tone.NoiseSynth | null = null;
 let isInitialized = false;
 let currentInstrument = "acoustic_guitar_steel";
 let initPromise: Promise<void> | null = null;
@@ -417,4 +420,87 @@ export function playProgressionWithPatterns(
     if (_loopTimeoutId !== null) { clearTimeout(_loopTimeoutId); _loopTimeoutId = null; }
     if (sampler) sampler.releaseAll();
   };
+}
+
+export function stopRhythm(): void {
+  Tone.Transport.stop();
+  Tone.Transport.cancel();
+}
+
+export function playRhythmRound(round: RhythmRound): void {
+  stopRhythm();
+
+  if (!clapSynth) {
+    clapSynth = new Tone.NoiseSynth({
+      noise: { type: 'white' },
+      envelope: { attack: 0.001, decay: 0.08, sustain: 0, release: 0.01 },
+    }).toDestination();
+    clapSynth.volume.value = -6;
+  }
+
+  const spb = 60 / round.bpm;         // seconds per quarter-note beat
+  const bpb = beatsPerMeasure(round.timeSignature);
+  const is6_8 = round.timeSignature === '6/8';
+
+  Tone.Transport.bpm.value = round.bpm;
+
+  // Count-in: one measure of clicks (no claps)
+  if (is6_8) {
+    // Heavy click on dotted-quarter beats (0 and 1.5), light on eighths
+    ([0, 1.5] as number[]).forEach(b => {
+      Tone.Transport.schedule(t => { clickSynth.triggerAttackRelease('C5', '32n', t); }, b * spb);
+    });
+    ([0.5, 1.0, 2.0, 2.5] as number[]).forEach(b => {
+      Tone.Transport.schedule(t => { clickSynth.triggerAttackRelease('C4', '32n', t); }, b * spb);
+    });
+  } else {
+    for (let b = 0; b < bpb; b++) {
+      const note = b === 0 ? 'C5' : 'C4';
+      Tone.Transport.schedule(t => { clickSynth.triggerAttackRelease(note, '32n', t); }, b * spb);
+    }
+  }
+
+  // Pattern starts after count-in
+  const patternStart = bpb * spb;
+
+  // Beat clicks throughout the pattern
+  if (is6_8) {
+    for (let m = 0; m < round.measures; m++) {
+      const mOffset = m * bpb * spb;
+      ([0, 1.5] as number[]).forEach(b => {
+        Tone.Transport.schedule(
+          t => { clickSynth.triggerAttackRelease('C5', '32n', t); },
+          patternStart + mOffset + b * spb,
+        );
+      });
+      ([0.5, 1.0, 2.0, 2.5] as number[]).forEach(b => {
+        Tone.Transport.schedule(
+          t => { clickSynth.triggerAttackRelease('C4', '32n', t); },
+          patternStart + mOffset + b * spb,
+        );
+      });
+    }
+  } else {
+    const totalPatternBeats = bpb * round.measures;
+    for (let b = 0; b < totalPatternBeats; b++) {
+      const note = b % bpb === 0 ? 'C5' : 'C4';
+      Tone.Transport.schedule(
+        t => { clickSynth.triggerAttackRelease(note, '32n', t); },
+        patternStart + b * spb,
+      );
+    }
+  }
+
+  // Note onsets (claps) on non-rest unit positions
+  let cursor = 0;
+  for (const unit of round.units) {
+    if (!unit.isRest) {
+      const t = patternStart + cursor * spb;
+      Tone.Transport.schedule(time => { clapSynth!.triggerAttackRelease('32n', time); }, t);
+    }
+    cursor += durationBeats(unit.duration);
+  }
+
+  Tone.Transport.position = 0;
+  Tone.Transport.start();
 }
