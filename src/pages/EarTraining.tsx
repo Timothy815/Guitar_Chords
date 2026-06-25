@@ -33,7 +33,7 @@ import {
   parseIntervalFromCsv,
 } from '../lib/intervalHistory';
 import { ALL_NOTES } from '../data/guitarData';
-import { RhythmRound, RhythmSettings, RhythmDuration, generateRhythmRound, durationBeats, beatsPerMeasure } from '../lib/rhythmTraining';
+import { RhythmRound, RhythmSettings, RhythmDuration, generateRhythmRound } from '../lib/rhythmTraining';
 import { RhythmTrainer } from '../components/RhythmTrainer';
 
 function makeRound(
