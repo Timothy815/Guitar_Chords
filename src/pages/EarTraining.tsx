@@ -10,7 +10,7 @@ import {
   buildFretboardNotePool, makeFretboardRound, buildKeyboardNotePool,
   chordToNotes, playOptionAudio, playStudyCard,
 } from '../lib/earTraining';
-import { initAudio, playStrum, playNote, startDrone, stopDrone } from '../lib/audio';
+import { initAudio, playStrum, playNote, startDrone, stopDrone, stopRhythm } from '../lib/audio';
 import { FretboardTrainer } from '../components/FretboardTrainer';
 import { PianoTrainer } from '../components/PianoTrainer';
 import { FretboardFocusSelector } from '../components/FretboardFocusSelector';
@@ -33,6 +33,8 @@ import {
   parseIntervalFromCsv,
 } from '../lib/intervalHistory';
 import { ALL_NOTES } from '../data/guitarData';
+import { RhythmRound, RhythmSettings, RhythmDuration, generateRhythmRound, durationBeats, beatsPerMeasure } from '../lib/rhythmTraining';
+import { RhythmTrainer } from '../components/RhythmTrainer';
 
 function makeRound(
   s: EarTrainingSettings,
@@ -74,6 +76,12 @@ export function EarTraining() {
   const roundStartTimeRef = useRef<number>(Date.now());
   const [planProgress, setPlanProgress] = useState<PlanProgress>(loadPlanProgress);
   const [planPracticing, setPlanPracticing] = useState(false);
+  const [rhythmSettings, setRhythmSettings] = useState<RhythmSettings>({
+    timeSignature: '4/4',
+    enabledDurations: ['h', 'q'],
+    enableRests: false,
+    bpm: 80,
+  });
   const [showPlanComplete, setShowPlanComplete] = useState<{ accuracy: number; stageLabel: string; isFinal: boolean } | null>(null);
   const [huntSessionRounds, setHuntSessionRounds] = useState<Array<{ firstTapSemitones: number; tapCount: number }>>([]);
   const practiceImportRef = useRef<HTMLInputElement>(null);
@@ -158,6 +166,13 @@ export function EarTraining() {
         note = nextFretboardNote(difficulty, activeFocus);
         r = makeFretboardRound(note, FRETS_FOR[difficulty]);
       }
+    } else if (effectiveMode === 'rhythm') {
+      const rr = generateRhythmRound(difficulty, rhythmSettings);
+      setSelected(null);
+      setTentative(null);
+      setRound(rr);
+      roundStartTimeRef.current = Date.now();
+      return;
     } else {
       r = makeRound({ ...s, mode: effectiveMode }, difficulty, activeFocus);
     }
@@ -201,6 +216,23 @@ export function EarTraining() {
   function handlePlanMode() {
     setSettings(s => ({ ...s, mode: 'plan' }));
     setPlanPracticing(false);
+  }
+
+  function handleRhythmMode() {
+    stopRhythm();
+    const next = { ...settings, mode: 'rhythm' as const };
+    setSettings(next);
+    advanceRound(next);
+  }
+
+  function handleRhythmComplete(wasCorrect: boolean) {
+    setScore(s => ({
+      ...s,
+      correct: wasCorrect ? s.correct + 1 : s.correct,
+      total: s.total + 1,
+      streak: wasCorrect ? s.streak + 1 : 0,
+    }));
+    setTimeout(() => advanceRound(), 400);
   }
 
   function handlePlanStart() {
@@ -540,6 +572,17 @@ export function EarTraining() {
         >
           Plan
         </button>
+        <button
+          onClick={handleRhythmMode}
+          className={cn(
+            'flex-1 py-2.5 text-sm font-medium transition-colors',
+            settings.mode === 'rhythm'
+              ? 'bg-brand-primary text-white'
+              : 'text-brand-secondary hover:bg-brand-sidebar'
+          )}
+        >
+          Rhythm
+        </button>
       </div>
 
       {/* Settings panel */}
@@ -757,6 +800,100 @@ export function EarTraining() {
                           </label>
                         );
                       })}
+                </div>
+              </div>
+            )}
+
+            {/* Rhythm settings — rhythm mode only */}
+            {settings.mode === 'rhythm' && (
+              <div className="pt-3 space-y-3 border-t border-brand-line">
+                <p className="text-xs font-semibold uppercase tracking-widest text-brand-secondary">Rhythm Settings</p>
+
+                <div>
+                  <p className="text-xs text-brand-secondary mb-1.5">Time Signature</p>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {(['4/4', '2/4', '3/4', '6/8'] as const).map(ts => (
+                      <button
+                        key={ts}
+                        onClick={() => setRhythmSettings(r => ({ ...r, timeSignature: ts }))}
+                        className={cn(
+                          'px-3 py-1 rounded text-xs font-medium border transition-colors',
+                          rhythmSettings.timeSignature === ts
+                            ? 'bg-brand-primary text-white border-brand-primary'
+                            : 'border-brand-line text-brand-secondary hover:border-brand-primary/60',
+                        )}
+                      >
+                        {ts}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs text-brand-secondary mb-1.5">BPM: {rhythmSettings.bpm}</p>
+                  <input
+                    type="range"
+                    min={40}
+                    max={160}
+                    step={5}
+                    value={rhythmSettings.bpm}
+                    onChange={e => setRhythmSettings(r => ({ ...r, bpm: Number(e.target.value) }))}
+                    className="w-full accent-brand-primary"
+                  />
+                </div>
+
+                <div>
+                  <p className="text-xs text-brand-secondary mb-1.5">Note Types</p>
+                  <div className="flex gap-2 flex-wrap">
+                    {([
+                      { dur: 'w' as RhythmDuration, label: 'Whole' },
+                      { dur: 'h' as RhythmDuration, label: 'Half' },
+                      { dur: 'hd' as RhythmDuration, label: 'Dotted Half' },
+                      { dur: 'q' as RhythmDuration, label: 'Quarter' },
+                      { dur: 'qd' as RhythmDuration, label: 'Dotted Quarter' },
+                      { dur: '8' as RhythmDuration, label: 'Eighth' },
+                      { dur: '16' as RhythmDuration, label: 'Sixteenth' },
+                    ]).map(({ dur, label }) => {
+                      const active = rhythmSettings.enabledDurations.includes(dur);
+                      return (
+                        <button
+                          key={dur}
+                          onClick={() =>
+                            setRhythmSettings(r => ({
+                              ...r,
+                              enabledDurations: active
+                                ? r.enabledDurations.length > 1
+                                  ? r.enabledDurations.filter(d => d !== dur)
+                                  : r.enabledDurations
+                                : [...r.enabledDurations, dur],
+                            }))
+                          }
+                          className={cn(
+                            'px-2 py-0.5 rounded text-xs font-medium border transition-colors',
+                            active
+                              ? 'bg-brand-primary text-white border-brand-primary'
+                              : 'border-brand-line text-brand-secondary hover:border-brand-primary/60',
+                          )}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setRhythmSettings(r => ({ ...r, enableRests: !r.enableRests }))}
+                    className={cn(
+                      'px-3 py-1 rounded text-xs font-medium border transition-colors',
+                      rhythmSettings.enableRests
+                        ? 'bg-brand-primary text-white border-brand-primary'
+                        : 'border-brand-line text-brand-secondary hover:border-brand-primary/60',
+                    )}
+                  >
+                    {rhythmSettings.enableRests ? 'Rests: On' : 'Rests: Off'}
+                  </button>
                 </div>
               </div>
             )}
@@ -1086,6 +1223,13 @@ export function EarTraining() {
                 </div>
               </div>
             )
+          ) : settings.mode === 'rhythm' ? (
+            <RhythmTrainer
+              round={round as RhythmRound}
+              score={score}
+              settings={rhythmSettings}
+              onComplete={handleRhythmComplete}
+            />
           ) : (
             <div className="rounded-lg border border-brand-line bg-brand-surface p-6 space-y-6">
               {/* Replay button — also serves as the first user gesture to unlock audio */}
