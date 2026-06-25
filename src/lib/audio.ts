@@ -437,19 +437,20 @@ export function playRhythmRound(round: RhythmRound, enableLeadIn = true): void {
 
   Tone.Transport.bpm.value = round.bpm;
 
-  // Count-in (one measure of metronome clicks, no note hits)
+  // Count-in (one measure of metronome clicks, no note hits) — moderate volume, not overpowering
   if (enableLeadIn) {
     if (is6_8) {
       ([0, 1.5] as number[]).forEach(b => {
-        Tone.Transport.schedule(t => { clickSynth.triggerAttackRelease('C5', '32n', t); }, b * spb);
+        Tone.Transport.schedule(t => { clickSynth.triggerAttackRelease('C5', '32n', t, 0.5); }, b * spb);
       });
       ([0.5, 1.0, 2.0, 2.5] as number[]).forEach(b => {
-        Tone.Transport.schedule(t => { clickSynth.triggerAttackRelease('C4', '32n', t); }, b * spb);
+        Tone.Transport.schedule(t => { clickSynth.triggerAttackRelease('C4', '32n', t, 0.4); }, b * spb);
       });
     } else {
       for (let b = 0; b < bpb; b++) {
         const note = b === 0 ? 'C5' : 'C4';
-        Tone.Transport.schedule(t => { clickSynth.triggerAttackRelease(note, '32n', t); }, b * spb);
+        const vel = b === 0 ? 0.5 : 0.4;
+        Tone.Transport.schedule(t => { clickSynth.triggerAttackRelease(note, '32n', t, vel); }, b * spb);
       }
     }
   }
@@ -479,7 +480,7 @@ export function playRhythmRound(round: RhythmRound, enableLeadIn = true): void {
   for (const unit of round.units) {
     if (!unit.isRest) {
       const t = patternStart + cursor * spb;
-      Tone.Transport.schedule(time => { snareSynth.triggerAttackRelease('16n', time, 0.9); }, t);
+      Tone.Transport.schedule(time => { kickSynth.triggerAttackRelease('C2', '8n', time, 0.8); }, t);
     }
     cursor += durationBeats(unit.duration);
   }
