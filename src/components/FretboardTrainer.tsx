@@ -226,7 +226,7 @@ export function FretboardTrainer({
     a.href = url;
     a.download = 'guitar-hunt-stats.csv';
     a.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 100);
   }, []);
 
   const handleImportCsv = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
