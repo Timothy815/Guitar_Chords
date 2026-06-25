@@ -13,7 +13,8 @@ import {
 import { initAudio, playStrum, playNote, startDrone, stopDrone } from '../lib/audio';
 import { FretboardTrainer } from '../components/FretboardTrainer';
 import { PlanProgress, PlanStage, PLAN_STAGES, loadPlanProgress, savePlanProgress, resetPlanProgress } from '../lib/planProgress';
-import { HuntHistoryEntry, appendHuntEntries } from '../lib/huntHistory';
+import { HuntHistoryEntry, appendHuntEntries, loadHuntHistory } from '../lib/huntHistory';
+import { ALL_NOTES } from '../data/guitarData';
 
 function makeRound(
   s: EarTrainingSettings,
@@ -23,6 +24,14 @@ function makeRound(
   if (s.mode === 'chord') return generateChordRound(s.activeChordTypes);
   if (s.mode === 'fretboard') return generateFretboardRound(difficulty, focus);
   return generateIntervalRound(s.activeIntervals);
+}
+
+function huntCellColor(avg: number): string {
+  if (avg <= 1.5) return '#27ae60';
+  if (avg <= 2.5) return '#2ecc71';
+  if (avg <= 3.5) return '#e67e22';
+  if (avg <= 5.0) return '#c0392b';
+  return '#922b21';
 }
 
 export function EarTraining() {
@@ -1065,22 +1074,172 @@ export function EarTraining() {
               )
             )}
 
-            {score.huntAttempts && score.huntAttempts.length > 0 && (
-              <div className="pt-2 border-t border-brand-line space-y-1">
-                <p className="text-sm font-medium text-brand-ink">Hunt Mode</p>
-                <p className="text-xs text-brand-secondary">
-                  Avg stars: {((score.totalStars ?? 0) / score.huntAttempts.length).toFixed(1)} / 3
-                  &nbsp;·&nbsp;
-                  Avg attempts: {(score.huntAttempts.reduce((a, b) => a + b, 0) / score.huntAttempts.length).toFixed(1)}
-                </p>
-                {biasTally.sharp > biasTally.flat + 2 && (
-                  <p className="text-xs text-brand-secondary">Tendency: guessing sharp ↑</p>
-                )}
-                {biasTally.flat > biasTally.sharp + 2 && (
-                  <p className="text-xs text-brand-secondary">Tendency: guessing flat ↓</p>
-                )}
-              </div>
-            )}
+            {fretboardSubMode === 'hunt' && score.huntAttempts && score.huntAttempts.length > 0 && (() => {
+              const huntHistory = loadHuntHistory();
+
+              // Sparkline: last 8 calendar dates with ≥5 entries
+              const byDate: Record<string, HuntHistoryEntry[]> = {};
+              for (const e of huntHistory) {
+                (byDate[e.date] ??= []).push(e);
+              }
+              const sparkDates = Object.entries(byDate)
+                .filter(([, es]) => es.length >= 5)
+                .sort(([a], [b]) => a.localeCompare(b))
+                .slice(-8);
+              const sparkPoints = sparkDates.map(([, es]) =>
+                es.reduce((s, e) => s + e.firstTapSemitones, 0) / es.length,
+              );
+
+              // Grid: note×octave heatmap
+              const OCTAVES = [2, 3, 4];
+              const reachableSet = new Set(buildFretboardNotePool(difficulty, fretboardFocus));
+              const cellData: Record<string, { sum: number; count: number }> = {};
+              for (const e of huntHistory) {
+                const key = `${e.note}${e.octave}`;
+                if (!cellData[key]) cellData[key] = { sum: 0, count: 0 };
+                cellData[key].sum += e.firstTapSemitones;
+                cellData[key].count += 1;
+              }
+
+              // Readiness
+              const fMin = fretboardFocus.fretMin ?? 0;
+              const fMax = fretboardFocus.fretMax ?? FRETS_FOR[difficulty];
+              const rangeEntries = huntHistory.filter(e => e.fretMin === fMin && e.fretMax === fMax);
+              const rangeByDate: Record<string, HuntHistoryEntry[]> = {};
+              for (const e of rangeEntries) {
+                (rangeByDate[e.date] ??= []).push(e);
+              }
+              const last3 = Object.entries(rangeByDate)
+                .sort(([a], [b]) => a.localeCompare(b))
+                .slice(-3);
+              const qualDates = last3.filter(([, es]) => es.length >= 15);
+              const allQual = qualDates.flatMap(([, es]) => es);
+              const crit1 = qualDates.length === 3;
+              const crit2 = allQual.length > 0 && allQual.reduce((s, e) => s + e.firstTapSemitones, 0) / allQual.length <= 2.0;
+              const crit3 = allQual.length > 0 && allQual.reduce((s, e) => s + e.tapCount, 0) / allQual.length <= 1.5;
+              const critCount = [crit1, crit2, crit3].filter(Boolean).length;
+              const readinessMsg =
+                critCount === 3
+                  ? { text: "You've nailed this range. Try adding more frets to your focus.", cls: 'text-green-600' }
+                  : critCount >= 2
+                    ? { text: "Solid progress. Keep at it — 3 consistent sessions and you're ready to expand.", cls: 'text-yellow-600' }
+                    : { text: "Keep hunting. Focus on the red cells — those notes need more reps.", cls: 'text-brand-secondary' };
+
+              return (
+                <div className="pt-2 border-t border-brand-line space-y-3">
+                  {/* Stars + bias summary */}
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-brand-ink">Hunt Mode</p>
+                    <p className="text-xs text-brand-secondary">
+                      Avg stars: {((score.totalStars ?? 0) / score.huntAttempts.length).toFixed(1)} / 3
+                      &nbsp;·&nbsp;
+                      Avg attempts: {(score.huntAttempts.reduce((a, b) => a + b, 0) / score.huntAttempts.length).toFixed(1)}
+                    </p>
+                    {biasTally.sharp > biasTally.flat + 2 && (
+                      <p className="text-xs text-brand-secondary">Tendency: guessing sharp ↑</p>
+                    )}
+                    {biasTally.flat > biasTally.sharp + 2 && (
+                      <p className="text-xs text-brand-secondary">Tendency: guessing flat ↓</p>
+                    )}
+                  </div>
+
+                  {/* Sparkline */}
+                  {sparkPoints.length >= 2 && (() => {
+                    const W = 300, H = 48, PAD = 6;
+                    const plotW = W - 2 * PAD;
+                    const plotH = H - 2 * PAD;
+                    const maxY = 6;
+                    const pts = sparkPoints.map((v, i) => {
+                      const x = PAD + (i / (sparkPoints.length - 1)) * plotW;
+                      const y = PAD + (1 - Math.min(v, maxY) / maxY) * plotH;
+                      return { x, y };
+                    });
+                    const lineColor = (() => {
+                      const last = sparkPoints[sparkPoints.length - 1];
+                      if (last <= 1.5) return '#27ae60';
+                      if (last <= 3.0) return '#f1c40f';
+                      return '#c0392b';
+                    })();
+                    return (
+                      <div>
+                        <p className="text-xs text-brand-secondary mb-1">Trend (last {sparkPoints.length} sessions)</p>
+                        <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-12">
+                          <polyline
+                            points={pts.map(p => `${p.x},${p.y}`).join(' ')}
+                            fill="none"
+                            stroke={lineColor}
+                            strokeWidth="2"
+                          />
+                          {pts.map((p, i) => (
+                            <circle key={i} cx={p.x} cy={p.y} r={4} fill={lineColor} />
+                          ))}
+                        </svg>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Note×octave grid */}
+                  <div>
+                    <p className="text-xs text-brand-secondary mb-1">Note accuracy (avg semitones off — all history)</p>
+                    <div className="overflow-x-auto">
+                      <div style={{ display: 'grid', gridTemplateColumns: '36px repeat(3, 1fr)', gap: '2px', minWidth: '200px' }}>
+                        <div />
+                        {[2, 3, 4].map(o => (
+                          <div key={o} className="text-center text-xs text-brand-secondary py-1">Oct {o}</div>
+                        ))}
+                        {ALL_NOTES.map(note => (
+                          <React.Fragment key={note}>
+                            <div className="text-right text-xs text-brand-secondary pr-1 flex items-center justify-end" style={{ fontSize: '10px' }}>
+                              {note}
+                            </div>
+                            {OCTAVES.map(oct => {
+                              const key = `${note}${oct}`;
+                              const isReachable = reachableSet.has(key);
+                              const data = cellData[key];
+                              if (!isReachable) {
+                                return (
+                                  <div
+                                    key={oct}
+                                    style={{ height: '22px', borderRadius: '3px', background: '#1e1e2e', border: '1px solid #2a2a3e' }}
+                                  />
+                                );
+                              }
+                              if (!data) {
+                                return (
+                                  <div
+                                    key={oct}
+                                    style={{ height: '22px', borderRadius: '3px', background: '#252535', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                  >
+                                    <span style={{ fontSize: '9px', color: '#555' }}>—</span>
+                                  </div>
+                                );
+                              }
+                              const avg = data.sum / data.count;
+                              return (
+                                <div
+                                  key={oct}
+                                  style={{
+                                    height: '22px', borderRadius: '3px',
+                                    background: huntCellColor(avg),
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    fontSize: '10px', fontWeight: '600', color: 'rgba(0,0,0,0.8)',
+                                  }}
+                                >
+                                  {avg.toFixed(1)}
+                                </div>
+                              );
+                            })}
+                          </React.Fragment>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Readiness message */}
+                  <p className={`text-xs font-medium ${readinessMsg.cls}`}>{readinessMsg.text}</p>
+                </div>
+              );
+            })()}
 
             <div className="flex gap-3 pt-1">
               <button
