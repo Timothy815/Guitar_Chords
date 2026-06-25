@@ -149,9 +149,10 @@ export function EarTraining() {
   function handleFretboardDifficulty(level: DifficultyLevel | 'Hunt') {
     if (level === 'Hunt') {
       setFretboardSubMode('hunt');
+      setHuntSessionRounds([]);
       setDifficulty('Advanced');
     } else {
-      if (fretboardSubMode !== 'sing') setFretboardSubMode('guess');
+      if (fretboardSubMode !== 'sing') { setFretboardSubMode('guess'); setHuntSessionRounds([]); }
       setDifficulty(level);
     }
   }
@@ -182,6 +183,7 @@ export function EarTraining() {
     setSettings(next);
     setDifficulty(stage.difficulty);
     setFretboardSubMode(stage.subMode ?? 'guess');
+    setHuntSessionRounds([]);
     setScore(initialScore());
     deckRef.current = [];
     deckKeyRef.current = '';
@@ -492,7 +494,7 @@ export function EarTraining() {
                 )}
                 {settings.mode === 'fretboard' && (
                   <button
-                    onClick={() => { setFretboardSubMode('sing'); advanceRound(); }}
+                    onClick={() => { setFretboardSubMode('sing'); setHuntSessionRounds([]); advanceRound(); }}
                     className={cn(
                       'px-3 py-1.5 rounded-md text-xs font-medium border transition-colors',
                       fretboardSubMode === 'sing'
