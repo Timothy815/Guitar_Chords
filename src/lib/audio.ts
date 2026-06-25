@@ -454,8 +454,27 @@ export function playRhythmRound(round: RhythmRound, enableLeadIn = true): void {
     }
   }
 
-  // Rhythm pattern: kick drum hits on note onsets — completely different timbre from the metronome
-  // No beat clicks during pattern so count-in and rhythm are unmistakably distinct
+  // Subtle background beat clicks during pattern — like a clock ticking, well under the snare
+  const totalPatternBeats = bpb * round.measures;
+  if (is6_8) {
+    for (let m = 0; m < round.measures; m++) {
+      const mOff = m * bpb * spb;
+      ([0, 1.5] as number[]).forEach(b => {
+        Tone.Transport.schedule(t => { clickSynth.triggerAttackRelease('C5', '32n', t, 0.25); }, patternStart + mOff + b * spb);
+      });
+      ([0.5, 1.0, 2.0, 2.5] as number[]).forEach(b => {
+        Tone.Transport.schedule(t => { clickSynth.triggerAttackRelease('C4', '32n', t, 0.2); }, patternStart + mOff + b * spb);
+      });
+    }
+  } else {
+    for (let b = 0; b < totalPatternBeats; b++) {
+      const note = b % bpb === 0 ? 'C5' : 'C4';
+      const vel = b % bpb === 0 ? 0.25 : 0.2;
+      Tone.Transport.schedule(t => { clickSynth.triggerAttackRelease(note, '32n', t, vel); }, patternStart + b * spb);
+    }
+  }
+
+  // Snare hits on note onsets — clearly louder than the background clicks
   let cursor = 0;
   for (const unit of round.units) {
     if (!unit.isRest) {
