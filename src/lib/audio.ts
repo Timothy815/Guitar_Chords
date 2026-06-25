@@ -7,7 +7,6 @@ let sampler: Tone.Sampler | null = null;
 let kickSynth: Tone.MembraneSynth;
 let snareSynth: Tone.NoiseSynth;
 let clickSynth: Tone.MembraneSynth;
-let clapSynth: Tone.NoiseSynth | null = null;
 let isInitialized = false;
 let currentInstrument = "acoustic_guitar_steel";
 let initPromise: Promise<void> | null = null;
@@ -430,14 +429,6 @@ export function stopRhythm(): void {
 export function playRhythmRound(round: RhythmRound): void {
   stopRhythm();
 
-  if (!clapSynth) {
-    clapSynth = new Tone.NoiseSynth({
-      noise: { type: 'white' },
-      envelope: { attack: 0.001, decay: 0.08, sustain: 0, release: 0.01 },
-    }).toDestination();
-    clapSynth.volume.value = -6;
-  }
-
   const spb = 60 / round.bpm;         // seconds per quarter-note beat
   const bpb = beatsPerMeasure(round.timeSignature);
   const is6_8 = round.timeSignature === '6/8';
@@ -491,12 +482,12 @@ export function playRhythmRound(round: RhythmRound): void {
     }
   }
 
-  // Note onsets (claps) on non-rest unit positions
+  // Note onsets on non-rest unit positions — high-pitched click clearly distinct from beat clicks
   let cursor = 0;
   for (const unit of round.units) {
     if (!unit.isRest) {
       const t = patternStart + cursor * spb;
-      Tone.Transport.schedule(time => { clapSynth!.triggerAttackRelease('32n', time); }, t);
+      Tone.Transport.schedule(time => { clickSynth.triggerAttackRelease('C6', '16n', time); }, t);
     }
     cursor += durationBeats(unit.duration);
   }
