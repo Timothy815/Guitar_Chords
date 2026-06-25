@@ -742,7 +742,14 @@ export function Dictionary() {
                   {(mode === 'chords' || mode === 'identify') && (
                     <div className="w-full mt-2 print:hidden">
                       <p className="text-[10px] font-bold uppercase tracking-wider text-brand-secondary mb-2 text-center">Piano</p>
-                      <PianoKeyboard highlightedNotes={pianoNotes} />
+                      <PianoKeyboard
+                        octaveMin={2}
+                        octaveMax={5}
+                        correctKeys={new Set(pianoNotes)}
+                        wrongKey={null}
+                        previewKey={null}
+                        onKeyClick={() => {}}
+                      />
                     </div>
                   )}
 
