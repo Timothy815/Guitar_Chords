@@ -347,7 +347,14 @@ export function buildFretboardNotePool(difficulty: DifficultyLevel, focus: Fretb
       const fMax = focus.fretMax ?? fretsNum;
       if (f < fMin || f > fMax) continue;
       const note = getFretNote(s, f);
-      if (note) pool.add(note);
+      if (!note) continue;
+      const octaveMatch = note.match(/(\d)$/);
+      if (octaveMatch) {
+        const oct = parseInt(octaveMatch[1], 10);
+        if (focus.octaveMin !== undefined && oct < focus.octaveMin) continue;
+        if (focus.octaveMax !== undefined && oct > focus.octaveMax) continue;
+      }
+      pool.add(note);
     }
   }
 
@@ -361,6 +368,22 @@ export function buildFretboardNotePool(difficulty: DifficultyLevel, focus: Fretb
   }
 
   return [...pool];
+}
+
+export function buildKeyboardNotePool(octaveMin = 2, octaveMax = 4): string[] {
+  const pool: string[] = [];
+  for (let oct = octaveMin; oct <= octaveMax; oct++) {
+    for (const pc of ALL_NOTES) {
+      pool.push(`${pc}${oct}`);
+    }
+  }
+  return pool;
+}
+
+export function generateKeyboardRound(octaveMin = 2, octaveMax = 4): FretboardRound {
+  const pool = buildKeyboardNotePool(octaveMin, octaveMax);
+  const targetNote = pickRandom(pool);
+  return { kind: 'fretboard', targetNote, fretsNum: 13 };
 }
 
 export function makeFretboardRound(targetNote: string, fretsNum: number): FretboardRound {
@@ -405,6 +428,8 @@ export interface FretboardFocus {
   stringIdxs?: number[];  // [0..5]; empty or undefined = all strings
   fretMin?: number;       // inclusive; undefined = 0
   fretMax?: number;       // inclusive; undefined = fretsNum
+  octaveMin?: number;     // inclusive; undefined = no restriction
+  octaveMax?: number;     // inclusive; undefined = no restriction
 }
 
 function noteToMidi(noteStr: string): number {
