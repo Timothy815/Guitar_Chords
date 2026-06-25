@@ -122,6 +122,58 @@ export function FretboardFocusSelector({ focus, fretsNum, onChange }: FretboardF
           className="w-10 text-center rounded border border-brand-line text-xs py-0.5 bg-brand-bg text-brand-ink focus:outline-none focus:border-brand-primary"
         />
       </div>
+
+      {/* Octave From row */}
+      <div className="flex items-center gap-1 flex-wrap">
+        <span className="text-brand-secondary w-12 shrink-0">Oct from:</span>
+        <button
+          className={pillCls(focus.octaveMin === undefined)}
+          onClick={() => onChange({ ...focus, octaveMin: undefined })}
+        >
+          Any
+        </button>
+        {[2, 3, 4].map(oct => (
+          <button
+            key={oct}
+            className={pillCls(focus.octaveMin === oct)}
+            onClick={() => {
+              const nextMin = oct;
+              const nextMax = focus.octaveMax !== undefined && focus.octaveMax < nextMin
+                ? nextMin
+                : focus.octaveMax;
+              onChange({ ...focus, octaveMin: nextMin, octaveMax: nextMax });
+            }}
+          >
+            {oct}
+          </button>
+        ))}
+      </div>
+
+      {/* Octave To row */}
+      <div className="flex items-center gap-1 flex-wrap">
+        <span className="text-brand-secondary w-12 shrink-0">Oct to:</span>
+        <button
+          className={pillCls(focus.octaveMax === undefined)}
+          onClick={() => onChange({ ...focus, octaveMax: undefined })}
+        >
+          Any
+        </button>
+        {[2, 3, 4].map(oct => (
+          <button
+            key={oct}
+            className={pillCls(focus.octaveMax === oct)}
+            onClick={() => {
+              const nextMax = oct;
+              const nextMin = focus.octaveMin !== undefined && focus.octaveMin > nextMax
+                ? nextMax
+                : focus.octaveMin;
+              onChange({ ...focus, octaveMax: nextMax, octaveMin: nextMin });
+            }}
+          >
+            {oct}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
