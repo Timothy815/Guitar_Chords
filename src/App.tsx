@@ -1,5 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+class ErrorBoundary extends (React.Component as any) {
+  constructor(props: { children: React.ReactNode }) { super(props); (this as any).state = { error: null }; }
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  render() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const self = this as any;
+    if (self.state.error) {
+      return (
+        <div style={{ padding: 32, fontFamily: 'monospace' }}>
+          <h2 style={{ color: '#c0392b' }}>Something went wrong</h2>
+          <pre style={{ whiteSpace: 'pre-wrap', fontSize: 13 }}>{self.state.error.message}{'\n\n'}{self.state.error.stack}</pre>
+          <button onClick={() => self.setState({ error: null })} style={{ marginTop: 16, padding: '8px 16px' }}>Try again</button>
+        </div>
+      );
+    }
+    return self.props.children;
+  }
+}
 import { Dictionary } from './pages/Dictionary';
 import { Progressions } from './pages/Progressions';
 import { EarTraining } from './pages/EarTraining';
@@ -87,6 +107,7 @@ import { Circle } from './pages/Circle';
 export default function App() {
   return (
     <BrowserRouter basename="/Guitar_Chords">
+      <ErrorBoundary>
       <Layout>
         <Routes>
           <Route path="/" element={<Navigate to="/dictionary" replace />} />
@@ -97,6 +118,7 @@ export default function App() {
           <Route path="/ear-training" element={<EarTraining />} />
         </Routes>
       </Layout>
+      </ErrorBoundary>
     </BrowserRouter>
   );
 }
