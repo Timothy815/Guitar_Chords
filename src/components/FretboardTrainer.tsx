@@ -207,10 +207,12 @@ export function FretboardTrainer({
       setIsRevealing(true);
       setWrongConfirmFlash(true);
       setAttemptCount(a => a + 1);
+      setCorrectPositions(getCorrectPositions(round.targetNote, round.fretsNum));
+      setNoteRevealed(true);
       setTimeout(() => {
         setWrongConfirmFlash(false);
-        setIsRevealing(false);
-      }, 600);
+        onComplete(false);
+      }, 1500);
     }
   }, [
     selectedPosition, selectedNote, isRevealing, round,
