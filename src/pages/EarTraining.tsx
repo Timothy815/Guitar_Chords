@@ -140,15 +140,16 @@ export function EarTraining() {
     }
   }, [round, playRoundAudio]);
 
-  function advanceRound(s: EarTrainingSettings = settings, focusOverride?: FretboardFocus) {
+  function advanceRound(s: EarTrainingSettings = settings, focusOverride?: FretboardFocus, pianoViewOverride?: boolean) {
     const activeFocus = focusOverride ?? fretboardFocus;
     const effectiveMode = s.mode === 'plan'
       ? PLAN_STAGES[planProgress.stageIndex].mode
       : s.mode;
     let r: Round;
     if (effectiveMode === 'fretboard') {
+      const activePianoView = pianoViewOverride !== undefined ? pianoViewOverride : pianoView;
       let note: string;
-      if (pianoView) {
+      if (activePianoView) {
         const kbPool = buildKeyboardNotePool(activeFocus.octaveMin ?? 2, activeFocus.octaveMax ?? 4);
         note = kbPool[Math.floor(Math.random() * kbPool.length)];
         r = makeFretboardRound(note, 13);
@@ -975,7 +976,7 @@ export function EarTraining() {
               {/* Fretboard | Piano toggle */}
               <div className="flex items-center justify-center gap-1 p-1 rounded-lg bg-brand-sidebar border border-brand-line w-fit mx-auto">
                 <button
-                  onClick={() => { setPianoView(false); advanceRound(); }}
+                  onClick={() => { setPianoView(false); advanceRound(settings, undefined, false); }}
                   className={cn(
                     'px-4 py-1.5 rounded-md text-sm font-medium transition-colors',
                     !pianoView
@@ -986,7 +987,7 @@ export function EarTraining() {
                   Fretboard
                 </button>
                 <button
-                  onClick={() => { setPianoView(true); advanceRound(); }}
+                  onClick={() => { setPianoView(true); advanceRound(settings, undefined, true); }}
                   className={cn(
                     'px-4 py-1.5 rounded-md text-sm font-medium transition-colors',
                     pianoView
