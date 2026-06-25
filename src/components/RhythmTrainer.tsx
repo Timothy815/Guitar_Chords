@@ -6,7 +6,7 @@ import {
 } from '../lib/rhythmTraining';
 import { SessionScore } from '../lib/earTraining';
 import { initAudio, playRhythmRound, stopRhythm } from '../lib/audio';
-import { RhythmStaff } from './RhythmStaff';
+import { RhythmStaff, CLEF_EXTRA, MIN_MEASURE_W } from './RhythmStaff';
 
 interface RhythmTrainerProps {
   round: RhythmRound;
@@ -114,28 +114,30 @@ export function RhythmTrainer({ round, score, settings, onComplete }: RhythmTrai
         <span>{score.correct}/{score.total} correct</span>
       </div>
 
-      {/* Staff */}
-      <RhythmStaff
-        round={round}
-        placedUnits={placedUnits}
-        feedback={feedback}
-        onSwap={handleSwap}
-      />
-
-      {/* Count hint */}
-      {settings.showCount && (
-        <div className="flex w-full font-mono select-none" aria-label="Verbal count">
-          {countLabels.map((cl, i) => (
-            <div
-              key={i}
-              style={{ width: `${cl.widthPct}%` }}
-              className="text-center text-[11px] text-brand-secondary leading-none py-0.5"
-            >
-              {cl.isRest ? `[${cl.label}]` : cl.label}
+      {/* Staff + count hint in a shared horizontal scroll container */}
+      <div className="overflow-x-auto">
+        <div style={{ minWidth: CLEF_EXTRA + MIN_MEASURE_W * round.measures }}>
+          <RhythmStaff
+            round={round}
+            placedUnits={placedUnits}
+            feedback={feedback}
+            onSwap={handleSwap}
+          />
+          {settings.showCount && (
+            <div className="flex font-mono select-none" aria-label="Verbal count">
+              {countLabels.map((cl, i) => (
+                <div
+                  key={i}
+                  style={{ width: `${cl.widthPct}%` }}
+                  className="text-center text-[11px] text-brand-secondary leading-none py-0.5"
+                >
+                  {cl.isRest ? `[${cl.label}]` : cl.label}
+                </div>
+              ))}
             </div>
-          ))}
+          )}
         </div>
-      )}
+      </div>
 
       {/* Remaining beat indicator */}
       {!feedback && (

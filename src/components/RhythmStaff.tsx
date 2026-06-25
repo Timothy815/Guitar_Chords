@@ -10,8 +10,8 @@ interface RhythmStaffProps {
 }
 
 const STAFF_H = 110;
-const CLEF_EXTRA = 70; // extra px for clef + time signature on first stave
-const MIN_MEASURE_W = 180; // minimum px per measure before horizontal scroll kicks in
+export const CLEF_EXTRA = 70;
+export const MIN_MEASURE_W = 200;
 
 function makeStaveNote(unit: RhythmUnit): StaveNote {
   const isDotted = unit.duration === 'hd' || unit.duration === 'qd';
@@ -74,15 +74,12 @@ export function RhythmStaff({ round, placedUnits, feedback, onSwap }: RhythmStaf
     const renderer = new Renderer(div, Renderer.Backends.SVG);
     renderer.resize(W, STAFF_H);
     const ctx = renderer.getContext();
-    ctx.setFillStyle(inkColor);
-    ctx.setStrokeStyle(inkColor);
 
     const bpb = beatsPerMeasure(round.timeSignature);
     const perMeasureW = (W - CLEF_EXTRA) / round.measures;
 
-    const tsStr = round.timeSignature; // '4/4', '3/4', etc.
+    const tsStr = round.timeSignature;
 
-    // Split placedUnits into per-measure buckets
     const measureBuckets: RhythmUnit[][] = Array.from({ length: round.measures }, () => []);
     let cursor = 0;
     let mIdx = 0;
@@ -92,7 +89,7 @@ export function RhythmStaff({ round, placedUnits, feedback, onSwap }: RhythmStaf
       if (cursor >= bpb * (mIdx + 1) - 0.001) mIdx = Math.min(mIdx + 1, round.measures - 1);
     }
 
-    const placedNoteRefs: StaveNote[] = []; // only placed (non-placeholder) notes for x-tracking
+    const placedNoteRefs: StaveNote[] = [];
 
     for (let m = 0; m < round.measures; m++) {
       const staveX = m === 0 ? 0 : CLEF_EXTRA + m * perMeasureW;
@@ -101,7 +98,6 @@ export function RhythmStaff({ round, placedUnits, feedback, onSwap }: RhythmStaf
       if (m === 0) stave.addClef('treble').addTimeSignature(tsStr);
       stave.setContext(ctx).draw();
 
-      // Build notes for this measure
       const placed = measureBuckets[m];
       const placedBeats = placed.reduce((s, u) => s + durationBeats(u.duration), 0);
       const remaining = bpb - placedBeats;
@@ -113,8 +109,6 @@ export function RhythmStaff({ round, placedUnits, feedback, onSwap }: RhythmStaf
       for (let i = 0; i < placed.length; i++) {
         const unit = placed[i];
         const note = makeStaveNote(unit);
-
-        // Determine global index for feedback
         const globalIdx = measureBuckets.slice(0, m).reduce((s, b) => s + b.length, 0) + i;
         let fill = inkColor;
         if (feedback) {
@@ -146,14 +140,28 @@ export function RhythmStaff({ round, placedUnits, feedback, onSwap }: RhythmStaf
       beams.forEach(b => b.setContext(ctx).draw());
     }
 
-    // Capture placed note x-positions for drag overlays
+    // Post-process SVG: change all non-feedback colors to inkColor in dark mode
+    if (isDark) {
+      const keepColors = new Set([placeholderColor, '#27ae60', '#c0392b', 'none', 'transparent', '#ffffff', 'white']);
+      div.querySelectorAll('svg *').forEach(el => {
+        const svgEl = el as SVGElement;
+        const fill = svgEl.getAttribute('fill');
+        const stroke = svgEl.getAttribute('stroke');
+        if (fill !== null && !keepColors.has(fill.toLowerCase())) {
+          svgEl.setAttribute('fill', inkColor);
+        }
+        if (stroke !== null && !keepColors.has(stroke.toLowerCase())) {
+          svgEl.setAttribute('stroke', inkColor);
+        }
+      });
+    }
+
     const xs = placedNoteRefs.map(n => n.getAbsoluteX());
     setNoteXs(xs);
   }, [round, placedUnits, feedback, isDark]);
 
   return (
-    <div className="overflow-x-auto">
-      <div ref={wrapRef} className="relative" style={{ minWidth: CLEF_EXTRA + MIN_MEASURE_W * round.measures }}>
+    <div ref={wrapRef} className="relative">
       <div ref={vexRef} style={{ height: STAFF_H }} />
       {!feedback && noteXs.map((x, i) => (
         <div
@@ -173,7 +181,6 @@ export function RhythmStaff({ round, placedUnits, feedback, onSwap }: RhythmStaf
           }}
         />
       ))}
-      </div>
     </div>
   );
 }
