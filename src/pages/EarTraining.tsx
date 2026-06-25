@@ -13,6 +13,7 @@ import {
 import { initAudio, playStrum, playNote, startDrone, stopDrone } from '../lib/audio';
 import { FretboardTrainer } from '../components/FretboardTrainer';
 import { PianoTrainer } from '../components/PianoTrainer';
+import { FretboardFocusSelector } from '../components/FretboardFocusSelector';
 import { PlanProgress, PlanStage, PLAN_STAGES, loadPlanProgress, savePlanProgress, resetPlanProgress } from '../lib/planProgress';
 import { HuntHistoryEntry, appendHuntEntries, loadHuntHistory } from '../lib/huntHistory';
 import {
@@ -1000,16 +1001,23 @@ export function EarTraining() {
               </div>
 
               {pianoView ? (
-                <PianoTrainer
-                  round={round as FretboardRound}
-                  score={score}
-                  octaveMin={fretboardFocus.octaveMin ?? 2}
-                  octaveMax={fretboardFocus.octaveMax ?? 4}
-                  mode={fretboardSubMode}
-                  droneNote={droneNote}
-                  droneMode={droneMode}
-                  onComplete={handleFretboardComplete}
-                />
+                <div className="space-y-2">
+                  <PianoTrainer
+                    round={round as FretboardRound}
+                    score={score}
+                    octaveMin={fretboardFocus.octaveMin ?? 2}
+                    octaveMax={fretboardFocus.octaveMax ?? 4}
+                    mode={fretboardSubMode}
+                    droneNote={droneNote}
+                    droneMode={droneMode}
+                    onComplete={handleFretboardComplete}
+                  />
+                  <FretboardFocusSelector
+                    focus={fretboardFocus}
+                    onChange={handleFocusChange}
+                    octaveOnly
+                  />
+                </div>
               ) : (
                 <FretboardTrainer
                   round={round as FretboardRound}

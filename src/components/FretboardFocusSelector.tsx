@@ -4,8 +4,9 @@ import { cn } from '../lib/utils';
 
 interface FretboardFocusSelectorProps {
   focus: FretboardFocus;
-  fretsNum: number;
+  fretsNum?: number;
   onChange: (focus: FretboardFocus) => void;
+  octaveOnly?: boolean;
 }
 
 // stringIdx 0 = low E (E2) … 5 = high E (E4)
@@ -29,7 +30,7 @@ function pillCls(active: boolean) {
   );
 }
 
-export function FretboardFocusSelector({ focus, fretsNum, onChange }: FretboardFocusSelectorProps) {
+export function FretboardFocusSelector({ focus, fretsNum = 12, onChange, octaveOnly = false }: FretboardFocusSelectorProps) {
   const stringIdxs = focus.stringIdxs ?? [];
 
   const activeZone =
@@ -44,84 +45,88 @@ export function FretboardFocusSelector({ focus, fretsNum, onChange }: FretboardF
 
   return (
     <div className="space-y-1.5 text-xs pb-2">
-      {/* String row — multi-select */}
-      <div className="flex items-center gap-1 flex-wrap">
-        <span className="text-brand-secondary w-12 shrink-0">String:</span>
-        <button
-          className={pillCls(stringIdxs.length === 0)}
-          onClick={() => onChange({ ...focus, stringIdxs: [] })}
-        >
-          All
-        </button>
-        {STRING_LABELS.map(([idx, label]) => (
-          <button
-            key={idx}
-            className={pillCls(stringIdxs.includes(idx))}
-            onClick={() => toggleString(idx)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      {!octaveOnly && (
+        <>
+          {/* String row — multi-select */}
+          <div className="flex items-center gap-1 flex-wrap">
+            <span className="text-brand-secondary w-12 shrink-0">String:</span>
+            <button
+              className={pillCls(stringIdxs.length === 0)}
+              onClick={() => onChange({ ...focus, stringIdxs: [] })}
+            >
+              All
+            </button>
+            {STRING_LABELS.map(([idx, label]) => (
+              <button
+                key={idx}
+                className={pillCls(stringIdxs.includes(idx))}
+                onClick={() => toggleString(idx)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
 
-      {/* Fret row */}
-      <div className="flex items-center gap-1 flex-wrap">
-        <span className="text-brand-secondary w-12 shrink-0">Frets:</span>
-        <button
-          className={pillCls(focus.fretMin === undefined && focus.fretMax === undefined)}
-          onClick={() => onChange({ ...focus, fretMin: undefined, fretMax: undefined })}
-        >
-          All
-        </button>
-        {FRET_ZONES.map(zone => (
-          <button
-            key={zone.label}
-            className={pillCls(activeZone?.label === zone.label)}
-            onClick={() =>
-              onChange({
-                ...focus,
-                fretMin: zone.fretMin,
-                fretMax: Math.min(zone.fretMax, fretsNum),
-              })
-            }
-          >
-            {zone.label}
-          </button>
-        ))}
-        <input
-          type="number"
-          min={0}
-          max={fretsNum}
-          value={focus.fretMin ?? ''}
-          placeholder="0"
-          onChange={e => {
-            const v = parseInt(e.target.value, 10);
-            if (!isNaN(v) && v >= 0 && v <= fretsNum) {
-              onChange({ ...focus, fretMin: v, fretMax: focus.fretMax ?? fretsNum });
-            } else if (e.target.value === '') {
-              onChange({ ...focus, fretMin: undefined });
-            }
-          }}
-          className="ml-2 w-10 text-center rounded border border-brand-line text-xs py-0.5 bg-brand-bg text-brand-ink focus:outline-none focus:border-brand-primary"
-        />
-        <span className="text-brand-secondary">–</span>
-        <input
-          type="number"
-          min={0}
-          max={fretsNum}
-          value={focus.fretMax ?? ''}
-          placeholder={String(fretsNum)}
-          onChange={e => {
-            const v = parseInt(e.target.value, 10);
-            if (!isNaN(v) && v >= 0 && v <= fretsNum) {
-              onChange({ ...focus, fretMin: focus.fretMin ?? 0, fretMax: v });
-            } else if (e.target.value === '') {
-              onChange({ ...focus, fretMax: undefined });
-            }
-          }}
-          className="w-10 text-center rounded border border-brand-line text-xs py-0.5 bg-brand-bg text-brand-ink focus:outline-none focus:border-brand-primary"
-        />
-      </div>
+          {/* Fret row */}
+          <div className="flex items-center gap-1 flex-wrap">
+            <span className="text-brand-secondary w-12 shrink-0">Frets:</span>
+            <button
+              className={pillCls(focus.fretMin === undefined && focus.fretMax === undefined)}
+              onClick={() => onChange({ ...focus, fretMin: undefined, fretMax: undefined })}
+            >
+              All
+            </button>
+            {FRET_ZONES.map(zone => (
+              <button
+                key={zone.label}
+                className={pillCls(activeZone?.label === zone.label)}
+                onClick={() =>
+                  onChange({
+                    ...focus,
+                    fretMin: zone.fretMin,
+                    fretMax: Math.min(zone.fretMax, fretsNum),
+                  })
+                }
+              >
+                {zone.label}
+              </button>
+            ))}
+            <input
+              type="number"
+              min={0}
+              max={fretsNum}
+              value={focus.fretMin ?? ''}
+              placeholder="0"
+              onChange={e => {
+                const v = parseInt(e.target.value, 10);
+                if (!isNaN(v) && v >= 0 && v <= fretsNum) {
+                  onChange({ ...focus, fretMin: v, fretMax: focus.fretMax ?? fretsNum });
+                } else if (e.target.value === '') {
+                  onChange({ ...focus, fretMin: undefined });
+                }
+              }}
+              className="ml-2 w-10 text-center rounded border border-brand-line text-xs py-0.5 bg-brand-bg text-brand-ink focus:outline-none focus:border-brand-primary"
+            />
+            <span className="text-brand-secondary">–</span>
+            <input
+              type="number"
+              min={0}
+              max={fretsNum}
+              value={focus.fretMax ?? ''}
+              placeholder={String(fretsNum)}
+              onChange={e => {
+                const v = parseInt(e.target.value, 10);
+                if (!isNaN(v) && v >= 0 && v <= fretsNum) {
+                  onChange({ ...focus, fretMin: focus.fretMin ?? 0, fretMax: v });
+                } else if (e.target.value === '') {
+                  onChange({ ...focus, fretMax: undefined });
+                }
+              }}
+              className="w-10 text-center rounded border border-brand-line text-xs py-0.5 bg-brand-bg text-brand-ink focus:outline-none focus:border-brand-primary"
+            />
+          </div>
+        </>
+      )}
 
       {/* Octave From row */}
       <div className="flex items-center gap-1 flex-wrap">
