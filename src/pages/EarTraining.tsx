@@ -14,6 +14,22 @@ import { initAudio, playStrum, playNote, startDrone, stopDrone } from '../lib/au
 import { FretboardTrainer } from '../components/FretboardTrainer';
 import { PlanProgress, PlanStage, PLAN_STAGES, loadPlanProgress, savePlanProgress, resetPlanProgress } from '../lib/planProgress';
 import { HuntHistoryEntry, appendHuntEntries, loadHuntHistory } from '../lib/huntHistory';
+import {
+  ChordHistoryEntry,
+  appendChordEntries,
+  loadChordHistory,
+  mergeChordEntries,
+  exportChordToCsv,
+  parseChordFromCsv,
+} from '../lib/chordHistory';
+import {
+  IntervalHistoryEntry,
+  appendIntervalEntries,
+  loadIntervalHistory,
+  mergeIntervalEntries,
+  exportIntervalToCsv,
+  parseIntervalFromCsv,
+} from '../lib/intervalHistory';
 import { ALL_NOTES } from '../data/guitarData';
 
 function makeRound(
@@ -52,6 +68,7 @@ export function EarTraining() {
   const audioUnlocked = useRef(false);
   const deckRef = useRef<string[]>([]);
   const deckKeyRef = useRef<string>('');
+  const roundStartTimeRef = useRef<number>(Date.now());
   const [planProgress, setPlanProgress] = useState<PlanProgress>(loadPlanProgress);
   const [planPracticing, setPlanPracticing] = useState(false);
   const [showPlanComplete, setShowPlanComplete] = useState<{ accuracy: number; stageLabel: string; isFinal: boolean } | null>(null);
@@ -134,6 +151,7 @@ export function EarTraining() {
     setSelected(null);
     setTentative(null);
     setRound(r);
+    roundStartTimeRef.current = Date.now();
   }
 
   function handleModeChange(mode: 'chord' | 'interval') {
@@ -342,6 +360,28 @@ export function EarTraining() {
         },
       },
     }));
+
+    // Record to persistent history
+    const responseTimeMs = Date.now() - roundStartTimeRef.current;
+    if (round.kind === 'chord') {
+      const cr = round as ChordRound;
+      appendChordEntries([{
+        date: new Date().toISOString().slice(0, 10),
+        typeLabel: cr.correct.typeLabel,
+        rootNote: cr.correct.root,
+        correct: isCorrect,
+        responseTimeMs,
+      }]);
+    } else if (round.kind === 'interval') {
+      const ir = round as IntervalRound;
+      appendIntervalEntries([{
+        date: new Date().toISOString().slice(0, 10),
+        label: ir.correct.label,
+        rootNote: ir.correct.rootNote,
+        correct: isCorrect,
+        responseTimeMs,
+      }]);
+    }
 
     if (settings.mode === 'plan' && planPracticing && newTotal >= 20 && newCorrect / newTotal >= 0.85) {
       handlePlanAdvance(newCorrect / newTotal);
