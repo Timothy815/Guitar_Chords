@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { cn } from '../lib/utils';
 import {
   RhythmRound, RhythmUnit, RhythmSettings, RhythmDuration,
-  durationBeats, beatsPerMeasure,
+  durationBeats, beatsPerMeasure, getCountLabel,
 } from '../lib/rhythmTraining';
 import { SessionScore } from '../lib/earTraining';
 import { initAudio, playRhythmRound, stopRhythm } from '../lib/audio';
@@ -80,6 +80,29 @@ export function RhythmTrainer({ round, score, settings, onComplete }: RhythmTrai
     onComplete(allCorrect);
   }
 
+  const handlePlayAnswer = useCallback(() => {
+    if (placedUnits.length === 0) return;
+    const answerRound: RhythmRound = {
+      kind: 'rhythm',
+      units: placedUnits,
+      measures: round.measures,
+      timeSignature: round.timeSignature,
+      bpm: round.bpm,
+    };
+    initAudio().then(() => playRhythmRound(answerRound, false)).catch(() => {});
+  }, [placedUnits, round]);
+
+  // Pre-compute beat positions and count labels for the original round
+  const countLabels: { label: string; isRest: boolean; widthPct: number }[] = (() => {
+    const totalBeats = beatsPerMeasure(round.timeSignature) * round.measures;
+    let cursor = 0;
+    return round.units.map(unit => {
+      const label = getCountLabel(cursor, round.timeSignature);
+      cursor += durationBeats(unit.duration);
+      return { label, isRest: unit.isRest, widthPct: (durationBeats(unit.duration) / totalBeats) * 100 };
+    });
+  })();
+
   const canSubmit = remainingBeats < 0.001 && !feedback;
 
   return (
@@ -97,6 +120,21 @@ export function RhythmTrainer({ round, score, settings, onComplete }: RhythmTrai
         feedback={feedback}
         onSwap={handleSwap}
       />
+
+      {/* Count hint */}
+      {settings.showCount && (
+        <div className="flex w-full font-mono select-none" aria-label="Verbal count">
+          {countLabels.map((cl, i) => (
+            <div
+              key={i}
+              style={{ width: `${cl.widthPct}%` }}
+              className="text-center text-[11px] text-brand-secondary leading-none py-0.5"
+            >
+              {cl.isRest ? `[${cl.label}]` : cl.label}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Remaining beat indicator */}
       {!feedback && (
@@ -161,6 +199,13 @@ export function RhythmTrainer({ round, score, settings, onComplete }: RhythmTrai
           className="px-4 py-2 rounded-lg text-sm font-medium bg-brand-primary text-white hover:bg-brand-primary/90 transition-colors"
         >
           ▶ Play
+        </button>
+        <button
+          onClick={handlePlayAnswer}
+          disabled={placedUnits.length === 0}
+          className="px-4 py-2 rounded-lg text-sm font-medium border border-brand-line text-brand-secondary hover:border-brand-primary/60 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        >
+          ▶ My Answer
         </button>
         {!feedback && (
           <button

@@ -21,6 +21,25 @@ export interface RhythmSettings {
   enableRests: boolean;
   bpm: number;
   enableLeadIn: boolean;
+  showCount: boolean;
+}
+
+export function getCountLabel(beatPos: number, ts: TimeSignature): string {
+  const bpb = beatsPerMeasure(ts);
+  const posInMeasure = beatPos % bpb;
+
+  if (ts === '6/8') {
+    // Compound: count 1-6 where each 0.5 quarter = one eighth note
+    return String(Math.round(posInMeasure / 0.5) + 1);
+  }
+
+  const beatNumber = Math.floor(posInMeasure) + 1;
+  const fraction = posInMeasure - Math.floor(posInMeasure);
+  if (fraction < 0.001) return String(beatNumber);
+  if (Math.abs(fraction - 0.25) < 0.001) return 'e';
+  if (Math.abs(fraction - 0.5) < 0.001) return '+';
+  if (Math.abs(fraction - 0.75) < 0.001) return 'a';
+  return '?';
 }
 
 export function durationBeats(duration: RhythmDuration): number {

@@ -82,6 +82,7 @@ export function EarTraining() {
     enableRests: false,
     bpm: 80,
     enableLeadIn: true,
+    showCount: false,
   });
   const [showPlanComplete, setShowPlanComplete] = useState<{ accuracy: number; stageLabel: string; isFinal: boolean } | null>(null);
   const [huntSessionRounds, setHuntSessionRounds] = useState<Array<{ firstTapSemitones: number; tapCount: number }>>([]);
@@ -906,6 +907,17 @@ export function EarTraining() {
                     )}
                   >
                     {rhythmSettings.enableLeadIn ? 'Count-in: On' : 'Count-in: Off'}
+                  </button>
+                  <button
+                    onClick={() => setRhythmSettings(r => ({ ...r, showCount: !r.showCount }))}
+                    className={cn(
+                      'px-3 py-1 rounded text-xs font-medium border transition-colors',
+                      rhythmSettings.showCount
+                        ? 'bg-brand-primary text-white border-brand-primary'
+                        : 'border-brand-line text-brand-secondary hover:border-brand-primary/60',
+                    )}
+                  >
+                    {rhythmSettings.showCount ? 'Count: On' : 'Count: Off'}
                   </button>
                 </div>
               </div>
