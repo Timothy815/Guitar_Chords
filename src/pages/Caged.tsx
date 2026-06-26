@@ -23,21 +23,71 @@ const CAGED_MINOR_BASE_SHAPES: CagedShapeDef[] = [
   { id: 'Cm', baseRoot: 'C', name: 'Cm Shape', relFrets: [-1, 3, 5, 5, 4, 3], description: 'The Cm barre shape with root on the A (5th) string. Connects the Am shape and the Gm shape in the chain. Played as a full barre at the fret of the root.' },
 ];
 
+const CAGED_DOM7_BASE_SHAPES: CagedShapeDef[] = [
+  { id: 'E7',  baseRoot: 'E', name: 'E7 Shape',  relFrets: [0, 2, 0, 1, 0, 0],    description: 'Open E7 chord — the most practical dominant 7 barre shape. Root on low E (6th) string. Slide up any number of frets and barre for any dom7 chord.' },
+  { id: 'A7',  baseRoot: 'A', name: 'A7 Shape',  relFrets: [-1, 0, 2, 0, 2, 0],   description: 'Open A7 chord with root on A (5th) string. The alternating open/fretted pattern gives it a bright, punchy sound common in blues and country.' },
+  { id: 'D7',  baseRoot: 'D', name: 'D7 Shape',  relFrets: [-1, -1, 0, 2, 1, 2],  description: 'Open D7 chord with root on D (4th) string. Sits in the upper register — great for melody-chord playing and soloing over dominant chords.' },
+  { id: 'G7',  baseRoot: 'G', name: 'G7 Shape',  relFrets: [3, 2, 0, 0, 0, 1],    description: 'Open G7 chord with root on low E (6th) string. A natural extension of the open G major shape — the b7 on the high e string adds harmonic tension.' },
+  { id: 'C7',  baseRoot: 'C', name: 'C7 Shape',  relFrets: [-1, 3, 2, 3, 1, 0],   description: 'Open C7 chord with root on A (5th) string. The b7 on the G string separates it from the major shape. Essential for blues rhythm playing.' },
+];
+
+const CAGED_MAJ7_BASE_SHAPES: CagedShapeDef[] = [
+  { id: 'Emaj7',  baseRoot: 'E', name: 'Emaj7 Shape',  relFrets: [0, 2, 1, 1, 0, 0],   description: 'Open Emaj7 with root on low E (6th) string. The major 7th on the D string gives it a lush, jazz voicing. Very easy to barre up the neck.' },
+  { id: 'Amaj7',  baseRoot: 'A', name: 'Amaj7 Shape',  relFrets: [-1, 0, 2, 1, 2, 0],  description: 'Open Amaj7 with root on A (5th) string. The major 7th on the G string adds a silky quality — a staple of bossa nova and jazz rhythm playing.' },
+  { id: 'Dmaj7',  baseRoot: 'D', name: 'Dmaj7 Shape',  relFrets: [-1, -1, 0, 2, 2, 2], description: 'Open Dmaj7 with root on D (4th) string. All three upper strings fretted at the same fret makes this an easy shape to form and move around.' },
+  { id: 'Gmaj7',  baseRoot: 'G', name: 'Gmaj7 Shape',  relFrets: [3, 2, 0, 0, 0, 2],   description: 'Open Gmaj7 with root on low E (6th) string. Swaps the open high-e of G major for fret 2 (F#), the major 7th. Beautiful as an open chord.' },
+  { id: 'Cmaj7',  baseRoot: 'C', name: 'Cmaj7 Shape',  relFrets: [-1, 3, 2, 0, 0, 0],  description: 'Open Cmaj7 with root on A (5th) string. One of the most common jazz/pop chords — muting the top two strings keeps the voicing clean and open.' },
+];
+
+const CAGED_MIN7_BASE_SHAPES: CagedShapeDef[] = [
+  { id: 'Em7',  baseRoot: 'E', name: 'Em7 Shape',  relFrets: [0, 2, 0, 0, 0, 0],    description: 'Open Em7 — the simplest minor 7 barre shape. Root on low E (6th) string. Just remove one finger from the open Em chord. Effortless to barre anywhere on the neck.' },
+  { id: 'Am7',  baseRoot: 'A', name: 'Am7 Shape',  relFrets: [-1, 0, 2, 0, 1, 0],   description: 'Open Am7 with root on A (5th) string. A natural extension of the Am shape — open G string adds the minor 7th. Ubiquitous in jazz, funk, and neo-soul.' },
+  { id: 'Dm7',  baseRoot: 'D', name: 'Dm7 Shape',  relFrets: [-1, -1, 0, 2, 1, 1],  description: 'Open Dm7 with root on D (4th) string. The minor 7th and minor 3rd on the top two strings give this a rich, upper-register voicing great for comping.' },
+  { id: 'Gm7',  baseRoot: 'G', name: 'Gm7 Shape',  relFrets: [3, 1, 0, 0, 3, 1],    description: 'Open Gm7 with root on low E (6th) string. Adds the minor 7th (F on high e string) to the open Gm voicing. Connects the Em7 and Dm7 shapes in the chain.' },
+  { id: 'Cm7',  baseRoot: 'C', name: 'Cm7 Shape',  relFrets: [-1, 3, 5, 3, 4, 3],   description: 'Cm7 barre shape with root on A (5th) string. The minor 7th on the G string distinguishes it from the Cm shape. A full barre at the root fret.' },
+];
+
+type ChordQuality = 'major' | 'minor' | 'dom7' | 'maj7' | 'min7';
+
+const SHAPES_BY_QUALITY: Record<ChordQuality, CagedShapeDef[]> = {
+  major: CAGED_BASE_SHAPES,
+  minor: CAGED_MINOR_BASE_SHAPES,
+  dom7:  CAGED_DOM7_BASE_SHAPES,
+  maj7:  CAGED_MAJ7_BASE_SHAPES,
+  min7:  CAGED_MIN7_BASE_SHAPES,
+};
+
+const DEFAULT_SHAPE_ID: Record<ChordQuality, string> = {
+  major: 'C', minor: 'Em', dom7: 'E7', maj7: 'Emaj7', min7: 'Em7',
+};
+
+function chordQualityStr(root: Note, q: ChordQuality): string {
+  if (q === 'major') return `${root} Major`;
+  if (q === 'minor') return `${root} minor`;
+  if (q === 'dom7')  return `${root}7`;
+  if (q === 'maj7')  return `${root}maj7`;
+  return `${root}m7`;
+}
+
 const COMMON_KEYS: Note[] = ['E', 'A', 'D', 'G', 'C', 'F', 'B', 'G#'];
 
-const PRACTICE_SCENARIOS: { label: string; mode: 'byKey' | 'byShape'; key?: Note; shapeId?: string; shift?: number; quality?: 'major' | 'minor' }[] = [
+const PRACTICE_SCENARIOS: { label: string; mode: 'byKey' | 'byShape'; key?: Note; shapeId?: string; shift?: number; quality?: ChordQuality }[] = [
   { label: 'Open Chords in E',          mode: 'byKey',   key: 'E' },
   { label: 'Open Chords in G',          mode: 'byKey',   key: 'G' },
   { label: 'Open Chords in C',          mode: 'byKey',   key: 'C' },
   { label: 'Open Chords in D',          mode: 'byKey',   key: 'D' },
-  { label: 'Barre Chords – E shape',    mode: 'byShape', shapeId: 'E',  shift: 2 },
-  { label: 'Barre Chords – A shape',    mode: 'byShape', shapeId: 'A',  shift: 2 },
-  { label: 'Upper Neck – G shape',      mode: 'byShape', shapeId: 'G',  shift: 7 },
-  { label: 'Upper Neck – C shape',      mode: 'byShape', shapeId: 'C',  shift: 5 },
-  { label: 'Minor – Em shape',          mode: 'byShape', shapeId: 'Em', shift: 2,  quality: 'minor' },
-  { label: 'Minor – Am shape',          mode: 'byShape', shapeId: 'Am', shift: 2,  quality: 'minor' },
-  { label: 'Minor Chords in Am',        mode: 'byKey',   key: 'A',                 quality: 'minor' },
-  { label: 'Minor Chords in Em',        mode: 'byKey',   key: 'E',                 quality: 'minor' },
+  { label: 'Barre Chords – E shape',    mode: 'byShape', shapeId: 'E',     shift: 2 },
+  { label: 'Barre Chords – A shape',    mode: 'byShape', shapeId: 'A',     shift: 2 },
+  { label: 'Upper Neck – G shape',      mode: 'byShape', shapeId: 'G',     shift: 7 },
+  { label: 'Upper Neck – C shape',      mode: 'byShape', shapeId: 'C',     shift: 5 },
+  { label: 'Minor – Em shape',          mode: 'byShape', shapeId: 'Em',    shift: 2,  quality: 'minor' },
+  { label: 'Minor – Am shape',          mode: 'byShape', shapeId: 'Am',    shift: 2,  quality: 'minor' },
+  { label: 'Minor Chords in Am',        mode: 'byKey',   key: 'A',                    quality: 'minor' },
+  { label: 'Minor Chords in Em',        mode: 'byKey',   key: 'E',                    quality: 'minor' },
+  { label: 'Dom7 – E7 shape',           mode: 'byShape', shapeId: 'E7',    shift: 2,  quality: 'dom7' },
+  { label: 'Dom7 – A7 shape',           mode: 'byShape', shapeId: 'A7',    shift: 2,  quality: 'dom7' },
+  { label: 'Maj7 chords in C',          mode: 'byKey',   key: 'C',                    quality: 'maj7' },
+  { label: 'Min7 chords in Am',         mode: 'byKey',   key: 'A',                    quality: 'min7' },
 ];
 
 const SEQ_DUR_MULT: Record<string, number> = { '16n': 0.25, '8n': 0.5, '4n': 1, '2n': 2, '1n': 4 };
@@ -53,16 +103,16 @@ function getDistance(from: Note, to: Note) {
 
 export function Caged() {
   const [viewMode, setViewMode] = useState<'byKey' | 'byShape'>('byKey');
-  const [quality, setQuality] = useState<'major' | 'minor'>('major');
+  const [quality, setQuality] = useState<ChordQuality>('major');
   const [selectedKey, setSelectedKey] = useState<Note>('C');
   const [selectedShapeId, setSelectedShapeId] = useState<string>('C');
   const [shapeShift, setShapeShift] = useState<number>(0);
 
-  const activeShapes = quality === 'major' ? CAGED_BASE_SHAPES : CAGED_MINOR_BASE_SHAPES;
+  const activeShapes = SHAPES_BY_QUALITY[quality];
 
   // Reset shape selection when switching quality
   React.useEffect(() => {
-    setSelectedShapeId(quality === 'major' ? 'C' : 'Em');
+    setSelectedShapeId(DEFAULT_SHAPE_ID[quality]);
     setShapeShift(0);
     setSeqPlaying(false);
   }, [quality]);
@@ -152,9 +202,8 @@ export function Caged() {
   const getCagedChord = (shape: CagedShapeDef, targetNote: Note) => {
     const shift = getDistance(shape.baseRoot as Note, targetNote);
     const finalFrets = shape.relFrets.map(f => f === -1 ? -1 : f + shift);
-    const qualityLabel = quality === 'major' ? 'Major' : 'minor';
     return {
-      name: `${targetNote} ${qualityLabel} (${shape.name})`,
+      name: `${chordQualityStr(targetNote, quality)} (${shape.name})`,
       frets: finalFrets,
       fingers: [-1,-1,-1,-1,-1,-1] as Finger[],
       fretsOnly: finalFrets
@@ -186,7 +235,7 @@ export function Caged() {
 
   const resultingNote = ALL_NOTES[(ALL_NOTES.indexOf(activeShapeDef.baseRoot as Note) + shapeShift) % 12];
   const byShapeChordData = {
-    name: `${resultingNote} ${quality === 'major' ? 'Major' : 'minor'} (${activeShapeDef.name})`,
+    name: `${chordQualityStr(resultingNote, quality)} (${activeShapeDef.name})`,
     frets: fretsForShape,
     fingers: [-1,-1,-1,-1,-1,-1] as Finger[],
     fretsOnly: fretsForShape
@@ -228,19 +277,22 @@ export function Caged() {
           </button>
         </div>
 
-        <div className="flex bg-brand-surface rounded-lg p-1 border border-brand-line shadow-sm">
-          <button
-            onClick={() => setQuality('major')}
-            className={`px-5 py-2 rounded-md font-bold text-sm transition-all duration-200 ${quality === 'major' ? 'bg-brand-primary text-white shadow-md' : 'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar'}`}
-          >
-            Major
-          </button>
-          <button
-            onClick={() => setQuality('minor')}
-            className={`px-5 py-2 rounded-md font-bold text-sm transition-all duration-200 ${quality === 'minor' ? 'bg-indigo-600 text-white shadow-md' : 'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar'}`}
-          >
-            minor
-          </button>
+        <div className="flex bg-brand-surface rounded-lg p-1 border border-brand-line shadow-sm flex-wrap">
+          {([
+            { q: 'major', label: 'Major',  color: 'bg-brand-primary' },
+            { q: 'minor', label: 'minor',  color: 'bg-indigo-600' },
+            { q: 'dom7',  label: 'dom 7',  color: 'bg-amber-600' },
+            { q: 'maj7',  label: 'maj 7',  color: 'bg-teal-600' },
+            { q: 'min7',  label: 'min 7',  color: 'bg-purple-600' },
+          ] as { q: ChordQuality; label: string; color: string }[]).map(({ q, label, color }) => (
+            <button
+              key={q}
+              onClick={() => setQuality(q)}
+              className={`px-4 py-2 rounded-md font-bold text-sm transition-all duration-200 ${quality === q ? `${color} text-white shadow-md` : 'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar'}`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -379,7 +431,7 @@ export function Caged() {
           <div className="bg-brand-surface border border-brand-line rounded-xl p-6 md:p-10 shadow-sm">
              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b border-brand-line pb-8">
                 <div>
-                   <h2 className="text-4xl font-bold text-brand-ink mb-2">{resultingNote} {quality === 'major' ? 'Major' : 'minor'}</h2>
+                   <h2 className="text-4xl font-bold text-brand-ink mb-2">{chordQualityStr(resultingNote, quality)}</h2>
                    <p className="text-brand-secondary text-lg">
                      <strong className="text-brand-ink">{activeShapeDef.name}</strong> shifted by {shapeShift} fret{shapeShift !== 1 ? 's' : ''}
                    </p>
