@@ -315,9 +315,9 @@ export function CountItTrainer({ round, score, settings, onComplete }: CountItTr
               {allCorrect ? 'Correct! 🎯' : 'Not quite — slots highlighted above'}
             </p>
             {!allCorrect && errors.length > 0 && (
-              <ul className="rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 p-3 space-y-1">
+              <ul className="rounded-lg bg-brand-surface border-l-4 border-red-500 border border-brand-line p-3 space-y-1">
                 {errors.map((msg, i) => (
-                  <li key={i} className="text-xs text-red-700 dark:text-red-300 leading-relaxed">
+                  <li key={i} className="text-xs text-brand-ink leading-relaxed">
                     {msg}
                   </li>
                 ))}
