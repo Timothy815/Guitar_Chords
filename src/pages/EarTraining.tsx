@@ -10,6 +10,7 @@ import {
   buildFretboardNotePool, makeFretboardRound, buildKeyboardNotePool,
   chordToNotes, playOptionAudio, playStudyCard,
 } from '../lib/earTraining';
+import { loadSRSData, saveSRSData, updateSRS, getSRSCardId, defaultSRSState, buildSRSDeck } from '@/src/lib/srs';
 import { initAudio, playStrum, playNote, startDrone, stopDrone, stopRhythm } from '../lib/audio';
 import { FretboardTrainer } from '../components/FretboardTrainer';
 import { PianoTrainer } from '../components/PianoTrainer';
@@ -79,6 +80,7 @@ export function EarTraining() {
   const [showSummary, setShowSummary] = useState(false);
   const [studyDeck, setStudyDeck] = useState<StudyCard[]>([]);
   const [studyIndex, setStudyIndex] = useState(0);
+  const [studyAttempts, setStudyAttempts] = useState(1); // attempts on current card: 1 = first try
   const audioUnlocked = useRef(false);
   const deckRef = useRef<string[]>([]);
   const deckKeyRef = useRef<string>('');
@@ -128,7 +130,10 @@ export function EarTraining() {
 
   useEffect(() => {
     if (settings.mode === 'study') {
-      setStudyDeck(generateStudyDeck(settings.activeChordTypes, settings.activeIntervals));
+      const rawDeck = generateStudyDeck(settings.activeChordTypes, settings.activeIntervals);
+      const srsData = loadSRSData();
+      const deck = buildSRSDeck(rawDeck, srsData);
+      setStudyDeck(deck);
       setStudyIndex(0);
     }
   }, [settings.mode, settings.activeChordTypes, settings.activeIntervals]);
@@ -1473,6 +1478,21 @@ export function EarTraining() {
               </div>
             ) : (
               <div className="rounded-lg border border-brand-line bg-brand-surface p-8 flex flex-col items-center gap-6">
+                {/* Due today counter */}
+                {(() => {
+                  const data = loadSRSData();
+                  const rawDeck = generateStudyDeck(settings.activeChordTypes, settings.activeIntervals);
+                  const due = rawDeck.filter(c => {
+                    const s = data[getSRSCardId(c)];
+                    return !s || new Date(s.dueDate) <= new Date();
+                  }).length;
+                  return due > 0 ? (
+                    <p className="text-xs text-brand-secondary text-center">
+                      {due} card{due !== 1 ? 's' : ''} due for review today
+                    </p>
+                  ) : null;
+                })()}
+
                 {/* Category chip */}
                 <span className="text-xs font-semibold uppercase tracking-widest px-2.5 py-1 rounded-full border border-brand-line text-brand-secondary">
                   {studyDeck[studyIndex].kind === 'chord' ? 'Chord' : 'Interval'}
@@ -1493,10 +1513,43 @@ export function EarTraining() {
                   <Volume2 size={18} /> Play
                 </button>
 
+                {/* SRS feedback buttons */}
+                <div className="flex items-center gap-3 pt-1">
+                  <button
+                    onClick={() => {
+                      const card = studyDeck[studyIndex];
+                      const srsData = loadSRSData();
+                      const cardId = getSRSCardId(card);
+                      const existing = srsData[cardId] ?? defaultSRSState();
+                      srsData[cardId] = updateSRS(existing, studyAttempts === 1 ? 5 : 3);
+                      saveSRSData(srsData);
+                      setStudyAttempts(1);
+                      if (studyIndex < studyDeck.length - 1) setStudyIndex(i => i + 1);
+                    }}
+                    className="px-4 py-2 rounded-lg border border-green-500 text-green-700 text-sm font-medium hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-950 transition-colors"
+                  >
+                    Got it ✓
+                  </button>
+                  <button
+                    onClick={() => {
+                      const card = studyDeck[studyIndex];
+                      const srsData = loadSRSData();
+                      const cardId = getSRSCardId(card);
+                      const existing = srsData[cardId] ?? defaultSRSState();
+                      srsData[cardId] = updateSRS(existing, 1);
+                      saveSRSData(srsData);
+                      setStudyAttempts(a => a + 1);
+                    }}
+                    className="px-4 py-2 rounded-lg border border-red-400 text-red-600 text-sm font-medium hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950 transition-colors"
+                  >
+                    Tricky ✗
+                  </button>
+                </div>
+
                 {/* Navigation */}
                 <div className="flex items-center gap-4 pt-2">
                   <button
-                    onClick={() => setStudyIndex(i => i - 1)}
+                    onClick={() => { setStudyIndex(i => i - 1); setStudyAttempts(1); }}
                     disabled={studyIndex === 0}
                     className="p-2 rounded-lg border border-brand-line text-brand-secondary hover:border-brand-primary hover:text-brand-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     aria-label="Previous card"
@@ -1507,7 +1560,7 @@ export function EarTraining() {
                     {studyIndex + 1} / {studyDeck.length}
                   </span>
                   <button
-                    onClick={() => setStudyIndex(i => i + 1)}
+                    onClick={() => { setStudyIndex(i => i + 1); setStudyAttempts(1); }}
                     disabled={studyIndex === studyDeck.length - 1}
                     className="p-2 rounded-lg border border-brand-line text-brand-secondary hover:border-brand-primary hover:text-brand-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     aria-label="Next card"
