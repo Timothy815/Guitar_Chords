@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { cn } from '../lib/utils';
 import {
   RhythmRound, RhythmSettings, RhythmDuration,
@@ -41,27 +41,10 @@ export function CountItTrainer({ round, score, settings, onComplete }: CountItTr
   }));
 
   const [userLabels, setUserLabels] = useState<(SlotLabel | null)[]>(() => Array(totalSlots).fill(null));
-  const [pickerIdx, setPickerIdx] = useState<number | null>(null);
+  const [selected, setSelected] = useState<Set<number>>(() => new Set());
   const [feedback, setFeedback] = useState<('correct' | 'wrong')[] | null>(null);
   const [attempts, setAttempts] = useState(0);
   const [activeUnitIdx, setActiveUnitIdx] = useState<number | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const pickerRef = useRef<HTMLDivElement>(null);
-
-  // Clamp floating picker so it stays within the visible scroll container
-  useLayoutEffect(() => {
-    if (pickerIdx === null || !pickerRef.current || !containerRef.current) return;
-    const picker = pickerRef.current;
-    const containerRect = containerRef.current.getBoundingClientRect();
-    const pickerRect = picker.getBoundingClientRect();
-    let dx = 0;
-    if (pickerRect.left < containerRect.left + 4) {
-      dx = containerRect.left + 4 - pickerRect.left;
-    } else if (pickerRect.right > containerRect.right - 4) {
-      dx = containerRect.right - 4 - pickerRect.right;
-    }
-    picker.style.transform = dx !== 0 ? `translateX(calc(-50% + ${dx}px))` : 'translateX(-50%)';
-  }, [pickerIdx]);
 
   const handlePlay = useCallback(() => {
     setActiveUnitIdx(null);
@@ -70,38 +53,31 @@ export function CountItTrainer({ round, score, settings, onComplete }: CountItTr
 
   useEffect(() => {
     setUserLabels(Array(totalSlots).fill(null));
+    setSelected(new Set());
     setFeedback(null);
     setAttempts(0);
-    setPickerIdx(null);
     setActiveUnitIdx(null);
     initAudio().then(() => playRhythmRound(round, settings.enableLeadIn, setActiveUnitIdx)).catch(() => {});
     return () => stopRhythm();
   }, [round]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Close picker on outside click
-  useEffect(() => {
-    if (pickerIdx === null) return;
-    const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setPickerIdx(null);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [pickerIdx]);
-
   function handleSlotClick(i: number) {
     if (feedback) return;
-    setPickerIdx(prev => (prev === i ? null : i));
-  }
-
-  function handlePickLabel(i: number, label: SlotLabel) {
-    setUserLabels(prev => {
-      const next = [...prev];
-      next[i] = label;
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(i)) next.delete(i); else next.add(i);
       return next;
     });
-    setPickerIdx(null);
+  }
+
+  function handleApplyLabel(label: SlotLabel) {
+    if (selected.size === 0 || feedback) return;
+    setUserLabels(prev => {
+      const next = [...prev];
+      selected.forEach(i => { next[i] = label; });
+      return next;
+    });
+    setSelected(new Set());
   }
 
   const allFilled = userLabels.every(l => l !== null);
@@ -118,6 +94,7 @@ export function CountItTrainer({ round, score, settings, onComplete }: CountItTr
 
   function handleTryAgain() {
     setUserLabels(Array(totalSlots).fill(null));
+    setSelected(new Set());
     setFeedback(null);
   }
 
@@ -129,6 +106,8 @@ export function CountItTrainer({ round, score, settings, onComplete }: CountItTr
     onComplete(wasCorrect);
   }
 
+  const hasSelection = selected.size > 0;
+
   return (
     <div className="rounded-lg border border-brand-line bg-brand-surface p-4 space-y-4">
       {/* Score badge */}
@@ -138,7 +117,7 @@ export function CountItTrainer({ round, score, settings, onComplete }: CountItTr
       </div>
 
       {/* Staff + count grid in shared horizontal scroll */}
-      <div className="overflow-x-auto" ref={containerRef}>
+      <div className="overflow-x-auto">
         <div style={{ minWidth: staffMinWidth(round, round.units) }} className="relative">
           <RhythmStaff
             round={round}
@@ -152,35 +131,37 @@ export function CountItTrainer({ round, score, settings, onComplete }: CountItTr
             {slots.map((slot, i) => {
               const ul = userLabels[i];
               const fb = feedback?.[i];
-              const isPickerOpen = pickerIdx === i;
+              const isSelected = selected.has(i);
               const correctLabel = feedback ? correctLabels[i] : null;
 
-              // Determine display label text
               let displayLabel = slot.label;
               if (ul === 'R') displayLabel = `[${slot.label}]`;
               else if (ul === 'H') displayLabel = `(${slot.label})`;
 
-              // Slot background + text color
               const slotClass = fb === 'correct'
                 ? 'bg-green-500/20 text-green-700 dark:text-green-400 font-bold'
                 : fb === 'wrong'
                   ? 'bg-red-500/20 text-red-600 dark:text-red-400 font-bold'
-                  : ul === 'N'
-                    ? 'bg-brand-primary/15 text-brand-primary font-bold'
-                    : ul === 'R'
-                      ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
-                      : ul === 'H'
-                        ? 'bg-brand-line/20 text-brand-secondary italic'
-                        : 'text-brand-line';
+                  : isSelected
+                    ? 'bg-brand-primary/20 text-brand-primary font-bold'
+                    : ul === 'N'
+                      ? 'bg-brand-primary/15 text-brand-primary font-bold'
+                      : ul === 'R'
+                        ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                        : ul === 'H'
+                          ? 'bg-brand-line/20 text-brand-secondary italic'
+                          : 'text-brand-line';
 
               return (
                 <div
                   key={i}
                   style={{ width: `${slot.widthPct}%` }}
                   className={cn(
-                    'relative text-center text-[11px] leading-none py-1 border border-transparent',
+                    'relative text-center text-[11px] leading-none py-1 border transition-colors',
                     slotClass,
-                    !feedback && 'cursor-pointer hover:border-brand-primary/40 rounded',
+                    !feedback && 'cursor-pointer rounded',
+                    isSelected ? 'border-brand-primary' : 'border-transparent',
+                    !feedback && !isSelected && 'hover:border-brand-primary/40',
                     feedback && 'cursor-default',
                   )}
                   onClick={() => handleSlotClick(i)}
@@ -197,31 +178,6 @@ export function CountItTrainer({ round, score, settings, onComplete }: CountItTr
                           : slot.label}
                     </span>
                   )}
-
-                  {/* Floating picker */}
-                  {isPickerOpen && (
-                    <div
-                      ref={pickerRef}
-                      style={{ left: '50%', transform: 'translateX(-50%)' }}
-                      className="absolute bottom-full mb-1 z-20 flex gap-1 bg-brand-surface border border-brand-line rounded-lg shadow-lg p-1"
-                    >
-                      {(['N', 'R', 'H'] as SlotLabel[]).map(opt => (
-                        <button
-                          key={opt}
-                          onMouseDown={e => { e.preventDefault(); handlePickLabel(i, opt); }}
-                          className={cn(
-                            'w-8 h-8 rounded-md text-xs font-bold border transition-colors',
-                            ul === opt && opt === 'N' && 'bg-brand-primary text-white border-brand-primary',
-                            ul === opt && opt === 'R' && 'bg-amber-500 text-white border-amber-500',
-                            ul === opt && opt === 'H' && 'bg-brand-secondary/70 text-white border-brand-secondary',
-                            ul !== opt && 'border-brand-line text-brand-ink hover:border-brand-primary/60',
-                          )}
-                        >
-                          {opt}
-                        </button>
-                      ))}
-                    </div>
-                  )}
                 </div>
               );
             })}
@@ -229,11 +185,40 @@ export function CountItTrainer({ round, score, settings, onComplete }: CountItTr
         </div>
       </div>
 
+      {/* Label toolbar — visible when slots are selected */}
+      {hasSelection && !feedback && (
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-brand-secondary">
+            {selected.size} slot{selected.size === 1 ? '' : 's'} selected:
+          </span>
+          {(['N', 'R', 'H'] as SlotLabel[]).map(opt => (
+            <button
+              key={opt}
+              onClick={() => handleApplyLabel(opt)}
+              className={cn(
+                'px-3 py-1.5 rounded-lg text-sm font-bold border transition-colors',
+                opt === 'N' && 'bg-brand-primary text-white border-brand-primary hover:bg-brand-primary/80',
+                opt === 'R' && 'bg-amber-500 text-white border-amber-500 hover:bg-amber-400',
+                opt === 'H' && 'bg-brand-secondary/70 text-white border-brand-secondary/70 hover:bg-brand-secondary/50',
+              )}
+            >
+              {opt === 'N' ? 'N — Attack' : opt === 'R' ? 'R — Rest' : 'H — Held'}
+            </button>
+          ))}
+          <button
+            onClick={() => setSelected(new Set())}
+            className="text-xs text-brand-line hover:text-brand-secondary transition-colors ml-1"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+
       {/* Status line */}
-      {!feedback && (
+      {!feedback && !hasSelection && (
         <p className="text-xs text-brand-secondary text-center">
           {unlabeledCount > 0
-            ? `${unlabeledCount} slot${unlabeledCount === 1 ? '' : 's'} unlabeled — click a slot to label it`
+            ? `${unlabeledCount} slot${unlabeledCount === 1 ? '' : 's'} unlabeled — click slots to select, then choose a label`
             : 'All slots labeled — ready to submit'}
         </p>
       )}
