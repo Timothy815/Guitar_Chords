@@ -31,6 +31,77 @@ function spokenName(countLabel: string): string {
   return countLabel; // bare beat number: "1", "2", etc.
 }
 
+// Human-readable beat reference: "1", "1-and", "2-e", "3-a", etc.
+function beatName(countLabel: string): string {
+  if (countLabel.endsWith('+')) return `${countLabel.slice(0, -1)}-and`;
+  if (countLabel.endsWith('e')) return `${countLabel.slice(0, -1)}-e`;
+  if (countLabel.endsWith('a')) return `${countLabel.slice(0, -1)}-a`;
+  return countLabel;
+}
+
+// Walk through correct units and generate one plain-English message per mistake.
+function generateErrors(
+  slots: Array<{ label: string }>,
+  userLabels: (SlotLabel | null)[],
+  correctLabels: SlotLabel[],
+): string[] {
+  const messages: string[] = [];
+  let i = 0;
+
+  while (i < correctLabels.length) {
+    const cl = correctLabels[i];
+
+    // Find the extent of this musical unit
+    let unitEnd = i + 1;
+    if (cl === 'N') {
+      while (unitEnd < correctLabels.length && correctLabels[unitEnd] === 'H') unitEnd++;
+    } else {
+      while (unitEnd < correctLabels.length && correctLabels[unitEnd] === 'R') unitEnd++;
+    }
+
+    // Check if the unit has any wrong slots
+    let firstWrong = -1;
+    for (let k = i; k < unitEnd; k++) {
+      if (userLabels[k] !== correctLabels[k]) { firstWrong = k; break; }
+    }
+
+    if (firstWrong !== -1) {
+      const ul = userLabels[firstWrong];
+      const attackBeat = beatName(slots[i].label);
+      const errorBeat  = beatName(slots[firstWrong].label);
+
+      if (cl === 'N') {
+        if (firstWrong === i) {
+          // Error is at the attack itself — user missed or misidentified it
+          if (ul === 'R') {
+            messages.push(`Beat ${errorBeat}: a note attacks here — you marked it as a rest`);
+          } else {
+            messages.push(`Beat ${errorBeat}: a note attacks here — you marked it as held from before`);
+          }
+        } else {
+          // Attack was correct but user got the held portion wrong
+          if (ul === 'N') {
+            messages.push(`Beat ${errorBeat}: no new attack here — the note from beat ${attackBeat} is still held`);
+          } else {
+            messages.push(`Beat ${errorBeat}: the note from beat ${attackBeat} is still held — not a rest`);
+          }
+        }
+      } else {
+        // Rest unit — user put something where there should be silence
+        if (ul === 'N') {
+          messages.push(`Beat ${errorBeat}: this is a rest — no note attacks here`);
+        } else {
+          messages.push(`Beat ${errorBeat}: this is a rest — nothing is being held here`);
+        }
+      }
+    }
+
+    i = unitEnd;
+  }
+
+  return messages;
+}
+
 export function CountItTrainer({ round, score, settings, onComplete }: CountItTrainerProps) {
   const step = getAdaptiveStep(settings.enabledDurations);
   const totalBeats = beatsPerMeasure(round.timeSignature) * round.measures;
@@ -232,14 +303,29 @@ export function CountItTrainer({ round, score, settings, onComplete }: CountItTr
       )}
 
       {/* Feedback summary */}
-      {feedback && (
-        <p className={cn(
-          'text-sm font-semibold text-center',
-          feedback.every(f => f === 'correct') ? 'text-green-600' : 'text-red-500',
-        )}>
-          {feedback.every(f => f === 'correct') ? 'Correct! 🎯' : 'Not quite — slots highlighted above'}
-        </p>
-      )}
+      {feedback && (() => {
+        const allCorrect = feedback.every(f => f === 'correct');
+        const errors = allCorrect ? [] : generateErrors(slots, userLabels, correctLabels);
+        return (
+          <>
+            <p className={cn(
+              'text-sm font-semibold text-center',
+              allCorrect ? 'text-green-600' : 'text-red-500',
+            )}>
+              {allCorrect ? 'Correct! 🎯' : 'Not quite — slots highlighted above'}
+            </p>
+            {!allCorrect && errors.length > 0 && (
+              <ul className="rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 p-3 space-y-1">
+                {errors.map((msg, i) => (
+                  <li key={i} className="text-xs text-red-700 dark:text-red-300 leading-relaxed">
+                    {msg}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        );
+      })()}
 
       {/* Spoken count display — shown after a correct submission */}
       {feedback && feedback.every(f => f === 'correct') && (
