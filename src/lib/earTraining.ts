@@ -15,7 +15,7 @@ export interface IntervalDef {
 }
 
 export interface EarTrainingSettings {
-  mode: 'chord' | 'interval' | 'study' | 'fretboard' | 'plan' | 'rhythm' | 'melody';
+  mode: 'chord' | 'interval' | 'study' | 'fretboard' | 'plan' | 'rhythm' | 'melody' | 'mixed';
   activeChordTypes: string[];
   activeIntervals: string[];
   settingsPanelOpen: boolean;
@@ -119,8 +119,11 @@ export const DIFFICULTY_PRESETS: {
     Advanced: ['major', 'minor', 'dom7', 'Maj7', 'm7', 'dim', 'aug', 'dim7', 'm7b5'],
   },
   interval: {
-    Beginner: ['Unison', 'Perfect 4th', 'Perfect 5th', 'Octave'],
-    Intermediate: ['Unison', 'Perfect 4th', 'Perfect 5th', 'Octave', 'Major 2nd', 'Minor 3rd', 'Major 3rd', 'Major 6th'],
+    Beginner: ['Unison', 'Minor 3rd', 'Major 3rd', 'Perfect 4th', 'Perfect 5th', 'Octave'],
+    Intermediate: [
+      'Unison', 'Minor 3rd', 'Major 3rd', 'Perfect 4th', 'Perfect 5th', 'Octave',
+      'Major 2nd', 'Minor 6th', 'Major 6th', 'Minor 7th', 'Major 7th',
+    ],
     Advanced: INTERVAL_DEFS.map(d => d.label),
   },
 };
