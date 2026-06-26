@@ -95,6 +95,7 @@ export function EarTraining() {
     showCount: false,
   });
   const [showPlanComplete, setShowPlanComplete] = useState<{ accuracy: number; stageLabel: string; isFinal: boolean } | null>(null);
+  const [expandedDesc, setExpandedDesc] = useState<string | null>(null);
   const [huntSessionRounds, setHuntSessionRounds] = useState<Array<{ firstTapSemitones: number; tapCount: number }>>([]);
   const practiceImportRef = useRef<HTMLInputElement>(null);
   const [practiceImportMsg, setPracticeImportMsg] = useState<string | null>(null);
@@ -1256,6 +1257,24 @@ export function EarTraining() {
                           {!isComplete && (
                             <p className="text-xs text-brand-secondary">{currentStage.label}</p>
                           )}
+                          {!isComplete && currentStage.description && (() => {
+                            const stageKey = `${ladder.id}-${currentStageIdx}`;
+                            return (
+                              <div className="mt-1">
+                                <button
+                                  onClick={e => { e.stopPropagation(); setExpandedDesc(expandedDesc === stageKey ? null : stageKey); }}
+                                  className="text-xs text-brand-secondary hover:text-brand-ink transition-colors"
+                                >
+                                  {expandedDesc === stageKey ? '▲ hide' : 'ℹ what you\'ll learn'}
+                                </button>
+                                {expandedDesc === stageKey && (
+                                  <p className="mt-1 text-xs text-brand-secondary leading-relaxed border-l-2 border-brand-line pl-2">
+                                    {currentStage.description}
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })()}
                           {!isComplete && !mixedLocked && (
                             <button
                               onClick={() => handlePlanStart(ladder.id)}
