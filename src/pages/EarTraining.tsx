@@ -37,6 +37,7 @@ import { RhythmRound, RhythmSettings, RhythmDuration, generateRhythmRound } from
 import { RhythmTrainer } from '../components/RhythmTrainer';
 import { MelodyRound, MelodySettings, generateMelodyRound } from '../lib/melodyTraining';
 import { MelodyTrainer } from '../components/MelodyTrainer';
+import { CountItTrainer } from '../components/CountItTrainer';
 
 function RhythmRoundLoader({ onLoad }: { onLoad: () => void }) {
   useEffect(() => { onLoad(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1521,9 +1522,16 @@ export function EarTraining() {
               <RhythmRoundLoader onLoad={() => advanceRound()} />
             )
           ) : settings.mode === 'count' ? (
-            <div className="rounded-lg border border-brand-line bg-brand-surface p-6 text-center text-brand-secondary text-sm">
-              Count It — coming soon
-            </div>
+            round.kind === 'rhythm' ? (
+              <CountItTrainer
+                round={round as RhythmRound}
+                score={score}
+                settings={rhythmSettings}
+                onComplete={handleCountComplete}
+              />
+            ) : (
+              <RhythmRoundLoader onLoad={() => advanceRound()} />
+            )
           ) : (
             <div className="rounded-lg border border-brand-line bg-brand-surface p-6 space-y-6">
               {/* Replay button — also serves as the first user gesture to unlock audio */}
