@@ -25,6 +25,7 @@ export function RhythmTrainer({ round, score, settings, onComplete }: RhythmTrai
   const [isRest, setIsRest] = useState(false);
   const [feedback, setFeedback] = useState<('correct' | 'wrong' | null)[] | null>(null);
   const [attempts, setAttempts] = useState(0);
+  const [showHelp, setShowHelp] = useState(false);
 
   const totalBeats = beatsPerMeasure(round.timeSignature) * round.measures;
   const usedBeats = placedUnits.reduce((s, u) => s + durationBeats(u.duration), 0);
@@ -102,12 +103,12 @@ export function RhythmTrainer({ round, score, settings, onComplete }: RhythmTrai
   }, [placedUnits, round]);
 
   // Pre-compute count labels — one segment per attack plus dimmed markers for sustained beats
-  const countLabels: { label: string; isRest: boolean; widthPct: number; isAttack: boolean }[] = (() => {
+  const countLabels: { label: string; isRest: boolean; widthPct: number; isAttack: boolean; beatIndex: number }[] = (() => {
     if (!round.units) return [];
     const tb = beatsPerMeasure(round.timeSignature) * round.measures;
     // In 6/8, beats are every 0.5 quarter-notes; in simple time, every 1.0
     const beatStep = round.timeSignature === '6/8' ? 0.5 : 1.0;
-    const result: { label: string; isRest: boolean; widthPct: number; isAttack: boolean }[] = [];
+    const result: { label: string; isRest: boolean; widthPct: number; isAttack: boolean; beatIndex: number }[] = [];
     let cursor = 0;
     for (const unit of round.units) {
       const duration = durationBeats(unit.duration);
@@ -116,7 +117,7 @@ export function RhythmTrainer({ round, score, settings, onComplete }: RhythmTrai
       // First integer (or half-beat for 6/8) boundary strictly after the attack
       const nextBeat = (Math.floor(cursor / beatStep + 0.001) + 1) * beatStep;
       const seg1End = Math.min(noteEnd, nextBeat);
-      result.push({ label, isRest: unit.isRest, widthPct: (seg1End - cursor) / tb * 100, isAttack: true });
+      result.push({ label, isRest: unit.isRest, widthPct: (seg1End - cursor) / tb * 100, isAttack: true, beatIndex: Math.floor(cursor) });
       // Dimmed markers for each beat the note sustains through without attacking
       for (let beat = nextBeat; beat < noteEnd - 0.001; beat += beatStep) {
         const segEnd = Math.min(beat + beatStep, noteEnd);
@@ -125,6 +126,7 @@ export function RhythmTrainer({ round, score, settings, onComplete }: RhythmTrai
           isRest: unit.isRest,
           widthPct: (segEnd - beat) / tb * 100,
           isAttack: false,
+          beatIndex: Math.floor(beat),
         });
       }
       cursor += duration;
@@ -160,6 +162,7 @@ export function RhythmTrainer({ round, score, settings, onComplete }: RhythmTrai
                   className={cn(
                     'text-center text-[11px] leading-none py-0.5',
                     cl.isAttack ? 'text-brand-secondary' : 'text-brand-line italic',
+                    cl.beatIndex % 2 === 0 ? 'bg-brand-primary/10' : 'bg-transparent',
                   )}
                 >
                   {cl.isAttack
@@ -171,6 +174,45 @@ export function RhythmTrainer({ round, score, settings, onComplete }: RhythmTrai
           )}
         </div>
       </div>
+
+      {/* Counting guide toggle */}
+      {settings.showCount && (
+        <div className="flex justify-end -mt-2">
+          <button
+            onClick={() => setShowHelp(h => !h)}
+            className="text-[11px] text-brand-line hover:text-brand-secondary transition-colors select-none"
+          >
+            {showHelp ? '▲ Hide guide' : 'ℹ Counting guide'}
+          </button>
+        </div>
+      )}
+
+      {/* Counting guide panel */}
+      {showHelp && settings.showCount && (
+        <div className="rounded-lg bg-brand-bg border border-brand-line p-3 text-xs space-y-2.5">
+          <p className="font-semibold text-brand-ink">How rhythm counting works</p>
+          <p className="text-brand-secondary">Each beat divides into four 16th-note slots, spoken as <span className="font-mono text-brand-ink">"1 – e – and – a"</span>:</p>
+          <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 font-mono">
+            <span className="text-brand-ink">1  2  3  4</span><span className="text-brand-secondary font-sans">downbeat — quarter note positions</span>
+            <span className="text-brand-ink">1+ 2+ 3+</span><span className="text-brand-secondary font-sans">"and" — halfway through each beat (8th or 16th)</span>
+            <span className="text-brand-ink">1e 2e 3e</span><span className="text-brand-secondary font-sans">"e" — 1st 16th after the beat (16th notes only)</span>
+            <span className="text-brand-ink">1a 2a 3a</span><span className="text-brand-secondary font-sans">"a" — 3rd 16th after the beat (16th notes only)</span>
+          </div>
+          <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+            <span className="font-mono text-brand-secondary">3</span><span className="text-brand-secondary">note attacks on beat 3</span>
+            <span className="font-mono text-brand-line italic">(3)</span><span className="text-brand-secondary">beat 3 is sustained — a held note passes through it</span>
+            <span className="font-mono text-brand-secondary">[3]</span><span className="text-brand-secondary">rest on beat 3</span>
+          </div>
+          <p className="text-brand-secondary border-t border-brand-line pt-2">
+            <span className="font-medium text-brand-ink">Downbeat</span> = beat 1, the strongest beat (conductor's baton moves <em>down</em>).{' '}
+            <span className="font-medium text-brand-ink">Upbeat</span> = the "ands" (+) between beats, or beat 4 leading back to beat 1 (baton moves <em>up</em>).
+            Tap your foot: floor = downbeat · lift = upbeat.
+          </p>
+          <p className="text-brand-secondary">
+            <span className="font-medium text-brand-ink">Beat shading:</span> alternating tinted bands show which subdivisions belong to the same beat — all of "3 3+ 3a" share one band.
+          </p>
+        </div>
+      )}
 
       {/* Remaining beat indicator */}
       {!feedback && (
