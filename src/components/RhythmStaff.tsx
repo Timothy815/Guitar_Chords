@@ -13,7 +13,7 @@ const STAFF_H = 110;
 export const CLEF_EXTRA = 70;
 export const MIN_MEASURE_W = 200;
 const PX_PER_NOTE = 58; // minimum pixels per note/rest for VexFlow
-const RIGHT_PAD = 16;   // VexFlow's closing barline overflows the stave right edge
+const RIGHT_PAD = 32;   // Reserved after last stave for closing barline + note overflow
 
 // Compute the minimum staff pixel width needed to render all notes without crowding.
 // Uses note density per measure so complex rounds trigger horizontal scroll.
@@ -108,7 +108,9 @@ export function RhythmStaff({ round, placedUnits, feedback, onSwap }: RhythmStaf
     const ctx = renderer.getContext();
 
     const bpb = beatsPerMeasure(round.timeSignature);
-    const perMeasureW = (W - CLEF_EXTRA) / round.measures;
+    // Exclude RIGHT_PAD from the stave layout so the closing barline lands at
+    // W - RIGHT_PAD and has room to render without being clipped by the SVG.
+    const perMeasureW = (W - CLEF_EXTRA - RIGHT_PAD) / round.measures;
 
     const tsStr = round.timeSignature;
 
