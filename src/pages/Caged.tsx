@@ -47,7 +47,31 @@ const CAGED_MIN7_BASE_SHAPES: CagedShapeDef[] = [
   { id: 'Cm7',  baseRoot: 'C', name: 'Cm7 Shape',  relFrets: [-1, 3, 5, 3, 4, 3],   description: 'Cm7 barre shape with root on A (5th) string. The minor 7th on the G string distinguishes it from the Cm shape. A full barre at the root fret.' },
 ];
 
-type ChordQuality = 'major' | 'minor' | 'dom7' | 'maj7' | 'min7';
+const CAGED_SUS2_BASE_SHAPES: CagedShapeDef[] = [
+  { id: 'Esus2', baseRoot: 'E', name: 'Esus2 Shape', relFrets: [0, 2, 4, 4, 0, 0],   description: 'Open Esus2 with root on low E (6th) string. The 2nd (F#) on the D and G strings replaces the 3rd, giving a wide-open, floating sound. Barre the bottom two and top two strings.' },
+  { id: 'Asus2', baseRoot: 'A', name: 'Asus2 Shape', relFrets: [-1, 0, 2, 2, 0, 0],  description: 'Open Asus2 with root on A (5th) string. One of the most common open sus2 voicings — just lift the finger from the B string of the A major shape. Instantly recognizable in pop and indie.' },
+  { id: 'Dsus2', baseRoot: 'D', name: 'Dsus2 Shape', relFrets: [-1, -1, 0, 2, 3, 0], description: 'Open Dsus2 with root on D (4th) string. The open high-e adds the 2nd (E) while omitting the 3rd. A very common open chord in pop songwriting.' },
+  { id: 'Gsus2', baseRoot: 'G', name: 'Gsus2 Shape', relFrets: [3, 0, 0, 0, 3, 3],   description: 'Open Gsus2 with root on low E (6th) string. The open A, D, and G strings provide the 2nd (A) and 5th (D). A lush, resonant voicing that works beautifully as an open chord.' },
+  { id: 'Csus2', baseRoot: 'C', name: 'Csus2 Shape', relFrets: [-1, 3, 5, 5, 3, 3],  description: 'Csus2 barre shape with root on A (5th) string. A fully fretted moveable shape — barre the A, B, and e strings at the root fret, then add the 5th and 2nd on the middle strings.' },
+];
+
+const CAGED_SUS4_BASE_SHAPES: CagedShapeDef[] = [
+  { id: 'Esus4', baseRoot: 'E', name: 'Esus4 Shape', relFrets: [0, 2, 2, 2, 0, 0],   description: 'Open Esus4 with root on low E (6th) string. The 4th (A) appears on the G string, replacing the major 3rd. This voicing generates classic tension-and-release leading back to E major.' },
+  { id: 'Asus4', baseRoot: 'A', name: 'Asus4 Shape', relFrets: [-1, 0, 2, 2, 3, 0],  description: 'Open Asus4 with root on A (5th) string. Lifting the third finger from A major gives Asus2; adding the 4th (D) on the B string gives this classic rock and country staple.' },
+  { id: 'Dsus4', baseRoot: 'D', name: 'Dsus4 Shape', relFrets: [-1, -1, 0, 2, 3, 3], description: 'Open Dsus4 with root on D (4th) string. The 4th (G) on the high-e string adds the characteristic sus tension. One of the first chord variations most guitarists learn.' },
+  { id: 'Gsus4', baseRoot: 'G', name: 'Gsus4 Shape', relFrets: [3, 3, 0, 0, 1, 3],   description: 'Open Gsus4 with root on low E (6th) string. The 4th (C) appears on the A and B strings. A distinctive shape with wide reach — often played as a partial chord using only the top four strings.' },
+  { id: 'Csus4', baseRoot: 'C', name: 'Csus4 Shape', relFrets: [-1, 3, 3, 0, 1, 1],  description: 'Open Csus4 with root on A (5th) string. The 4th (F) on the D and e strings creates the suspended quality. Resolves naturally to the C major shape when you lift a finger.' },
+];
+
+const CAGED_SIX_BASE_SHAPES: CagedShapeDef[] = [
+  { id: 'E6',  baseRoot: 'E', name: 'E6 Shape',  relFrets: [0, 2, 2, 1, 2, 0],   description: 'Open E6 with root on low E (6th) string. The 6th (C#) on the B string gives this a bright, jazz-inflected sound. Common in jazz, blues, and vintage country.' },
+  { id: 'A6',  baseRoot: 'A', name: 'A6 Shape',  relFrets: [-1, 0, 2, 2, 2, 2],  description: 'Open A6 with root on A (5th) string. All four inner strings fretted at the 2nd fret (relative to root) — a symmetrical and easy-to-remember shape. Warm and jazzy.' },
+  { id: 'D6',  baseRoot: 'D', name: 'D6 Shape',  relFrets: [-1, -1, 0, 2, 0, 2], description: 'Open D6 with root on D (4th) string. The open B string (6th of D = B) sits between two fretted strings, creating a characteristic intervallic ring. Great for pedal-steel flavoured playing.' },
+  { id: 'G6',  baseRoot: 'G', name: 'G6 Shape',  relFrets: [3, 2, 0, 0, 0, 0],   description: 'Open G6 with root on low E (6th) string. All four top strings open, with the 3rd (B) on the A string and root on the E string. One of the most open-voiced 6th chord shapes.' },
+  { id: 'C6',  baseRoot: 'C', name: 'C6 Shape',  relFrets: [-1, 3, 2, 2, 1, 0],  description: 'Open C6 with root on A (5th) string. The 6th (A) on the G string distinguishes it from the C major shape. A jazz staple often used in swing and bossa nova comping.' },
+];
+
+type ChordQuality = 'major' | 'minor' | 'dom7' | 'maj7' | 'min7' | 'sus2' | 'sus4' | '6';
 
 const SHAPES_BY_QUALITY: Record<ChordQuality, CagedShapeDef[]> = {
   major: CAGED_BASE_SHAPES,
@@ -55,10 +79,14 @@ const SHAPES_BY_QUALITY: Record<ChordQuality, CagedShapeDef[]> = {
   dom7:  CAGED_DOM7_BASE_SHAPES,
   maj7:  CAGED_MAJ7_BASE_SHAPES,
   min7:  CAGED_MIN7_BASE_SHAPES,
+  sus2:  CAGED_SUS2_BASE_SHAPES,
+  sus4:  CAGED_SUS4_BASE_SHAPES,
+  '6':   CAGED_SIX_BASE_SHAPES,
 };
 
 const DEFAULT_SHAPE_ID: Record<ChordQuality, string> = {
   major: 'C', minor: 'Em', dom7: 'E7', maj7: 'Emaj7', min7: 'Em7',
+  sus2: 'Esus2', sus4: 'Esus4', '6': 'E6',
 };
 
 function chordQualityStr(root: Note, q: ChordQuality): string {
@@ -66,6 +94,9 @@ function chordQualityStr(root: Note, q: ChordQuality): string {
   if (q === 'minor') return `${root} minor`;
   if (q === 'dom7')  return `${root}7`;
   if (q === 'maj7')  return `${root}maj7`;
+  if (q === 'sus2')  return `${root}sus2`;
+  if (q === 'sus4')  return `${root}sus4`;
+  if (q === '6')     return `${root}6`;
   return `${root}m7`;
 }
 
@@ -88,6 +119,12 @@ const PRACTICE_SCENARIOS: { label: string; mode: 'byKey' | 'byShape'; key?: Note
   { label: 'Dom7 – A7 shape',           mode: 'byShape', shapeId: 'A7',    shift: 2,  quality: 'dom7' },
   { label: 'Maj7 chords in C',          mode: 'byKey',   key: 'C',                    quality: 'maj7' },
   { label: 'Min7 chords in Am',         mode: 'byKey',   key: 'A',                    quality: 'min7' },
+  { label: 'Sus2 – Esus2 shape',        mode: 'byShape', shapeId: 'Esus2', shift: 2,  quality: 'sus2' },
+  { label: 'Sus2 – Asus2 shape',        mode: 'byShape', shapeId: 'Asus2', shift: 2,  quality: 'sus2' },
+  { label: 'Sus4 – Esus4 shape',        mode: 'byShape', shapeId: 'Esus4', shift: 2,  quality: 'sus4' },
+  { label: 'Sus4 – Dsus4 shape',        mode: 'byShape', shapeId: 'Dsus4', shift: 2,  quality: 'sus4' },
+  { label: '6th chords in G',           mode: 'byKey',   key: 'G',                    quality: '6' },
+  { label: '6th chords in E',           mode: 'byKey',   key: 'E',                    quality: '6' },
 ];
 
 const SEQ_DUR_MULT: Record<string, number> = { '16n': 0.25, '8n': 0.5, '4n': 1, '2n': 2, '1n': 4 };
@@ -277,18 +314,21 @@ export function Caged() {
           </button>
         </div>
 
-        <div className="flex bg-brand-surface rounded-lg p-1 border border-brand-line shadow-sm flex-wrap">
+        <div className="flex bg-brand-surface rounded-lg p-1 border border-brand-line shadow-sm flex-wrap gap-y-1">
           {([
             { q: 'major', label: 'Major',  color: 'bg-brand-primary' },
             { q: 'minor', label: 'minor',  color: 'bg-indigo-600' },
             { q: 'dom7',  label: 'dom 7',  color: 'bg-amber-600' },
             { q: 'maj7',  label: 'maj 7',  color: 'bg-teal-600' },
             { q: 'min7',  label: 'min 7',  color: 'bg-purple-600' },
+            { q: 'sus2',  label: 'sus2',   color: 'bg-sky-600' },
+            { q: 'sus4',  label: 'sus4',   color: 'bg-orange-600' },
+            { q: '6',     label: '6th',    color: 'bg-emerald-600' },
           ] as { q: ChordQuality; label: string; color: string }[]).map(({ q, label, color }) => (
             <button
               key={q}
               onClick={() => setQuality(q)}
-              className={`px-4 py-2 rounded-md font-bold text-sm transition-all duration-200 ${quality === q ? `${color} text-white shadow-md` : 'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar'}`}
+              className={`px-3 py-2 rounded-md font-bold text-sm transition-all duration-200 ${quality === q ? `${color} text-white shadow-md` : 'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar'}`}
             >
               {label}
             </button>
