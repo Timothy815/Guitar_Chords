@@ -1150,7 +1150,7 @@ export function EarTraining() {
                   Plan · {ladder.label} · {ladder.stages[stageIdx].label}
                 </span>
                 <button
-                  onClick={() => { setPlanPracticing(false); setActiveLadder(null); }}
+                  onClick={handlePlanMode}
                   className="text-xs text-brand-secondary hover:text-brand-primary transition-colors"
                 >
                   ← Back to Plan
