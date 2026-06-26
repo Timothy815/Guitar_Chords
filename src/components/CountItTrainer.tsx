@@ -87,6 +87,222 @@ function generateErrors(
   return messages;
 }
 
+// ── Tap timing analytics ─────────────────────────────────────────────────────
+
+const HIST_BINS  = 40;
+const HIST_MS    = 10;
+const HIST_START = -200; // ms, left edge of first bin
+
+function buildBins(offsets: number[]): number[] {
+  const counts = new Array(HIST_BINS).fill(0);
+  for (const ms of offsets) {
+    const clamped = Math.max(HIST_START, Math.min(HIST_START + HIST_BINS * HIST_MS - 1, ms));
+    const idx = Math.floor((clamped - HIST_START) / HIST_MS);
+    if (idx >= 0 && idx < HIST_BINS) counts[idx]++;
+  }
+  return counts;
+}
+
+function TapHistogram({ offsets }: { offsets: number[] }) {
+  const bins     = buildBins(offsets);
+  const maxCount = Math.max(...bins, 1);
+
+  const W = 300, H = 118;
+  const mL = 24, mR = 8, mT = 8, mB = 26;
+  const pW = W - mL - mR; // 268
+  const pH = H - mT - mB; // 84
+  const barW = pW / HIST_BINS;
+
+  const msToX = (ms: number) => mL + (ms - HIST_START) / (HIST_BINS * HIST_MS) * pW;
+
+  return (
+    <svg width="100%" viewBox={`0 0 ${W} ${H}`} className="overflow-visible">
+      {/* Subtle zone shading */}
+      {([[-30, 30, '#22c55e'], [-80, -30, '#f59e0b'], [30, 80, '#f59e0b'],
+         [-200, -80, '#ef4444'], [80, 200, '#ef4444']] as [number,number,string][])
+        .map(([lo, hi, fill]) => (
+          <rect key={`${lo}`} x={msToX(lo)} y={mT} width={msToX(hi) - msToX(lo)} height={pH} fill={fill} opacity={0.07} />
+        ))}
+
+      {/* Bars */}
+      {bins.map((count, i) => {
+        const centerMs = HIST_START + (i + 0.5) * HIST_MS;
+        const abs = Math.abs(centerMs);
+        const fill = abs <= 30 ? '#22c55e' : abs <= 80 ? '#f59e0b' : '#ef4444';
+        const bH = (count / maxCount) * pH;
+        return <rect key={i} x={mL + i * barW + 0.5} y={mT + pH - bH} width={Math.max(0, barW - 1)} height={bH} fill={fill} opacity={0.85} />;
+      })}
+
+      {/* Baseline */}
+      <line x1={mL} y1={mT + pH} x2={mL + pW} y2={mT + pH} stroke="currentColor" strokeWidth={1} opacity={0.2} />
+
+      {/* Benchmark dashes at ±20, ±40, ±80 */}
+      {[20, 40, 80].flatMap(ms => [
+        <line key={`+${ms}`} x1={msToX(ms)}  y1={mT} x2={msToX(ms)}  y2={mT + pH} stroke="#94a3b8" strokeWidth={0.8} strokeDasharray="2 3" />,
+        <line key={`-${ms}`} x1={msToX(-ms)} y1={mT} x2={msToX(-ms)} y2={mT + pH} stroke="#94a3b8" strokeWidth={0.8} strokeDasharray="2 3" />,
+      ])}
+
+      {/* Center line */}
+      <line x1={msToX(0)} y1={mT} x2={msToX(0)} y2={mT + pH} stroke="#64748b" strokeWidth={1.5} strokeDasharray="3 2" />
+
+      {/* x-axis labels */}
+      {[-200, -100, 0, 100, 200].map(ms => (
+        <text key={ms} x={msToX(ms)} y={H - 12} textAnchor="middle" fontSize={8} fill="#94a3b8">
+          {ms > 0 ? `+${ms}` : `${ms}`}
+        </text>
+      ))}
+      <text x={mL + pW / 2} y={H - 2} textAnchor="middle" fontSize={7} fill="#94a3b8">ms from beat</text>
+
+      {/* Early / Late labels */}
+      <text x={msToX(-130)} y={mT + 7} textAnchor="middle" fontSize={7} fill="#94a3b8">← early</text>
+      <text x={msToX( 130)} y={mT + 7} textAnchor="middle" fontSize={7} fill="#94a3b8">late →</text>
+    </svg>
+  );
+}
+
+function TapTrend({ offsets }: { offsets: number[] }) {
+  if (offsets.length < 8) return null;
+  const win = Math.max(3, Math.round(offsets.length / 8));
+  const pts: { x: number; y: number }[] = [];
+  for (let i = 0; i + win <= offsets.length; i += Math.max(1, Math.floor(win / 2))) {
+    const slice = offsets.slice(i, i + win);
+    pts.push({ x: i + win / 2, y: slice.reduce((s, v) => s + Math.abs(v), 0) / slice.length });
+  }
+  if (pts.length < 2) return null;
+
+  const W = 300, H = 88;
+  const mL = 28, mR = 8, mT = 8, mB = 22;
+  const pW = W - mL - mR; // 264
+  const pH = H - mT - mB; // 58
+
+  const maxY = Math.max(...pts.map(p => p.y), 100);
+  const n    = offsets.length;
+  const ptX  = (x: number) => mL + (x / n) * pW;
+  const ptY  = (y: number) => mT + pH - (y / maxY) * pH;
+
+  const poly = pts.map(p => `${ptX(p.x).toFixed(1)},${ptY(p.y).toFixed(1)}`).join(' ');
+  const refs = [20, 40, 80].filter(ms => ms <= maxY * 1.1);
+
+  return (
+    <svg width="100%" viewBox={`0 0 ${W} ${H}`}>
+      {refs.map(ms => (
+        <g key={ms}>
+          <line x1={mL} y1={ptY(ms)} x2={mL + pW} y2={ptY(ms)} stroke="#94a3b8" strokeWidth={0.8} strokeDasharray="2 3" />
+          <text x={mL - 3} y={ptY(ms) + 3} textAnchor="end" fontSize={7} fill="#94a3b8">{ms}</text>
+        </g>
+      ))}
+      <line x1={mL} y1={mT + pH} x2={mL + pW} y2={mT + pH} stroke="currentColor" strokeWidth={1} opacity={0.2} />
+      <polyline points={poly} fill="none" stroke="#6366f1" strokeWidth={2} strokeLinejoin="round" />
+      {pts.map((p, i) => <circle key={i} cx={ptX(p.x)} cy={ptY(p.y)} r={2.5} fill="#6366f1" />)}
+      <text x={mL}      y={H - 5} textAnchor="start"  fontSize={7} fill="#94a3b8">start</text>
+      <text x={mL + pW} y={H - 5} textAnchor="end"    fontSize={7} fill="#94a3b8">end</text>
+      <text x={mL + pW / 2} y={H - 5} textAnchor="middle" fontSize={7} fill="#94a3b8">rolling avg |error| ms</text>
+    </svg>
+  );
+}
+
+function SessionStatsModal({
+  offsets,
+  onClose,
+  onNewSession,
+}: {
+  offsets: number[];
+  onClose: () => void;
+  onNewSession: () => void;
+}) {
+  const n = offsets.length;
+  if (n === 0) return null;
+
+  const meanOffset  = Math.round(offsets.reduce((a, b) => a + b, 0) / n);
+  const meanAbs     = Math.round(offsets.reduce((a, b) => a + Math.abs(b), 0) / n);
+  const pctPerfect  = Math.round(100 * offsets.filter(x => Math.abs(x) < 30).length / n);
+  const biasLabel   = Math.abs(meanOffset) >= 15
+    ? `${Math.abs(meanOffset)}ms ${meanOffset > 0 ? 'late' : 'early'} bias`
+    : 'no significant bias';
+  const benchmarkLabel =
+    meanAbs < 20 ? 'Studio-level' :
+    meanAbs < 40 ? 'Skilled player' :
+    meanAbs < 80 ? 'Solid feel' : 'Keep practicing';
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onClick={onClose}>
+      <div
+        className="bg-brand-surface border border-brand-line rounded-2xl shadow-2xl w-full max-w-sm max-h-[90vh] flex flex-col"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-brand-line shrink-0">
+          <div>
+            <h2 className="text-sm font-semibold text-brand-ink">Tap Session</h2>
+            <p className="text-[11px] text-brand-secondary mt-0.5">{benchmarkLabel} · {biasLabel}</p>
+          </div>
+          <button onClick={onClose} className="text-brand-secondary hover:text-brand-ink text-lg leading-none px-1">✕</button>
+        </div>
+
+        {/* Scrollable content */}
+        <div className="overflow-y-auto p-4 space-y-5 flex-1">
+          {/* Summary pills */}
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { label: 'Taps', value: `${n}` },
+              { label: 'Avg error', value: `±${meanAbs}ms` },
+              { label: '≤30ms', value: `${pctPerfect}%` },
+            ].map(({ label, value }) => (
+              <div key={label} className="rounded-lg bg-brand-bg border border-brand-line p-2.5 text-center">
+                <div className="text-lg font-bold text-brand-ink leading-none">{value}</div>
+                <div className="text-[10px] text-brand-secondary mt-1">{label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Histogram */}
+          <div>
+            <p className="text-[11px] font-medium text-brand-secondary mb-1.5">Timing distribution</p>
+            <TapHistogram offsets={offsets} />
+          </div>
+
+          {/* Trend line */}
+          {n >= 8 && (
+            <div>
+              <p className="text-[11px] font-medium text-brand-secondary mb-1.5">Error trend this session</p>
+              <TapTrend offsets={offsets} />
+            </div>
+          )}
+
+          {/* Human context */}
+          <div className="rounded-lg bg-brand-bg border border-brand-line p-3 text-xs space-y-1.5">
+            <p className="font-semibold text-brand-ink">Human benchmarks</p>
+            <div className="space-y-1 text-brand-secondary">
+              <p><span className="text-green-600 font-medium">±20ms</span> — studio-ready precision</p>
+              <p><span className="text-amber-500 font-medium">±40ms</span> — trained player</p>
+              <p><span className="text-red-500 font-medium">±80ms</span> — solid musical feel</p>
+            </div>
+            <p className="text-brand-line text-[10px] pt-0.5">Human motor jitter floor ≈ 10–15ms. Nobody hits 0.</p>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="px-4 pb-4 pt-3 border-t border-brand-line flex gap-2 justify-end shrink-0">
+          <button
+            onClick={onClose}
+            className="px-3 py-1.5 text-xs rounded-lg border border-brand-line text-brand-secondary hover:border-brand-primary/60 transition-colors"
+          >
+            Close
+          </button>
+          <button
+            onClick={onNewSession}
+            className="px-3 py-1.5 text-xs rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90 transition-colors"
+          >
+            New Session
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export function CountItTrainer({ round, score, settings, onComplete }: CountItTrainerProps) {
   const step       = getAdaptiveStep(settings.enabledDurations);
   const totalBeats = beatsPerMeasure(round.timeSignature) * round.measures;
@@ -119,7 +335,9 @@ export function CountItTrainer({ round, score, settings, onComplete }: CountItTr
   const [tapMode,        setTapMode]        = useState(false);
 
   // Tap trainer
-  const [lastTapResult, setLastTapResult] = useState<TapResult | null>(null);
+  const [lastTapResult,   setLastTapResult]   = useState<TapResult | null>(null);
+  const [sessionOffsets,  setSessionOffsets]  = useState<number[]>([]);
+  const [showSessionStats, setShowSessionStats] = useState(false);
 
   // Refs
   const loopTimeoutRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -267,6 +485,7 @@ export function CountItTrainer({ round, score, settings, onComplete }: CountItTr
       offsetMs > 0 ? 'late'   : 'early';
 
     setLastTapResult({ label: nearest.label, offsetMs, quality });
+    setSessionOffsets(prev => [...prev, offsetMs]);
   }, []);
 
   // Spacebar fires tap when tap mode is active
@@ -459,7 +678,31 @@ export function CountItTrainer({ round, score, settings, onComplete }: CountItTr
               {tapLabel(lastTapResult)}
             </p>
           )}
+          {sessionOffsets.length > 0 && (
+            <div className="flex justify-center gap-2 pt-1">
+              <button
+                onClick={() => setShowSessionStats(true)}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium border border-indigo-400 text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
+              >
+                📊 End Session ({sessionOffsets.length} taps)
+              </button>
+              <button
+                onClick={() => setSessionOffsets([])}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium border border-brand-line text-brand-secondary hover:border-brand-primary/60 transition-colors"
+              >
+                Reset
+              </button>
+            </div>
+          )}
         </div>
+      )}
+
+      {showSessionStats && (
+        <SessionStatsModal
+          offsets={sessionOffsets}
+          onClose={() => setShowSessionStats(false)}
+          onNewSession={() => { setSessionOffsets([]); setShowSessionStats(false); }}
+        />
       )}
 
       {/* Label toolbar — visible when slots are selected */}
