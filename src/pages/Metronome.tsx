@@ -128,7 +128,7 @@ export function Metronome() {
           max={240}
           value={bpm}
           onChange={e => handleBpmChange(Number(e.target.value))}
-          className="w-full accent-[var(--color-brand-primary,#7c3aed)]"
+          className="w-full accent-[var(--color-brand-primary)]"
         />
         <div className="flex justify-between text-xs text-brand-secondary font-mono">
           <span>40</span><span>♩=120</span><span>240</span>
