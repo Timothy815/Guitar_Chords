@@ -122,27 +122,34 @@ export function CountItTrainer({ round, score, settings, onComplete }: CountItTr
   const [lastTapResult, setLastTapResult] = useState<TapResult | null>(null);
 
   // Refs
-  const loopTimeoutRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const nSlotTargetsRef    = useRef<{ label: string; wallTimeMs: number }[]>([]);
-  const handlePlayRef      = useRef<((skipLeadIn?: boolean) => void) | null>(null);
-  const isFirstToggleMount = useRef(true);
+  const loopTimeoutRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const nSlotTargetsRef = useRef<{ label: string; wallTimeMs: number }[]>([]);
+  const handlePlayRef   = useRef<((skipLeadIn?: boolean) => void) | null>(null);
+  // Incremented on each handlePlay call; .then() callbacks check this before
+  // calling playRhythmRound so stale calls (from a rapid double-trigger) bail out
+  const playGenRef      = useRef(0);
   // Mirror state into refs so the loop timeout callback reads live values
-  const loopModeRef        = useRef(loopMode);
-  const tapModeRef         = useRef(tapMode);
+  const loopModeRef     = useRef(loopMode);
+  const tapModeRef      = useRef(tapMode);
+  // Track previous values to distinguish turn-on from turn-off
+  const prevLoopRef     = useRef(false);
+  const prevTapRef      = useRef(false);
+  // Becomes true after the initial round-effect fires; guards toggle effects
+  const isMountedRef    = useRef(false);
+
   useEffect(() => { loopModeRef.current = loopMode; }, [loopMode]);
   useEffect(() => { tapModeRef.current  = tapMode;  }, [tapMode]);
 
   const handlePlay = useCallback((skipLeadIn = false) => {
-    // Stop old audio synchronously before anything async happens
     stopRhythm();
     if (loopTimeoutRef.current) { clearTimeout(loopTimeoutRef.current); loopTimeoutRef.current = null; }
     setActiveUnitIdx(null);
 
+    const gen             = ++playGenRef.current;
     const useLeadIn       = !skipLeadIn && settings.enableLeadIn;
     const leadInBeats     = useLeadIn ? bpb : 0;
     const totalDurationMs = (leadInBeats + totalBeats) * spb * 1000;
 
-    // Compute tap target times for every N-slot
     if (tapMode) {
       const patternStartMs = performance.now() + leadInBeats * spb * 1000;
       nSlotTargetsRef.current = slots
@@ -158,13 +165,14 @@ export function CountItTrainer({ round, score, settings, onComplete }: CountItTr
       : undefined;
 
     initAudio()
-      .then(() => playRhythmRound(round, useLeadIn, setActiveUnitIdx, countSlotsArg))
+      .then(() => {
+        if (playGenRef.current !== gen) return; // superseded by a newer handlePlay call
+        playRhythmRound(round, useLeadIn, setActiveUnitIdx, countSlotsArg);
+      })
       .catch(() => {});
 
     if (loopMode || tapMode) {
       loopTimeoutRef.current = setTimeout(() => {
-        // Check live refs — user may have toggled off between when this was
-        // scheduled and when it fires, and the React effect may not have run yet
         if (loopModeRef.current || tapModeRef.current) {
           handlePlayRef.current?.(true);
         } else {
@@ -193,12 +201,37 @@ export function CountItTrainer({ round, score, settings, onComplete }: CountItTr
     };
   }, [round]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Restart when any toggle changes (skip first mount to avoid double-play with the round effect)
+  // Loop / tap mode changes
+  // Turn ON → restart immediately to apply settings and begin looping
+  // Turn OFF (and other mode also off) → soft stop: cancel the pending loop restart,
+  //   the current play runs to its natural end then silence
+  // Turn OFF (other mode still on) → do nothing, loop continues via timeout + refs
   useEffect(() => {
-    if (isFirstToggleMount.current) { isFirstToggleMount.current = false; return; }
+    if (!isMountedRef.current) return;
+    const loopTurnedOn = loopMode && !prevLoopRef.current;
+    const tapTurnedOn  = tapMode  && !prevTapRef.current;
+    prevLoopRef.current = loopMode;
+    prevTapRef.current  = tapMode;
+
+    if (loopTurnedOn || tapTurnedOn) {
+      if (loopTimeoutRef.current) { clearTimeout(loopTimeoutRef.current); loopTimeoutRef.current = null; }
+      handlePlayRef.current?.();
+    } else if (!loopMode && !tapMode) {
+      // Both modes now off — cancel any queued loop restart; current play finishes naturally
+      if (loopTimeoutRef.current) { clearTimeout(loopTimeoutRef.current); loopTimeoutRef.current = null; }
+    }
+  }, [loopMode, tapMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Count audio change: always restart (Transport events must be fully rescheduled)
+  useEffect(() => {
+    if (!isMountedRef.current) return;
     if (loopTimeoutRef.current) { clearTimeout(loopTimeoutRef.current); loopTimeoutRef.current = null; }
     handlePlayRef.current?.();
-  }, [loopMode, tapMode, countAlongMode]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [countAlongMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Mark mounted after the initial round-effect fires; this prevents the toggle
+  // effects above from double-playing on first render
+  useEffect(() => { isMountedRef.current = true; }, []);
 
   // Tap handler — only reads refs and stable setters, no stale closure risk
   const handleTap = useCallback(() => {
