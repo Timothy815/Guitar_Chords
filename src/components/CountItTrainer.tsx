@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useLayoutEffect, useState, useCallback, useRef } from 'react';
 import { cn } from '../lib/utils';
 import {
   RhythmRound, RhythmSettings, RhythmDuration,
@@ -46,6 +46,22 @@ export function CountItTrainer({ round, score, settings, onComplete }: CountItTr
   const [attempts, setAttempts] = useState(0);
   const [activeUnitIdx, setActiveUnitIdx] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  // Clamp floating picker so it stays within the visible scroll container
+  useLayoutEffect(() => {
+    if (pickerIdx === null || !pickerRef.current || !containerRef.current) return;
+    const picker = pickerRef.current;
+    const containerRect = containerRef.current.getBoundingClientRect();
+    const pickerRect = picker.getBoundingClientRect();
+    let dx = 0;
+    if (pickerRect.left < containerRect.left + 4) {
+      dx = containerRect.left + 4 - pickerRect.left;
+    } else if (pickerRect.right > containerRect.right - 4) {
+      dx = containerRect.right - 4 - pickerRect.right;
+    }
+    picker.style.transform = dx !== 0 ? `translateX(calc(-50% + ${dx}px))` : 'translateX(-50%)';
+  }, [pickerIdx]);
 
   const handlePlay = useCallback(() => {
     setActiveUnitIdx(null);
@@ -184,7 +200,11 @@ export function CountItTrainer({ round, score, settings, onComplete }: CountItTr
 
                   {/* Floating picker */}
                   {isPickerOpen && (
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 z-20 flex gap-1 bg-brand-surface border border-brand-line rounded-lg shadow-lg p-1">
+                    <div
+                      ref={pickerRef}
+                      style={{ left: '50%', transform: 'translateX(-50%)' }}
+                      className="absolute bottom-full mb-1 z-20 flex gap-1 bg-brand-surface border border-brand-line rounded-lg shadow-lg p-1"
+                    >
                       {(['N', 'R', 'H'] as SlotLabel[]).map(opt => (
                         <button
                           key={opt}
