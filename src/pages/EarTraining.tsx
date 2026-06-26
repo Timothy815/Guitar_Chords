@@ -192,6 +192,13 @@ export function EarTraining() {
       setRound(mr);
       roundStartTimeRef.current = Date.now();
       return;
+    } else if (effectiveMode === 'count') {
+      const rr = generateRhythmRound(difficulty, rhythmSettings);
+      setSelected(null);
+      setTentative(null);
+      setRound(rr);
+      roundStartTimeRef.current = Date.now();
+      return;
     } else if (effectiveMode === 'mixed') {
       r = Math.random() < 0.5
         ? generateChordRound(s.activeChordTypes)
@@ -292,6 +299,23 @@ export function EarTraining() {
         return;
       }
     }
+    setTimeout(() => advanceRound(), 400);
+  }
+
+  function handleCountMode() {
+    stopRhythm();
+    const next = { ...settings, mode: 'count' as const };
+    setSettings(next);
+    advanceRound(next);
+  }
+
+  function handleCountComplete(wasCorrect: boolean) {
+    setScore(s => ({
+      ...s,
+      correct: wasCorrect ? s.correct + 1 : s.correct,
+      total: s.total + 1,
+      streak: wasCorrect ? s.streak + 1 : 0,
+    }));
     setTimeout(() => advanceRound(), 400);
   }
 
@@ -688,6 +712,17 @@ export function EarTraining() {
         >
           Melody
         </button>
+        <button
+          onClick={handleCountMode}
+          className={cn(
+            'flex-1 py-2.5 text-sm font-medium transition-colors',
+            settings.mode === 'count'
+              ? 'bg-brand-primary text-white'
+              : 'text-brand-secondary hover:bg-brand-sidebar'
+          )}
+        >
+          Count It
+        </button>
       </div>
 
       {/* Settings panel */}
@@ -910,7 +945,7 @@ export function EarTraining() {
             )}
 
             {/* Rhythm settings — rhythm mode only */}
-            {settings.mode === 'rhythm' && (
+            {(settings.mode === 'rhythm' || settings.mode === 'count') && (
               <div className="pt-3 space-y-3 border-t border-brand-line">
                 <p className="text-xs font-semibold uppercase tracking-widest text-brand-secondary">Rhythm Settings</p>
 
@@ -1485,6 +1520,10 @@ export function EarTraining() {
             ) : (
               <RhythmRoundLoader onLoad={() => advanceRound()} />
             )
+          ) : settings.mode === 'count' ? (
+            <div className="rounded-lg border border-brand-line bg-brand-surface p-6 text-center text-brand-secondary text-sm">
+              Count It — coming soon
+            </div>
           ) : (
             <div className="rounded-lg border border-brand-line bg-brand-surface p-6 space-y-6">
               {/* Replay button — also serves as the first user gesture to unlock audio */}
