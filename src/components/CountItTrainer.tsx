@@ -126,22 +126,28 @@ export function CountItTrainer({ round, score, settings, onComplete }: CountItTr
   const nSlotTargetsRef    = useRef<{ label: string; wallTimeMs: number }[]>([]);
   const handlePlayRef      = useRef<((skipLeadIn?: boolean) => void) | null>(null);
   const isFirstToggleMount = useRef(true);
+  // Mirror state into refs so the loop timeout callback reads live values
+  const loopModeRef        = useRef(loopMode);
+  const tapModeRef         = useRef(tapMode);
+  useEffect(() => { loopModeRef.current = loopMode; }, [loopMode]);
+  useEffect(() => { tapModeRef.current  = tapMode;  }, [tapMode]);
 
   const handlePlay = useCallback((skipLeadIn = false) => {
+    // Stop old audio synchronously before anything async happens
+    stopRhythm();
     if (loopTimeoutRef.current) { clearTimeout(loopTimeoutRef.current); loopTimeoutRef.current = null; }
     setActiveUnitIdx(null);
 
-    const useLeadIn     = !skipLeadIn && settings.enableLeadIn;
-    const leadInBeats   = useLeadIn ? bpb : 0;
+    const useLeadIn       = !skipLeadIn && settings.enableLeadIn;
+    const leadInBeats     = useLeadIn ? bpb : 0;
     const totalDurationMs = (leadInBeats + totalBeats) * spb * 1000;
 
     // Compute tap target times for every N-slot
     if (tapMode) {
       const patternStartMs = performance.now() + leadInBeats * spb * 1000;
       nSlotTargetsRef.current = slots
-        .map((slot, i) => ({ slot, i }))
-        .filter(({ i }) => correctLabels[i] === 'N')
-        .map(({ slot }) => ({
+        .filter((_, i) => correctLabels[i] === 'N')
+        .map((slot) => ({
           label: `beat ${beatName(slot.label)}`,
           wallTimeMs: patternStartMs + slot.pos * spb * 1000,
         }));
@@ -157,12 +163,18 @@ export function CountItTrainer({ round, score, settings, onComplete }: CountItTr
 
     if (loopMode || tapMode) {
       loopTimeoutRef.current = setTimeout(() => {
-        handlePlayRef.current?.(true); // skip lead-in on subsequent loops
-      }, totalDurationMs + 150);
+        // Check live refs — user may have toggled off between when this was
+        // scheduled and when it fires, and the React effect may not have run yet
+        if (loopModeRef.current || tapModeRef.current) {
+          handlePlayRef.current?.(true);
+        } else {
+          loopTimeoutRef.current = null;
+        }
+      }, totalDurationMs + 200);
     }
   }, [round, settings.enableLeadIn, bpb, totalBeats, spb, slots, correctLabels, loopMode, tapMode, countAlongMode]);
 
-  // Keep ref current so loop timeout always calls latest version
+  // Keep ref current so the loop timeout always calls the latest version
   handlePlayRef.current = handlePlay;
 
   // Reset + auto-play on new round
@@ -173,18 +185,18 @@ export function CountItTrainer({ round, score, settings, onComplete }: CountItTr
     setAttempts(0);
     setActiveUnitIdx(null);
     setLastTapResult(null);
-    if (loopTimeoutRef.current) clearTimeout(loopTimeoutRef.current);
+    if (loopTimeoutRef.current) { clearTimeout(loopTimeoutRef.current); loopTimeoutRef.current = null; }
     handlePlayRef.current?.();
     return () => {
       stopRhythm();
-      if (loopTimeoutRef.current) clearTimeout(loopTimeoutRef.current);
+      if (loopTimeoutRef.current) { clearTimeout(loopTimeoutRef.current); loopTimeoutRef.current = null; }
     };
   }, [round]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Restart when any toggle changes (skip first mount to avoid double-play)
+  // Restart when any toggle changes (skip first mount to avoid double-play with the round effect)
   useEffect(() => {
     if (isFirstToggleMount.current) { isFirstToggleMount.current = false; return; }
-    if (loopTimeoutRef.current) clearTimeout(loopTimeoutRef.current);
+    if (loopTimeoutRef.current) { clearTimeout(loopTimeoutRef.current); loopTimeoutRef.current = null; }
     handlePlayRef.current?.();
   }, [loopMode, tapMode, countAlongMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
