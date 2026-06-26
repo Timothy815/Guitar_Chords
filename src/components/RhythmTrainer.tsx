@@ -62,6 +62,26 @@ export function RhythmTrainer({ round, score, settings, onComplete }: RhythmTrai
   function handleSubmit() {
     if (remainingBeats > 0.001 || feedback) return;
     setAttempts(a => a + 1);
+
+    // Compare rhythms at the 16th-note grid level so that e.g. a quarter rest
+    // and two eighth rests (identical silence) are treated as equivalent.
+    const toGrid = (units: RhythmUnit[]) =>
+      units.flatMap(u => {
+        const slots = Math.round(durationBeats(u.duration) * 4);
+        if (u.isRest) return Array(slots).fill('R');
+        return ['N', ...Array(slots - 1).fill('S')];
+      });
+
+    const correctGrid = toGrid(round.units);
+    const placedGrid  = toGrid(placedUnits);
+    const gridMatch = correctGrid.length === placedGrid.length &&
+      correctGrid.every((v, i) => v === placedGrid[i]);
+
+    if (gridMatch) {
+      setFeedback(round.units.map(() => 'correct' as const));
+      return;
+    }
+
     const fb = round.units.map((correct, i) => {
       const placed = placedUnits[i];
       if (!placed) return 'wrong' as const;
