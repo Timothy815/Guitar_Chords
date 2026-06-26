@@ -5,7 +5,7 @@ import {
   durationBeats, beatsPerMeasure, getCountLabel,
 } from '../lib/rhythmTraining';
 import { SessionScore } from '../lib/earTraining';
-import { initAudio, playRhythmRound, stopRhythm } from '../lib/audio';
+import { initAudio, initPianoSampler, playRhythmRound, stopRhythm } from '../lib/audio';
 import { RhythmStaff, CLEF_EXTRA, MIN_MEASURE_W } from './RhythmStaff';
 
 interface RhythmTrainerProps {
@@ -36,6 +36,11 @@ export function RhythmTrainer({ round, score, settings, onComplete }: RhythmTrai
     setActiveUnitIdx(null);
     initAudio().then(() => playRhythmRound(round, settings.enableLeadIn, setActiveUnitIdx)).catch(() => {});
   }, [round, settings.enableLeadIn]);
+
+  // Pre-load Salamander piano samples as soon as component mounts
+  useEffect(() => {
+    initAudio().then(() => initPianoSampler()).catch(() => {});
+  }, []);
 
   // Auto-play on new round
   useEffect(() => {
