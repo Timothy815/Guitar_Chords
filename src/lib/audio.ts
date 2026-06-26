@@ -19,6 +19,7 @@ let pianoInitPromise: Promise<void> | null = null;
 // Rhythm training dedicated synths (lazy-initialized, independent of main audio chain)
 let rhythmTickSynth: Tone.Synth | null = null;    // drumstick-click metronome
 let rhythmPianoSynth: Tone.PolySynth | null = null; // piano-like tone for note onsets
+let countGridSynth: Tone.Synth | null = null;      // count-along subdivision tones
 
 export function getInstrument() {
   return currentInstrument;
@@ -432,7 +433,12 @@ export function stopRhythm(): void {
   rhythmPianoSynth?.releaseAll();
 }
 
-export function playRhythmRound(round: RhythmRound, enableLeadIn = true, onNote?: (unitIdx: number) => void): void {
+export function playRhythmRound(
+  round: RhythmRound,
+  enableLeadIn = true,
+  onNote?: (unitIdx: number) => void,
+  countSlots?: Array<{ pos: number; isAttack: boolean }>,
+): void {
   stopRhythm();
 
   // Lazy-init dedicated rhythm synths
@@ -507,6 +513,33 @@ export function playRhythmRound(round: RhythmRound, enableLeadIn = true, onNote?
       }, t);
     }
     cursor += durationBeats(unit.duration);
+  }
+
+  // Count-along grid tones (subdivisions + attack accents)
+  if (countSlots && countSlots.length > 0) {
+    if (!countGridSynth) {
+      countGridSynth = new Tone.Synth({
+        oscillator: { type: 'triangle' },
+        envelope: { attack: 0.001, decay: 0.04, sustain: 0, release: 0.01 },
+      }).toDestination();
+      countGridSynth.volume.value = -16;
+    }
+    for (const cs of countSlots) {
+      const t = patternStart + cs.pos * spb;
+      const frac = ((cs.pos % 1) + 1) % 1;
+      const isBeat = frac < 0.001 || frac > 0.999;
+      const isAnd  = Math.abs(frac - 0.5) < 0.001;
+      const freq = isBeat ? 1100 : isAnd ? 800 : 550;
+      const vel  = isBeat ? 0.65 : isAnd ? 0.45 : 0.28;
+      Tone.Transport.schedule(time => {
+        countGridSynth!.triggerAttackRelease(freq, '32n', time, vel);
+      }, t);
+      if (cs.isAttack) {
+        Tone.Transport.schedule(time => {
+          snareSynth.triggerAttackRelease('32n', time);
+        }, t);
+      }
+    }
   }
 
   Tone.Transport.loop = false;

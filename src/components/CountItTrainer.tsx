@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { cn } from '../lib/utils';
 import {
   RhythmRound, RhythmSettings, RhythmDuration,
@@ -9,6 +9,12 @@ import { initAudio, playRhythmRound, stopRhythm } from '../lib/audio';
 import { RhythmStaff, staffMinWidth } from './RhythmStaff';
 
 type SlotLabel = 'N' | 'R' | 'H';
+
+interface TapResult {
+  label: string;
+  offsetMs: number;
+  quality: 'perfect' | 'good' | 'late' | 'early' | 'miss';
+}
 
 interface CountItTrainerProps {
   round: RhythmRound;
@@ -23,15 +29,13 @@ function getAdaptiveStep(enabledDurations: RhythmDuration[]): number {
   return 1.0;
 }
 
-// Convert a count label like "1+", "2e", "3a" to its spoken syllable
 function spokenName(countLabel: string): string {
   if (countLabel.endsWith('+')) return 'and';
   if (countLabel.endsWith('e')) return 'e';
   if (countLabel.endsWith('a')) return 'a';
-  return countLabel; // bare beat number: "1", "2", etc.
+  return countLabel;
 }
 
-// Human-readable beat reference: "1", "1-and", "2-e", "3-a", etc.
 function beatName(countLabel: string): string {
   if (countLabel.endsWith('+')) return `${countLabel.slice(0, -1)}-and`;
   if (countLabel.endsWith('e')) return `${countLabel.slice(0, -1)}-e`;
@@ -39,7 +43,6 @@ function beatName(countLabel: string): string {
   return countLabel;
 }
 
-// Walk through correct units and generate one plain-English message per mistake.
 function generateErrors(
   slots: Array<{ label: string }>,
   userLabels: (SlotLabel | null)[],
@@ -47,65 +50,49 @@ function generateErrors(
 ): string[] {
   const messages: string[] = [];
   let i = 0;
-
   while (i < correctLabels.length) {
     const cl = correctLabels[i];
-
-    // Find the extent of this musical unit
     let unitEnd = i + 1;
     if (cl === 'N') {
       while (unitEnd < correctLabels.length && correctLabels[unitEnd] === 'H') unitEnd++;
     } else {
       while (unitEnd < correctLabels.length && correctLabels[unitEnd] === 'R') unitEnd++;
     }
-
-    // Check if the unit has any wrong slots
     let firstWrong = -1;
     for (let k = i; k < unitEnd; k++) {
       if (userLabels[k] !== correctLabels[k]) { firstWrong = k; break; }
     }
-
     if (firstWrong !== -1) {
       const ul = userLabels[firstWrong];
       const attackBeat = beatName(slots[i].label);
       const errorBeat  = beatName(slots[firstWrong].label);
-
       if (cl === 'N') {
         if (firstWrong === i) {
-          // Error is at the attack itself — user missed or misidentified it
-          if (ul === 'R') {
-            messages.push(`Beat ${errorBeat}: a note attacks here — you marked it as a rest`);
-          } else {
-            messages.push(`Beat ${errorBeat}: a note attacks here — you marked it as held from before`);
-          }
+          messages.push(ul === 'R'
+            ? `Beat ${errorBeat}: a note attacks here — you marked it as a rest`
+            : `Beat ${errorBeat}: a note attacks here — you marked it as held from before`);
         } else {
-          // Attack was correct but user got the held portion wrong
-          if (ul === 'N') {
-            messages.push(`Beat ${errorBeat}: no new attack here — the note from beat ${attackBeat} is still held`);
-          } else {
-            messages.push(`Beat ${errorBeat}: the note from beat ${attackBeat} is still held — not a rest`);
-          }
+          messages.push(ul === 'N'
+            ? `Beat ${errorBeat}: no new attack here — the note from beat ${attackBeat} is still held`
+            : `Beat ${errorBeat}: the note from beat ${attackBeat} is still held — not a rest`);
         }
       } else {
-        // Rest unit — user put something where there should be silence
-        if (ul === 'N') {
-          messages.push(`Beat ${errorBeat}: this is a rest — no note attacks here`);
-        } else {
-          messages.push(`Beat ${errorBeat}: this is a rest — nothing is being held here`);
-        }
+        messages.push(ul === 'N'
+          ? `Beat ${errorBeat}: this is a rest — no note attacks here`
+          : `Beat ${errorBeat}: this is a rest — nothing is being held here`);
       }
     }
-
     i = unitEnd;
   }
-
   return messages;
 }
 
 export function CountItTrainer({ round, score, settings, onComplete }: CountItTrainerProps) {
-  const step = getAdaptiveStep(settings.enabledDurations);
+  const step       = getAdaptiveStep(settings.enabledDurations);
   const totalBeats = beatsPerMeasure(round.timeSignature) * round.measures;
   const totalSlots = Math.round(totalBeats / step);
+  const bpb        = beatsPerMeasure(round.timeSignature);
+  const spb        = 60 / round.bpm;
 
   const correctLabels: SlotLabel[] = round.units.flatMap(u => {
     const n = Math.round(durationBeats(u.duration) / step);
@@ -119,29 +106,128 @@ export function CountItTrainer({ round, score, settings, onComplete }: CountItTr
     widthPct: (step / totalBeats) * 100,
   }));
 
+  // Label mode state
   const [userLabels, setUserLabels] = useState<(SlotLabel | null)[]>(() => Array(totalSlots).fill(null));
-  const [selected, setSelected] = useState<Set<number>>(() => new Set());
-  const [feedback, setFeedback] = useState<('correct' | 'wrong')[] | null>(null);
-  const [attempts, setAttempts] = useState(0);
+  const [selected,   setSelected]   = useState<Set<number>>(() => new Set());
+  const [feedback,   setFeedback]   = useState<('correct' | 'wrong')[] | null>(null);
+  const [attempts,   setAttempts]   = useState(0);
   const [activeUnitIdx, setActiveUnitIdx] = useState<number | null>(null);
 
-  const handlePlay = useCallback(() => {
-    setActiveUnitIdx(null);
-    initAudio().then(() => playRhythmRound(round, settings.enableLeadIn, setActiveUnitIdx)).catch(() => {});
-  }, [round, settings.enableLeadIn]);
+  // Feature toggles
+  const [loopMode,       setLoopMode]       = useState(false);
+  const [countAlongMode, setCountAlongMode] = useState(false);
+  const [tapMode,        setTapMode]        = useState(false);
 
+  // Tap trainer
+  const [lastTapResult, setLastTapResult] = useState<TapResult | null>(null);
+
+  // Refs
+  const loopTimeoutRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const nSlotTargetsRef    = useRef<{ label: string; wallTimeMs: number }[]>([]);
+  const handlePlayRef      = useRef<((skipLeadIn?: boolean) => void) | null>(null);
+  const isFirstToggleMount = useRef(true);
+
+  const handlePlay = useCallback((skipLeadIn = false) => {
+    if (loopTimeoutRef.current) { clearTimeout(loopTimeoutRef.current); loopTimeoutRef.current = null; }
+    setActiveUnitIdx(null);
+
+    const useLeadIn     = !skipLeadIn && settings.enableLeadIn;
+    const leadInBeats   = useLeadIn ? bpb : 0;
+    const totalDurationMs = (leadInBeats + totalBeats) * spb * 1000;
+
+    // Compute tap target times for every N-slot
+    if (tapMode) {
+      const patternStartMs = performance.now() + leadInBeats * spb * 1000;
+      nSlotTargetsRef.current = slots
+        .map((slot, i) => ({ slot, i }))
+        .filter(({ i }) => correctLabels[i] === 'N')
+        .map(({ slot }) => ({
+          label: `beat ${beatName(slot.label)}`,
+          wallTimeMs: patternStartMs + slot.pos * spb * 1000,
+        }));
+    }
+
+    const countSlotsArg = countAlongMode
+      ? slots.map((s, i) => ({ pos: s.pos, isAttack: correctLabels[i] === 'N' }))
+      : undefined;
+
+    initAudio()
+      .then(() => playRhythmRound(round, useLeadIn, setActiveUnitIdx, countSlotsArg))
+      .catch(() => {});
+
+    if (loopMode || tapMode) {
+      loopTimeoutRef.current = setTimeout(() => {
+        handlePlayRef.current?.(true); // skip lead-in on subsequent loops
+      }, totalDurationMs + 150);
+    }
+  }, [round, settings.enableLeadIn, bpb, totalBeats, spb, slots, correctLabels, loopMode, tapMode, countAlongMode]);
+
+  // Keep ref current so loop timeout always calls latest version
+  handlePlayRef.current = handlePlay;
+
+  // Reset + auto-play on new round
   useEffect(() => {
     setUserLabels(Array(totalSlots).fill(null));
     setSelected(new Set());
     setFeedback(null);
     setAttempts(0);
     setActiveUnitIdx(null);
-    initAudio().then(() => playRhythmRound(round, settings.enableLeadIn, setActiveUnitIdx)).catch(() => {});
-    return () => stopRhythm();
+    setLastTapResult(null);
+    if (loopTimeoutRef.current) clearTimeout(loopTimeoutRef.current);
+    handlePlayRef.current?.();
+    return () => {
+      stopRhythm();
+      if (loopTimeoutRef.current) clearTimeout(loopTimeoutRef.current);
+    };
   }, [round]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Restart when any toggle changes (skip first mount to avoid double-play)
+  useEffect(() => {
+    if (isFirstToggleMount.current) { isFirstToggleMount.current = false; return; }
+    if (loopTimeoutRef.current) clearTimeout(loopTimeoutRef.current);
+    handlePlayRef.current?.();
+  }, [loopMode, tapMode, countAlongMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Tap handler — only reads refs and stable setters, no stale closure risk
+  const handleTap = useCallback(() => {
+    const nowMs   = performance.now();
+    const targets = nSlotTargetsRef.current;
+    if (targets.length === 0) return;
+
+    let nearest = targets[0];
+    let minDist = Math.abs(targets[0].wallTimeMs - nowMs);
+    for (const t of targets) {
+      const d = Math.abs(t.wallTimeMs - nowMs);
+      if (d < minDist) { minDist = d; nearest = t; }
+    }
+
+    if (minDist > 250) {
+      setLastTapResult({ label: 'no nearby attack', offsetMs: 0, quality: 'miss' });
+      return;
+    }
+
+    const offsetMs = Math.round(nowMs - nearest.wallTimeMs);
+    const absOff   = Math.abs(offsetMs);
+    const quality: TapResult['quality'] =
+      absOff < 30 ? 'perfect' :
+      absOff < 80 ? 'good'    :
+      offsetMs > 0 ? 'late'   : 'early';
+
+    setLastTapResult({ label: nearest.label, offsetMs, quality });
+  }, []);
+
+  // Spacebar fires tap when tap mode is active
+  useEffect(() => {
+    if (!tapMode) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code === 'Space') { e.preventDefault(); handleTap(); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [tapMode, handleTap]);
+
   function handleSlotClick(i: number) {
-    if (feedback) return;
+    if (feedback || tapMode) return;
     setSelected(prev => {
       const next = new Set(prev);
       if (next.has(i)) next.delete(i); else next.add(i);
@@ -159,16 +245,15 @@ export function CountItTrainer({ round, score, settings, onComplete }: CountItTr
     setSelected(new Set());
   }
 
-  const allFilled = userLabels.every(l => l !== null);
+  const allFilled      = userLabels.every(l => l !== null);
   const unlabeledCount = userLabels.filter(l => l === null).length;
 
   function handleSubmit() {
     if (!allFilled || feedback) return;
     setAttempts(a => a + 1);
-    const fb = userLabels.map((ul, i) =>
+    setFeedback(userLabels.map((ul, i) =>
       (ul === correctLabels[i] ? 'correct' : 'wrong') as 'correct' | 'wrong'
-    );
-    setFeedback(fb);
+    ));
   }
 
   function handleTryAgain() {
@@ -179,16 +264,31 @@ export function CountItTrainer({ round, score, settings, onComplete }: CountItTr
 
   function handleNext() {
     const allCorrect = feedback !== null && feedback.every(f => f === 'correct');
-    const wasCorrect = attempts === 1 && allCorrect;
     stopRhythm();
+    if (loopTimeoutRef.current) clearTimeout(loopTimeoutRef.current);
     setActiveUnitIdx(null);
-    onComplete(wasCorrect);
+    onComplete(attempts === 1 && allCorrect);
+  }
+
+  // Tap result display helpers
+  function tapColor(q: TapResult['quality']) {
+    if (q === 'perfect') return 'text-green-600 dark:text-green-400';
+    if (q === 'good')    return 'text-yellow-500 dark:text-yellow-400';
+    if (q === 'miss')    return 'text-brand-secondary';
+    return 'text-red-500 dark:text-red-400';
+  }
+
+  function tapLabel(r: TapResult) {
+    if (r.quality === 'perfect') return `${r.label} — perfect ✓`;
+    if (r.quality === 'miss')    return 'missed — no nearby attack';
+    return `${r.label} — ${Math.abs(r.offsetMs)}ms ${r.offsetMs > 0 ? 'late' : 'early'}`;
   }
 
   const hasSelection = selected.size > 0;
 
   return (
     <div className="rounded-lg border border-brand-line bg-brand-surface p-4 space-y-4">
+
       {/* Score badge */}
       <div className="flex items-center justify-between text-xs text-brand-secondary">
         <span>Round {score.total + 1}</span>
@@ -205,31 +305,29 @@ export function CountItTrainer({ round, score, settings, onComplete }: CountItTr
             onSwap={() => {}}
           />
 
-          {/* Count grid */}
           <div className="flex font-mono select-none">
             {slots.map((slot, i) => {
-              const ul = userLabels[i];
-              const fb = feedback?.[i];
-              const isSelected = selected.has(i);
-              const correctLabel = feedback ? correctLabels[i] : null;
+              // In tap mode show correct labels read-only; otherwise show user labels
+              const ul = tapMode ? correctLabels[i] : userLabels[i];
+              const fb = tapMode ? null : feedback?.[i];
+              const isSelected   = !tapMode && selected.has(i);
+              const correctLabel = !tapMode && feedback ? correctLabels[i] : null;
+              const isAttack     = correctLabels[i] === 'N';
 
               let displayLabel = slot.label;
               if (ul === 'R') displayLabel = `[${slot.label}]`;
               else if (ul === 'H') displayLabel = `(${slot.label})`;
 
-              const slotClass = fb === 'correct'
-                ? 'bg-green-500/20 text-green-700 dark:text-green-400 font-bold'
-                : fb === 'wrong'
-                  ? 'bg-red-500/20 text-red-600 dark:text-red-400 font-bold'
-                  : isSelected
-                    ? 'bg-brand-primary/20 text-brand-primary font-bold'
-                    : ul === 'N'
-                      ? 'bg-brand-primary/15 text-brand-primary font-bold'
-                      : ul === 'R'
-                        ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
-                        : ul === 'H'
-                          ? 'bg-brand-line/20 text-brand-secondary italic'
-                          : 'text-brand-line';
+              const slotClass =
+                fb === 'correct' ? 'bg-green-500/20 text-green-700 dark:text-green-400 font-bold' :
+                fb === 'wrong'   ? 'bg-red-500/20 text-red-600 dark:text-red-400 font-bold' :
+                tapMode && isAttack ? 'bg-brand-primary/15 text-brand-primary font-bold' :
+                tapMode ? 'text-brand-line' :
+                isSelected ? 'bg-brand-primary/20 text-brand-primary font-bold' :
+                ul === 'N' ? 'bg-brand-primary/15 text-brand-primary font-bold' :
+                ul === 'R' ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' :
+                ul === 'H' ? 'bg-brand-line/20 text-brand-secondary italic' :
+                'text-brand-line';
 
               return (
                 <div
@@ -238,23 +336,17 @@ export function CountItTrainer({ round, score, settings, onComplete }: CountItTr
                   className={cn(
                     'relative text-center text-[11px] leading-none py-1 border transition-colors',
                     slotClass,
-                    !feedback && 'cursor-pointer rounded',
+                    !feedback && !tapMode && 'cursor-pointer rounded',
                     isSelected ? 'border-brand-primary' : 'border-transparent',
-                    !feedback && !isSelected && 'hover:border-brand-primary/40',
-                    feedback && 'cursor-default',
+                    !feedback && !tapMode && !isSelected && 'hover:border-brand-primary/40',
+                    (feedback || tapMode) && 'cursor-default',
                   )}
                   onClick={() => handleSlotClick(i)}
                 >
                   <span className="block truncate">{displayLabel}</span>
-
-                  {/* Correct answer hint on wrong slots */}
                   {fb === 'wrong' && correctLabel && (
                     <span className="block text-[9px] text-green-600 font-normal not-italic">
-                      {correctLabel === 'R'
-                        ? `[${slot.label}]`
-                        : correctLabel === 'H'
-                          ? `(${slot.label})`
-                          : slot.label}
+                      {correctLabel === 'R' ? `[${slot.label}]` : correctLabel === 'H' ? `(${slot.label})` : slot.label}
                     </span>
                   )}
                 </div>
@@ -264,9 +356,56 @@ export function CountItTrainer({ round, score, settings, onComplete }: CountItTr
         </div>
       </div>
 
+      {/* Toggle row */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs text-brand-secondary shrink-0">Practice:</span>
+        {(
+          [
+            { key: 'loop',  label: '↺ Loop',        active: loopMode,       toggle: () => setLoopMode(v => !v) },
+            { key: 'count', label: '♩ Count Audio',  active: countAlongMode, toggle: () => setCountAlongMode(v => !v) },
+            { key: 'tap',   label: '👏 Tap Along',   active: tapMode,        toggle: () => setTapMode(v => !v) },
+          ] as const
+        ).map(({ key, label, active, toggle }) => (
+          <button
+            key={key}
+            onClick={toggle}
+            className={cn(
+              'px-2.5 py-1 rounded-full text-xs font-medium border transition-colors',
+              active
+                ? 'bg-brand-primary text-white border-brand-primary'
+                : 'border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink',
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tap trainer UI */}
+      {tapMode && (
+        <div className="space-y-3">
+          <p className="text-xs text-brand-secondary text-center">
+            Tap the button (or press <kbd className="px-1 py-0.5 rounded border border-brand-line font-mono text-[10px]">space</kbd>) on every note attack
+          </p>
+          <div className="flex justify-center">
+            <button
+              onPointerDown={e => { e.preventDefault(); handleTap(); }}
+              className="w-28 h-28 rounded-full bg-brand-primary text-white text-xl font-bold shadow-lg active:scale-95 transition-transform select-none touch-none"
+            >
+              TAP
+            </button>
+          </div>
+          {lastTapResult && (
+            <p className={cn('text-sm font-medium text-center', tapColor(lastTapResult.quality))}>
+              {tapLabel(lastTapResult)}
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Label toolbar — visible when slots are selected */}
-      {hasSelection && !feedback && (
-        <div className="flex items-center gap-2">
+      {!tapMode && hasSelection && !feedback && (
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs text-brand-secondary">
             {selected.size} slot{selected.size === 1 ? '' : 's'} selected:
           </span>
@@ -294,7 +433,7 @@ export function CountItTrainer({ round, score, settings, onComplete }: CountItTr
       )}
 
       {/* Status line */}
-      {!feedback && !hasSelection && (
+      {!tapMode && !feedback && !hasSelection && (
         <p className="text-xs text-brand-secondary text-center">
           {unlabeledCount > 0
             ? `${unlabeledCount} slot${unlabeledCount === 1 ? '' : 's'} unlabeled — click slots to select, then choose a label`
@@ -303,23 +442,18 @@ export function CountItTrainer({ round, score, settings, onComplete }: CountItTr
       )}
 
       {/* Feedback summary */}
-      {feedback && (() => {
+      {!tapMode && feedback && (() => {
         const allCorrect = feedback.every(f => f === 'correct');
         const errors = allCorrect ? [] : generateErrors(slots, userLabels, correctLabels);
         return (
           <>
-            <p className={cn(
-              'text-sm font-semibold text-center',
-              allCorrect ? 'text-green-600' : 'text-red-500',
-            )}>
+            <p className={cn('text-sm font-semibold text-center', allCorrect ? 'text-green-600' : 'text-red-500')}>
               {allCorrect ? 'Correct! 🎯' : 'Not quite — slots highlighted above'}
             </p>
             {!allCorrect && errors.length > 0 && (
               <ul className="rounded-lg bg-brand-surface border-l-4 border-red-500 border border-brand-line p-3 space-y-1">
-                {errors.map((msg, i) => (
-                  <li key={i} className="text-xs text-brand-ink leading-relaxed">
-                    {msg}
-                  </li>
+                {errors.map((msg, idx) => (
+                  <li key={idx} className="text-xs text-brand-ink leading-relaxed">{msg}</li>
                 ))}
               </ul>
             )}
@@ -327,28 +461,17 @@ export function CountItTrainer({ round, score, settings, onComplete }: CountItTr
         );
       })()}
 
-      {/* Spoken count display — shown after a correct submission */}
-      {feedback && feedback.every(f => f === 'correct') && (
+      {/* Spoken count — shown after correct submission */}
+      {!tapMode && feedback && feedback.every(f => f === 'correct') && (
         <div className="rounded-lg bg-brand-bg border border-brand-line p-3 space-y-2">
           <p className="text-xs font-semibold text-brand-secondary">How to count it aloud:</p>
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 font-mono">
             {slots.map((slot, i) => {
               const role = correctLabels[i];
               const word = spokenName(slot.label);
-              if (role === 'N') {
-                return (
-                  <span key={i} className="text-sm font-bold text-brand-ink">{word}</span>
-                );
-              }
-              if (role === 'H') {
-                return (
-                  <span key={i} className="text-xs text-brand-line italic">({word})</span>
-                );
-              }
-              // rest
-              return (
-                <span key={i} className="text-xs text-brand-line">[{word}]</span>
-              );
+              if (role === 'N') return <span key={i} className="text-sm font-bold text-brand-ink">{word}</span>;
+              if (role === 'H') return <span key={i} className="text-xs text-brand-line italic">({word})</span>;
+              return <span key={i} className="text-xs text-brand-line">[{word}]</span>;
             })}
           </div>
           <p className="text-[10px] text-brand-line leading-relaxed">
@@ -364,12 +487,12 @@ export function CountItTrainer({ round, score, settings, onComplete }: CountItTr
       {/* Controls */}
       <div className="flex gap-2 flex-wrap">
         <button
-          onClick={handlePlay}
+          onClick={() => handlePlay()}
           className="px-4 py-2 rounded-lg text-sm font-medium bg-brand-primary text-white hover:bg-brand-primary/90 transition-colors"
         >
           ▶ Play
         </button>
-        {allFilled && !feedback && (
+        {!tapMode && allFilled && !feedback && (
           <button
             onClick={handleSubmit}
             className="px-4 py-2 rounded-lg text-sm font-medium bg-green-600 text-white hover:bg-green-700 transition-colors"
@@ -377,7 +500,7 @@ export function CountItTrainer({ round, score, settings, onComplete }: CountItTr
             Submit
           </button>
         )}
-        {feedback && !feedback.every(f => f === 'correct') && (
+        {!tapMode && feedback && !feedback.every(f => f === 'correct') && (
           <button
             onClick={handleTryAgain}
             className="px-4 py-2 rounded-lg text-sm font-medium border border-brand-line text-brand-secondary hover:border-brand-primary/60 transition-colors"
@@ -385,7 +508,7 @@ export function CountItTrainer({ round, score, settings, onComplete }: CountItTr
             Try Again
           </button>
         )}
-        {feedback && (
+        {(feedback || tapMode) && (
           <button
             onClick={handleNext}
             className="px-4 py-2 rounded-lg text-sm font-medium bg-brand-primary text-white hover:bg-brand-primary/90 transition-colors"
