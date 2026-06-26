@@ -13,6 +13,7 @@ const STAFF_H = 110;
 export const CLEF_EXTRA = 70;
 export const MIN_MEASURE_W = 200;
 const PX_PER_NOTE = 58; // minimum pixels per note/rest for VexFlow
+const RIGHT_PAD = 16;   // VexFlow's closing barline overflows the stave right edge
 
 // Compute the minimum staff pixel width needed to render all notes without crowding.
 // Uses note density per measure so complex rounds trigger horizontal scroll.
@@ -34,7 +35,7 @@ export function staffMinWidth(round: RhythmRound, placedUnits: RhythmUnit[]): nu
   for (let m = 0; m < round.measures; m++) {
     w += Math.max(correct[m] ?? 0, placed[m] ?? 0, 4) * PX_PER_NOTE;
   }
-  return w;
+  return w + RIGHT_PAD;
 }
 
 function makeStaveNote(unit: RhythmUnit): StaveNote {
