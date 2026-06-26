@@ -54,7 +54,9 @@ export function loadSRSData(): Record<string, SRSState> {
 }
 
 export function saveSRSData(data: Record<string, SRSState>): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch { /* quota exceeded — silently skip */ }
 }
 
 /**
