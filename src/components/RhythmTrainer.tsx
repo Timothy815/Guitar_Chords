@@ -123,7 +123,7 @@ export function RhythmTrainer({ round, score, settings, onComplete }: RhythmTrai
       timeSignature: round.timeSignature,
       bpm: round.bpm,
     };
-    initAudio().then(() => playRhythmRound(answerRound, false)).catch(() => {});
+    initAudio().then(() => playRhythmRound(answerRound, true)).catch(() => {});
   }, [placedUnits, round]);
 
   // Pre-compute count labels — one segment per attack plus dimmed markers for sustained beats
