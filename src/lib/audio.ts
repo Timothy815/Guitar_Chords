@@ -433,6 +433,15 @@ export function stopRhythm(): void {
   rhythmPianoSynth?.releaseAll();
 }
 
+export function getAudioOutputLatencyMs(): number {
+  try {
+    const ctx = Tone.getContext().rawContext as AudioContext;
+    return (ctx.outputLatency ?? 0) * 1000;
+  } catch {
+    return 0;
+  }
+}
+
 export function playRhythmRound(
   round: RhythmRound,
   enableLeadIn = true,

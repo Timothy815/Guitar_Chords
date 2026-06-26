@@ -5,7 +5,7 @@ import {
   durationBeats, beatsPerMeasure, getCountLabel,
 } from '../lib/rhythmTraining';
 import { SessionScore } from '../lib/earTraining';
-import { initAudio, playRhythmRound, stopRhythm } from '../lib/audio';
+import { initAudio, playRhythmRound, stopRhythm, getAudioOutputLatencyMs } from '../lib/audio';
 import { RhythmStaff, staffMinWidth } from './RhythmStaff';
 
 type SlotLabel = 'N' | 'R' | 'H';
@@ -151,7 +151,8 @@ export function CountItTrainer({ round, score, settings, onComplete }: CountItTr
     const totalDurationMs = (leadInBeats + totalBeats) * spb * 1000;
 
     if (tapMode) {
-      const patternStartMs = performance.now() + leadInBeats * spb * 1000;
+      const audioLatencyMs = getAudioOutputLatencyMs();
+      const patternStartMs = performance.now() + leadInBeats * spb * 1000 + audioLatencyMs;
       nSlotTargetsRef.current = slots
         .filter((_, i) => correctLabels[i] === 'N')
         .map((slot) => ({
@@ -160,7 +161,7 @@ export function CountItTrainer({ round, score, settings, onComplete }: CountItTr
         }));
     }
 
-    const countSlotsArg = countAlongMode
+    const countSlotsArg = (countAlongMode || tapMode)
       ? slots.map((s, i) => ({ pos: s.pos, isAttack: correctLabels[i] === 'N' }))
       : undefined;
 
@@ -171,10 +172,10 @@ export function CountItTrainer({ round, score, settings, onComplete }: CountItTr
       })
       .catch(() => {});
 
-    if (loopMode || tapMode) {
+    if (loopMode) {
       loopTimeoutRef.current = setTimeout(() => {
-        if (loopModeRef.current || tapModeRef.current) {
-          handlePlayRef.current?.(true);
+        if (loopModeRef.current) {
+          handlePlayRef.current?.();
         } else {
           loopTimeoutRef.current = null;
         }
@@ -184,6 +185,13 @@ export function CountItTrainer({ round, score, settings, onComplete }: CountItTr
 
   // Keep ref current so the loop timeout always calls the latest version
   handlePlayRef.current = handlePlay;
+
+  const handleStop = useCallback(() => {
+    ++playGenRef.current;
+    stopRhythm();
+    if (loopTimeoutRef.current) { clearTimeout(loopTimeoutRef.current); loopTimeoutRef.current = null; }
+    setActiveUnitIdx(null);
+  }, []);
 
   // Reset + auto-play on new round
   useEffect(() => {
@@ -216,8 +224,8 @@ export function CountItTrainer({ round, score, settings, onComplete }: CountItTr
     if (loopTurnedOn || tapTurnedOn) {
       if (loopTimeoutRef.current) { clearTimeout(loopTimeoutRef.current); loopTimeoutRef.current = null; }
       handlePlayRef.current?.();
-    } else if (!loopMode && !tapMode) {
-      // Both modes now off — cancel any queued loop restart; current play finishes naturally
+    } else if (!loopMode) {
+      // Loop is off — cancel any queued loop restart; current play finishes naturally
       if (loopTimeoutRef.current) { clearTimeout(loopTimeoutRef.current); loopTimeoutRef.current = null; }
     }
   }, [loopMode, tapMode]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -424,6 +432,12 @@ export function CountItTrainer({ round, score, settings, onComplete }: CountItTr
             {label}
           </button>
         ))}
+        <button
+          onClick={handleStop}
+          className="px-2.5 py-1 rounded-full text-xs font-medium border border-red-400 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors ml-auto"
+        >
+          ■ Stop
+        </button>
       </div>
 
       {/* Tap trainer UI */}
