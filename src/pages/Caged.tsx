@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Fretboard } from '../components/Fretboard';
 import { Finger, Note } from '../types';
 import { ALL_NOTES } from '../data/guitarData';
 import { playStrum, playNote, initAudio, getFretNote, playArpeggio } from '../lib/audio';
 import { Volume2 } from 'lucide-react';
+import { addChordToActiveProgression } from '../lib/progressionUtils';
 
 type CagedShapeDef = { id: string; baseRoot: string; name: string; relFrets: number[]; description: string };
 
@@ -139,11 +141,19 @@ function getDistance(from: Note, to: Note) {
 }
 
 export function Caged() {
+  const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<'byKey' | 'byShape'>('byKey');
   const [quality, setQuality] = useState<ChordQuality>('major');
   const [selectedKey, setSelectedKey] = useState<Note>('C');
   const [selectedShapeId, setSelectedShapeId] = useState<string>('C');
   const [shapeShift, setShapeShift] = useState<number>(0);
+  const [addedToast, setAddedToast] = useState<string | null>(null);
+
+  function handleAddToProgression(chord: { name: string; frets: number[]; fingers: Finger[] }) {
+    const ok = addChordToActiveProgression(chord);
+    setAddedToast(ok ? `Added ${chord.name}` : 'No progression saved yet');
+    setTimeout(() => setAddedToast(null), 2000);
+  }
 
   const activeShapes = SHAPES_BY_QUALITY[quality];
 
@@ -281,6 +291,11 @@ export function Caged() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500 pb-16">
+      {addedToast && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-brand-ink text-brand-bg text-sm px-4 py-2 rounded-lg shadow-lg z-50 transition-opacity">
+          {addedToast}
+        </div>
+      )}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
         <div>
            <h1 className="text-4xl font-serif font-bold text-brand-ink mb-2">The CAGED System</h1>
@@ -411,6 +426,18 @@ export function Caged() {
                           >
                              Arpeggiate
                           </button>
+                          <button
+                            onClick={() => handleAddToProgression(chordData)}
+                            className="text-xs px-3 py-1.5 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink transition-colors"
+                          >
+                            + Progression
+                          </button>
+                          <button
+                            onClick={() => navigate('/ear-training')}
+                            className="text-xs px-3 py-1.5 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink transition-colors"
+                          >
+                            Ear Train →
+                          </button>
                         </div>
                      </div>
                      <div className="md:col-span-2 overflow-x-auto">
@@ -492,6 +519,23 @@ export function Caged() {
                    />
                 </div>
              </div>
+             <div className="flex gap-2 mt-2">
+               <button
+                 onClick={() => handleAddToProgression(byShapeChordData)}
+                 className="text-xs px-3 py-1.5 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink transition-colors"
+               >
+                 + Progression
+               </button>
+               <button
+                 onClick={() => navigate('/ear-training')}
+                 className="text-xs px-3 py-1.5 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink transition-colors"
+               >
+                 Ear Train →
+               </button>
+             </div>
+             {addedToast && (
+               <p className="text-xs text-green-600 mt-1">{addedToast}</p>
+             )}
           </div>
 
           {/* Arpeggio sequencer */}

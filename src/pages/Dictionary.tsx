@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Chord as TonalChord } from '@tonaljs/tonal';
 import { Fretboard } from '../components/Fretboard';
 import { PianoKeyboard } from '../components/PianoKeyboard';
@@ -7,8 +8,10 @@ import { playStrum, playArpeggio, getFretNote, initAudio, playNote, setEffects }
 import { Volume2, ListMusic, Printer } from 'lucide-react';
 import { ChordShape, Note, TUNINGS, Tuning } from '../types';
 import { handlePrint } from '../lib/utils';
+import { addChordToActiveProgression } from '../lib/progressionUtils';
 
 export function Dictionary() {
+  const navigate = useNavigate();
   const [mode, setMode] = useState<'chords' | 'scales' | 'identify'>('chords');
   const [currentTuning, setCurrentTuning] = useState<Tuning>(TUNINGS['Standard']);
   const [selectedKey, setSelectedKey] = useState<Note>('C');
@@ -17,6 +20,13 @@ export function Dictionary() {
   const [scaleFretRange, setScaleFretRange] = useState<number[]>([]);
   const [playingNotes, setPlayingNotes] = useState<Set<string>>(new Set());
   const [identifiedFrets, setIdentifiedFrets] = useState<number[]>([-1,-1,-1,-1,-1,-1]);
+  const [addedToast, setAddedToast] = useState<string | null>(null);
+
+  function handleAddToProgression(chord: ChordShape) {
+    const ok = addChordToActiveProgression(chord);
+    setAddedToast(ok ? `Added ${chord.name}` : 'No progression saved yet — create one first');
+    setTimeout(() => setAddedToast(null), 2000);
+  }
 
   useEffect(() => {
     import('../lib/audio').then(m => {
@@ -408,7 +418,12 @@ export function Dictionary() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500">
-      
+      {addedToast && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-brand-ink text-brand-bg text-sm px-4 py-2 rounded-lg shadow-lg z-50 transition-opacity">
+          {addedToast}
+        </div>
+      )}
+
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-brand-surface p-6 rounded-xl border border-brand-line">
         <div>
            <h1 className="text-2xl font-sans font-bold tracking-tight text-brand-ink">Reference Dictionary</h1>
@@ -699,7 +714,7 @@ export function Dictionary() {
                  </h2>
                  
                  {((mode === 'chords' && activeChord) || mode === 'identify') && (
-                    <div className="flex gap-3 print:hidden">
+                    <div className="flex gap-3 print:hidden flex-wrap">
                        <button onClick={handleStrum} className="flex items-center gap-2 px-4 py-2 bg-transparent border border-brand-line text-brand-ink rounded-md hover:border-brand-primary hover:text-brand-primary transition-colors font-semibold text-sm">
                           <Volume2 size={16} /> Strum
                        </button>
@@ -709,6 +724,24 @@ export function Dictionary() {
                        <button onClick={() => handlePrint('print-area')} className="flex items-center gap-2 px-4 py-2 bg-transparent border border-brand-line text-brand-ink rounded-md hover:border-brand-primary hover:text-brand-primary transition-colors font-semibold text-sm">
                           <Printer size={16} /> Print Diagram
                        </button>
+                       {mode === 'chords' && activeChord && (
+                         <>
+                           <button
+                             onClick={() => handleAddToProgression(activeChord)}
+                             className="text-xs px-2 py-1 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink transition-colors"
+                             title="Add to first progression"
+                           >
+                             + Progression
+                           </button>
+                           <button
+                             onClick={() => navigate('/ear-training')}
+                             className="text-xs px-2 py-1 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink transition-colors"
+                             title="Practice chord identification in Ear Training"
+                           >
+                             Ear Train →
+                           </button>
+                         </>
+                       )}
                     </div>
                  )}
                  {mode === 'scales' && activeScale && (
