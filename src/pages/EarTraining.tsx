@@ -14,7 +14,7 @@ import { initAudio, playStrum, playNote, startDrone, stopDrone, stopRhythm } fro
 import { FretboardTrainer } from '../components/FretboardTrainer';
 import { PianoTrainer } from '../components/PianoTrainer';
 import { FretboardFocusSelector } from '../components/FretboardFocusSelector';
-import { LadderId, LadderStage, SkillLadder, SKILL_LADDERS, PlanProgress, loadPlanProgress, savePlanProgress, resetPlanProgress, isMixedUnlocked } from '../lib/planProgress';
+import { LadderId, LadderStage, SkillLadder, SKILL_LADDERS, PlanProgress, loadPlanProgress, savePlanProgress, isMixedUnlocked } from '../lib/planProgress';
 import { HuntHistoryEntry, appendHuntEntries, loadHuntHistory } from '../lib/huntHistory';
 import {
   ChordHistoryEntry,
@@ -1596,24 +1596,12 @@ export function EarTraining() {
             <p className="text-brand-secondary text-sm">
               {showPlanComplete.stageLabel} — {showPlanComplete.accuracy}% accuracy
             </p>
-            {showPlanComplete.isFinal ? (
-              <button
-                onClick={() => {
-                  setPlanProgress(resetPlanProgress());
-                  setShowPlanComplete(null);
-                }}
-                className="w-full py-2.5 rounded-lg bg-brand-primary text-white text-sm font-medium hover:bg-brand-primary/90 transition-colors"
-              >
-                Start over
-              </button>
-            ) : (
-              <button
-                onClick={() => setShowPlanComplete(null)}
-                className="w-full py-2.5 rounded-lg bg-brand-primary text-white text-sm font-medium hover:bg-brand-primary/90 transition-colors"
-              >
-                Continue
-              </button>
-            )}
+            <button
+              onClick={() => setShowPlanComplete(null)}
+              className="w-full py-2.5 rounded-lg bg-brand-primary text-white text-sm font-medium hover:bg-brand-primary/90 transition-colors"
+            >
+              {showPlanComplete.isFinal ? 'Back to Dashboard' : 'Continue'}
+            </button>
           </div>
         </div>
       )}
