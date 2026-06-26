@@ -26,13 +26,15 @@ export function RhythmTrainer({ round, score, settings, onComplete }: RhythmTrai
   const [feedback, setFeedback] = useState<('correct' | 'wrong' | null)[] | null>(null);
   const [attempts, setAttempts] = useState(0);
   const [showHelp, setShowHelp] = useState(false);
+  const [activeUnitIdx, setActiveUnitIdx] = useState<number | null>(null);
 
   const totalBeats = beatsPerMeasure(round.timeSignature) * round.measures;
   const usedBeats = placedUnits.reduce((s, u) => s + durationBeats(u.duration), 0);
   const remainingBeats = Math.max(0, totalBeats - usedBeats);
 
   const handlePlay = useCallback(() => {
-    initAudio().then(() => playRhythmRound(round, settings.enableLeadIn)).catch(() => {});
+    setActiveUnitIdx(null);
+    initAudio().then(() => playRhythmRound(round, settings.enableLeadIn, setActiveUnitIdx)).catch(() => {});
   }, [round, settings.enableLeadIn]);
 
   // Auto-play on new round
@@ -42,7 +44,8 @@ export function RhythmTrainer({ round, score, settings, onComplete }: RhythmTrai
     setIsRest(false);
     setFeedback(null);
     setAttempts(0);
-    initAudio().then(() => playRhythmRound(round, settings.enableLeadIn)).catch(() => {});
+    setActiveUnitIdx(null);
+    initAudio().then(() => playRhythmRound(round, settings.enableLeadIn, setActiveUnitIdx)).catch(() => {});
     return () => stopRhythm();
   }, [round]);
 
@@ -82,6 +85,7 @@ export function RhythmTrainer({ round, score, settings, onComplete }: RhythmTrai
     const allCorrect = feedback !== null && feedback.every(f => f === 'correct');
     const wasCorrect = attempts === 1 && allCorrect;
     stopRhythm();
+    setActiveUnitIdx(null);
     onComplete(wasCorrect);
   }
 
@@ -103,21 +107,22 @@ export function RhythmTrainer({ round, score, settings, onComplete }: RhythmTrai
   }, [placedUnits, round]);
 
   // Pre-compute count labels — one segment per attack plus dimmed markers for sustained beats
-  const countLabels: { label: string; isRest: boolean; widthPct: number; isAttack: boolean; beatIndex: number }[] = (() => {
+  const countLabels: { label: string; isRest: boolean; widthPct: number; isAttack: boolean; beatIndex: number; unitIdx: number }[] = (() => {
     if (!round.units) return [];
     const tb = beatsPerMeasure(round.timeSignature) * round.measures;
     // In 6/8, beats are every 0.5 quarter-notes; in simple time, every 1.0
     const beatStep = round.timeSignature === '6/8' ? 0.5 : 1.0;
-    const result: { label: string; isRest: boolean; widthPct: number; isAttack: boolean; beatIndex: number }[] = [];
+    const result: { label: string; isRest: boolean; widthPct: number; isAttack: boolean; beatIndex: number; unitIdx: number }[] = [];
     let cursor = 0;
-    for (const unit of round.units) {
+    for (let unitIdx = 0; unitIdx < round.units.length; unitIdx++) {
+      const unit = round.units[unitIdx];
       const duration = durationBeats(unit.duration);
       const label = getCountLabel(cursor, round.timeSignature);
       const noteEnd = cursor + duration;
       // First integer (or half-beat for 6/8) boundary strictly after the attack
       const nextBeat = (Math.floor(cursor / beatStep + 0.001) + 1) * beatStep;
       const seg1End = Math.min(noteEnd, nextBeat);
-      result.push({ label, isRest: unit.isRest, widthPct: (seg1End - cursor) / tb * 100, isAttack: true, beatIndex: Math.floor(cursor) });
+      result.push({ label, isRest: unit.isRest, widthPct: (seg1End - cursor) / tb * 100, isAttack: true, beatIndex: Math.floor(cursor), unitIdx });
       // Dimmed markers for each beat the note sustains through without attacking
       for (let beat = nextBeat; beat < noteEnd - 0.001; beat += beatStep) {
         const segEnd = Math.min(beat + beatStep, noteEnd);
@@ -127,6 +132,7 @@ export function RhythmTrainer({ round, score, settings, onComplete }: RhythmTrai
           widthPct: (segEnd - beat) / tb * 100,
           isAttack: false,
           beatIndex: Math.floor(beat),
+          unitIdx,
         });
       }
       cursor += duration;
@@ -160,9 +166,11 @@ export function RhythmTrainer({ round, score, settings, onComplete }: RhythmTrai
                   key={i}
                   style={{ width: `${cl.widthPct}%` }}
                   className={cn(
-                    'text-center text-[11px] leading-none py-0.5',
-                    cl.isAttack ? 'text-brand-secondary' : 'text-brand-line italic',
-                    cl.beatIndex % 2 === 0 ? 'bg-brand-primary/10' : 'bg-transparent',
+                    'text-center text-[11px] leading-none py-0.5 transition-colors duration-75',
+                    cl.unitIdx === activeUnitIdx
+                      ? 'bg-brand-primary/40 text-brand-ink font-bold'
+                      : cl.isAttack ? 'text-brand-secondary' : 'text-brand-line italic',
+                    cl.unitIdx !== activeUnitIdx && (cl.beatIndex % 2 === 0 ? 'bg-brand-primary/10' : 'bg-transparent'),
                   )}
                 >
                   {cl.isAttack

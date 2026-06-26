@@ -17,8 +17,9 @@ let isPianoInitialized = false;
 let pianoInitPromise: Promise<void> | null = null;
 
 // Rhythm training dedicated synths (lazy-initialized, independent of main audio chain)
-let rhythmTickSynth: Tone.Synth | null = null;   // drumstick-click metronome
-let rhythmHitSynth: Tone.MembraneSynth | null = null;  // loud note-onset hit
+let rhythmTickSynth: Tone.Synth | null = null;        // drumstick-click metronome
+let rhythmHitSynth: Tone.MembraneSynth | null = null; // loud note-onset punch
+let rhythmNoteSynth: Tone.Synth | null = null;        // sustained tone that holds for the note's full duration
 
 export function getInstrument() {
   return currentInstrument;
@@ -429,9 +430,10 @@ export function stopRhythm(): void {
   Tone.Transport.stop();
   Tone.Transport.cancel();
   Tone.Transport.loop = false;
+  rhythmNoteSynth?.triggerRelease();
 }
 
-export function playRhythmRound(round: RhythmRound, enableLeadIn = true): void {
+export function playRhythmRound(round: RhythmRound, enableLeadIn = true, onNote?: (unitIdx: number) => void): void {
   stopRhythm();
 
   // Lazy-init dedicated rhythm synths
@@ -448,7 +450,15 @@ export function playRhythmRound(round: RhythmRound, enableLeadIn = true): void {
       octaves: 4,
       envelope: { attack: 0.001, decay: 0.15, sustain: 0, release: 0.1 },
     }).toDestination();
-    rhythmHitSynth.volume.value = 2;  // loud and clear
+    rhythmHitSynth.volume.value = 2;  // loud attack punch
+  }
+  if (!rhythmNoteSynth) {
+    // Piano-like synth that holds for the note's full duration — makes note lengths audible
+    rhythmNoteSynth = new Tone.Synth({
+      oscillator: { type: 'triangle' },
+      envelope: { attack: 0.005, decay: 0.1, sustain: 0.75, release: 0.4 },
+    }).toDestination();
+    rhythmNoteSynth.volume.value = -6;
   }
 
   const spb = 60 / round.bpm;         // seconds per quarter-note beat
@@ -489,12 +499,23 @@ export function playRhythmRound(round: RhythmRound, enableLeadIn = true): void {
     }
   }
 
-  // Note onsets — loud membrane hit, clearly dominant over the ticks
+  // Note onsets — membrane punch + sustained pitch so note length is audible
   let cursor = 0;
-  for (const unit of round.units) {
+  for (let i = 0; i < round.units.length; i++) {
+    const unit = round.units[i];
+    const t = patternStart + cursor * spb;
+    const durationSec = durationBeats(unit.duration) * spb;
     if (!unit.isRest) {
-      const t = patternStart + cursor * spb;
-      Tone.Transport.schedule(time => { rhythmHitSynth!.triggerAttackRelease('C3', '8n', time, 1.0); }, t);
+      Tone.Transport.schedule(time => {
+        rhythmHitSynth!.triggerAttackRelease('C3', '16n', time, 1.0);
+        rhythmNoteSynth!.triggerAttackRelease('C4', durationSec, time, 0.8);
+      }, t);
+    }
+    if (onNote) {
+      const capturedIdx = i;
+      Tone.Transport.schedule(time => {
+        Tone.Draw.schedule(() => onNote(capturedIdx), time);
+      }, t);
     }
     cursor += durationBeats(unit.duration);
   }
