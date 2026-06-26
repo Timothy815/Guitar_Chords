@@ -88,7 +88,7 @@ export function EarTraining() {
   const [rhythmSettings, setRhythmSettings] = useState<RhythmSettings>({
     timeSignature: '4/4',
     enabledDurations: ['h', 'q'],
-    enableRests: false,
+    enableRests: true,
     bpm: 80,
     enableLeadIn: true,
     showCount: false,
@@ -963,16 +963,17 @@ export function EarTraining() {
                       return (
                         <button
                           key={dur}
-                          onClick={() =>
-                            setRhythmSettings(r => ({
-                              ...r,
-                              enabledDurations: active
-                                ? r.enabledDurations.length > 1
-                                  ? r.enabledDurations.filter(d => d !== dur)
-                                  : r.enabledDurations
-                                : [...r.enabledDurations, dur],
-                            }))
-                          }
+                          onClick={() => {
+                            const newDurations = active
+                              ? rhythmSettings.enabledDurations.length > 1
+                                ? rhythmSettings.enabledDurations.filter(d => d !== dur)
+                                : rhythmSettings.enabledDurations
+                              : [...rhythmSettings.enabledDurations, dur];
+                            if (newDurations === rhythmSettings.enabledDurations) return;
+                            const newSettings = { ...rhythmSettings, enabledDurations: newDurations };
+                            setRhythmSettings(newSettings);
+                            if (settings.mode === 'rhythm') setRound(generateRhythmRound(difficulty, newSettings));
+                          }}
                           className={cn(
                             'px-2 py-0.5 rounded text-xs font-medium border transition-colors',
                             active
@@ -989,7 +990,11 @@ export function EarTraining() {
 
                 <div className="flex items-center gap-2 flex-wrap">
                   <button
-                    onClick={() => setRhythmSettings(r => ({ ...r, enableRests: !r.enableRests }))}
+                    onClick={() => {
+                      const newSettings = { ...rhythmSettings, enableRests: !rhythmSettings.enableRests };
+                      setRhythmSettings(newSettings);
+                      if (settings.mode === 'rhythm') setRound(generateRhythmRound(difficulty, newSettings));
+                    }}
                     className={cn(
                       'px-3 py-1 rounded text-xs font-medium border transition-colors',
                       rhythmSettings.enableRests
