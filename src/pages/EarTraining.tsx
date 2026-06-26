@@ -1635,11 +1635,13 @@ export function EarTraining() {
               <RhythmRoundLoader onLoad={() => advanceRound()} />
             )
           ) : settings.mode === 'scaleDrill' ? (
-            <ScaleDrillTrainer
-              round={scaleDrillRound}
-              score={score}
-              onComplete={handleScaleDrillComplete}
-            />
+            <React.Fragment key={`${scaleDrillRound.root}-${scaleDrillRound.scaleName}-${scaleDrillRound.targetStringIdx}-${scaleDrillRound.targetFret}`}>
+              <ScaleDrillTrainer
+                round={scaleDrillRound}
+                score={score}
+                onComplete={handleScaleDrillComplete}
+              />
+            </React.Fragment>
           ) : (
             <div className="rounded-lg border border-brand-line bg-brand-surface p-6 space-y-6">
               {/* Replay button — also serves as the first user gesture to unlock audio */}

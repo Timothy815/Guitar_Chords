@@ -44,9 +44,10 @@ interface FretboardProps {
   wrongPosition?: string | null;
   previewPosition?: string | null;
   focusZone?: FretboardFocus;
+  highlightNote?: { stringIdx: number; fret: number };
 }
 
-export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClick, onFretMouseDown, showNoteNames = true, className, fretRange, playingNotes = new Set(), compact = false, correctPositions = new Set(), wrongPosition = null, previewPosition = null, focusZone }: FretboardProps) {
+export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClick, onFretMouseDown, showNoteNames = true, className, fretRange, playingNotes = new Set(), compact = false, correctPositions = new Set(), wrongPosition = null, previewPosition = null, focusZone, highlightNote }: FretboardProps) {
   const [labelMode, setLabelMode] = useState<LabelMode>('none');
 
   const stringsNum = 6;
@@ -327,6 +328,21 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
             );
           })
         )}
+
+        {/* Highlight note — rendered as brand-primary filled circle over scale dot */}
+        {highlightNote && (() => {
+          const { stringIdx, fret } = highlightNote;
+          const visualStringIdx = 5 - stringIdx;
+          const x = fret === 0 ? paddingX / 2 : paddingX + (fret - 0.5) * fretSpacing;
+          const y = paddingY + visualStringIdx * stringSpacing;
+          const r = fret === 0 ? 10 : 14;
+          return (
+            <g key="highlight-note" style={{ pointerEvents: 'none' }}>
+              <circle cx={x} cy={y} r={r} fill="var(--color-brand-primary)" opacity={0.9} />
+              <text x={x} y={y + 5} textAnchor="middle" fill="white" fontSize={11} fontWeight="bold">★</text>
+            </g>
+          );
+        })()}
 
         {/* Fret numbers — screen only */}
         {Array.from({ length: fretsNum }).map((_, i) => (

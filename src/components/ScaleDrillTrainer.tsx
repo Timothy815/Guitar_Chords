@@ -43,11 +43,12 @@ export function ScaleDrillTrainer({ round, score, onComplete }: ScaleDrillTraine
         </p>
       </div>
 
-      {/* Fretboard showing full scale pattern */}
+      {/* Fretboard showing full scale pattern with target position highlighted */}
       <div className="overflow-x-auto">
         <Fretboard
           scale={scalePattern}
           fretRange={[Math.max(0, round.targetFret - 2), Math.min(12, round.targetFret + 2)]}
+          highlightNote={{ stringIdx: round.targetStringIdx, fret: round.targetFret }}
         />
       </div>
 
