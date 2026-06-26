@@ -1137,73 +1137,113 @@ export function EarTraining() {
       </div>
       )}
 
-      {/* Plan tab body — dashboard grid rendered by Task 4 */}
+      {/* Plan tab body */}
       {settings.mode === 'plan' && (
         <>
-          {/* Collapsed header while practicing */}
-          {planPracticing && activeLadder !== null && (() => {
-            const _ladder = SKILL_LADDERS.find((l: SkillLadder) => l.id === activeLadder)!;
-            const _stageIdx = planProgress[activeLadder].stageIndex;
-            const _stage = _ladder.stages[_stageIdx];
+          {/* Practicing header — shown while in a session */}
+          {planPracticing && activeLadder && (() => {
+            const ladder = SKILL_LADDERS.find((l: SkillLadder) => l.id === activeLadder)!;
+            const stageIdx = planProgress[activeLadder].stageIndex;
             return (
-              <div className="rounded-lg border border-brand-line bg-brand-surface overflow-hidden">
-                <div className="px-4 py-3 flex items-center justify-between">
-                  <span className="text-sm font-medium text-brand-ink">
-                    {_ladder.label} · {_stage.label} · Stage {_stageIdx + 1} of {_ladder.stages.length}
-                  </span>
-                  <button
-                    onClick={() => { setPlanPracticing(false); setActiveLadder(null); }}
-                    className="text-xs text-brand-secondary hover:text-brand-primary transition-colors"
-                  >
-                    View ladders ↑
-                  </button>
-                </div>
+              <div className="flex items-center justify-between px-4 py-3 rounded-lg border border-brand-line bg-brand-surface">
+                <span className="text-sm font-medium text-brand-ink">
+                  Plan · {ladder.label} · {ladder.stages[stageIdx].label}
+                </span>
+                <button
+                  onClick={() => { setPlanPracticing(false); setActiveLadder(null); }}
+                  className="text-xs text-brand-secondary hover:text-brand-primary transition-colors"
+                >
+                  ← Back to Plan
+                </button>
               </div>
             );
           })()}
 
-          {/* Skill ladder cards — placeholder for Task 4 dashboard grid */}
+          {/* Dashboard grid — hidden while practicing */}
           {!planPracticing && (
-            <div className="rounded-lg border border-brand-line bg-brand-surface p-4 space-y-2">
-              {SKILL_LADDERS.map((ladder: SkillLadder) => {
-                const ladderProgress = planProgress[ladder.id];
-                const stageIdx = ladderProgress.stageIndex;
-                const isFinal = stageIdx >= ladder.stages.length;
-                const stage = isFinal ? ladder.stages[ladder.stages.length - 1] : ladder.stages[stageIdx];
-                const completed = isFinal;
-                return (
-                  <div key={ladder.id} className="flex items-center gap-3 py-2 border-b border-brand-line last:border-0">
-                    <span className="w-5 shrink-0 flex items-center justify-center">
-                      {completed
-                        ? <Check size={14} className="text-green-500" />
-                        : <span className="text-brand-primary font-bold text-sm">→</span>}
-                    </span>
-                    <span className="flex-1 text-sm font-medium text-brand-ink">
-                      {ladder.label}
-                      <span className="ml-2 text-xs font-normal text-brand-secondary">
-                        {completed ? 'Complete' : `Stage ${stageIdx + 1}/${ladder.stages.length} · ${stage.label}`}
-                      </span>
-                    </span>
-                    {!completed && (
-                      <button
-                        onClick={() => handlePlanStart(ladder.id)}
-                        className="px-3 py-1 rounded-md bg-brand-primary text-white text-xs font-medium hover:bg-brand-primary/90 transition-colors"
-                      >
-                        Start
-                      </button>
-                    )}
+            <div className="space-y-4">
+              {(['pitch', 'instrument'] as const).map(group => (
+                <div key={group}>
+                  <p className="text-xs font-semibold uppercase tracking-widest text-brand-secondary mb-2">
+                    {group === 'pitch' ? 'Pitch Skills' : 'Instrument Skills'}
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {SKILL_LADDERS.filter((l: SkillLadder) => l.group === group).map((ladder: SkillLadder) => {
+                      const lp = planProgress[ladder.id];
+                      const currentStageIdx = lp.stageIndex;
+                      const currentStage = ladder.stages[currentStageIdx];
+                      const isComplete = ladder.stages.every((_: LadderStage, i: number) => !!lp.completedStages[i]);
+                      const mixedLocked = ladder.id === 'mixed' && !isMixedUnlocked(currentStageIdx, planProgress);
+                      const missingPrereqs: string[] = ladder.id === 'mixed' && mixedLocked
+                        ? [
+                            ...(!planProgress.intervals.completedStages[currentStageIdx] ? [`Intervals ${currentStage.label}`] : []),
+                            ...(!planProgress.chords.completedStages[currentStageIdx] ? [`Chords ${currentStage.label}`] : []),
+                          ]
+                        : [];
+                      return (
+                        <div
+                          key={ladder.id}
+                          className={cn(
+                            'rounded-lg border border-brand-line bg-brand-surface p-3 space-y-2',
+                            mixedLocked && 'opacity-60',
+                          )}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-semibold text-brand-ink">{ladder.label}</span>
+                            {isComplete && <Check size={14} className="text-green-500" />}
+                          </div>
+                          <div className="flex gap-1.5 flex-wrap">
+                            {ladder.stages.map((_: LadderStage, i: number) => {
+                              const done = !!lp.completedStages[i];
+                              const active = i === currentStageIdx && !isComplete;
+                              return (
+                                <div
+                                  key={i}
+                                  className={cn(
+                                    'w-2 h-2 rounded-full',
+                                    done && 'bg-green-500',
+                                    active && !done && 'bg-brand-primary ring-2 ring-brand-primary ring-offset-1',
+                                    !done && !active && 'bg-brand-line',
+                                  )}
+                                />
+                              );
+                            })}
+                          </div>
+                          {isComplete && (
+                            <p className="text-xs text-green-600 font-medium">Complete</p>
+                          )}
+                          {!isComplete && (
+                            <p className="text-xs text-brand-secondary">{currentStage.label}</p>
+                          )}
+                          {!isComplete && !mixedLocked && (
+                            <button
+                              onClick={() => handlePlanStart(ladder.id)}
+                              className="w-full py-1.5 rounded-md bg-brand-primary text-white text-xs font-medium hover:bg-brand-primary/90 transition-colors"
+                            >
+                              Start
+                            </button>
+                          )}
+                          {mixedLocked && missingPrereqs.length > 0 && (
+                            <p className="text-xs text-brand-secondary leading-tight">
+                              Complete {missingPrereqs.join(' & ')} first
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
           )}
 
-          {/* Practice area — only shown after Start is clicked */}
-          {planPracticing && activeLadder !== null && (() => {
-            const _ladder = SKILL_LADDERS.find((l: SkillLadder) => l.id === activeLadder)!;
-            const _stageIdx = planProgress[activeLadder].stageIndex;
-            const _stage = _ladder.stages[_stageIdx];
-            if (_ladder.mode === 'fretboard') {
+          {/* Practice area — shown after Start is clicked */}
+          {planPracticing && activeLadder && (() => {
+            const ladder = SKILL_LADDERS.find((l: SkillLadder) => l.id === activeLadder)!;
+            const stageIdx = planProgress[activeLadder].stageIndex;
+            const stage = ladder.stages[stageIdx];
+
+            if (ladder.mode === 'fretboard') {
               return (
                 <FretboardTrainer
                   round={round as FretboardRound}
@@ -1221,33 +1261,22 @@ export function EarTraining() {
                 />
               );
             }
-            if (_ladder.mode === 'rhythm') {
-              return round.kind === 'rhythm' ? (
-                <RhythmTrainer
-                  round={round as RhythmRound}
-                  score={score}
-                  settings={rhythmSettings}
-                  onComplete={handleRhythmComplete}
-                />
-              ) : (
-                <RhythmRoundLoader onLoad={() => advanceRound()} />
-              );
+
+            if (ladder.mode === 'rhythm') {
+              return round.kind === 'rhythm'
+                ? <RhythmTrainer round={round as RhythmRound} score={score} settings={rhythmSettings} onComplete={handleRhythmComplete} />
+                : <RhythmRoundLoader onLoad={() => advanceRound()} />;
             }
-            if (_ladder.mode === 'melody') {
-              return round.kind === 'melody' ? (
-                <MelodyTrainer
-                  round={round as MelodyRound}
-                  score={score}
-                  settings={settings.melodySettings}
-                  difficulty={difficulty}
-                  onComplete={handleMelodyComplete}
-                />
-              ) : (
-                <RhythmRoundLoader onLoad={() => advanceRound()} />
-              );
+
+            if (ladder.mode === 'melody') {
+              void stage;
+              return round.kind === 'melody'
+                ? <MelodyTrainer round={round as MelodyRound} score={score} settings={settings.melodySettings} difficulty={difficulty} onComplete={handleMelodyComplete} />
+                : null;
             }
-            // chord / interval / mixed
-            void _stage;
+
+            // chord, interval, mixed — standard quiz UI
+            void stage;
             return (
               <div className="rounded-lg border border-brand-line bg-brand-surface p-6 space-y-6">
                 <div className="flex justify-center">
@@ -1562,7 +1591,7 @@ export function EarTraining() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-brand-surface rounded-xl border border-brand-line p-6 max-w-sm w-full space-y-4 text-center">
             <h2 className="text-xl font-serif font-bold text-brand-ink">
-              {showPlanComplete.isFinal ? 'Plan complete! 🎉' : 'Stage complete!'}
+              {showPlanComplete.isFinal ? '🎉 Ladder complete!' : 'Stage complete!'}
             </h2>
             <p className="text-brand-secondary text-sm">
               {showPlanComplete.stageLabel} — {showPlanComplete.accuracy}% accuracy
