@@ -5,7 +5,9 @@ import { ALL_NOTES } from '../data/guitarData';
 import { playStrum, playNote, initAudio, getFretNote, playArpeggio } from '../lib/audio';
 import { Volume2 } from 'lucide-react';
 
-const CAGED_BASE_SHAPES = [
+type CagedShapeDef = { id: string; baseRoot: string; name: string; relFrets: number[]; description: string };
+
+const CAGED_BASE_SHAPES: CagedShapeDef[] = [
   { id: 'C', baseRoot: 'C', name: 'C Shape', relFrets: [-1, 3, 2, 0, 1, 0], description: 'Originates from the open C major chord. The root note is on the A (5th) string. When moved up the neck, your index finger acts as the nut (barre).' },
   { id: 'A', baseRoot: 'A', name: 'A Shape', relFrets: [-1, 0, 2, 2, 2, 0], description: 'Originates from the open A major chord. Root is on the A (5th) string. This is one of the most common barre chord shapes.' },
   { id: 'G', baseRoot: 'G', name: 'G Shape', relFrets: [3, 2, 0, 0, 0, 3], description: 'Originates from the open G major chord. Root is on the low E (6th) string. This shape spans a wide fret range and is often played partially.' },
@@ -13,17 +15,29 @@ const CAGED_BASE_SHAPES = [
   { id: 'D', baseRoot: 'D', name: 'D Shape', relFrets: [-1, -1, 0, 2, 3, 2], description: 'Originates from the open D major chord. Root is on the D (4th) string. Useful for higher-register voicings and triads.' }
 ];
 
+const CAGED_MINOR_BASE_SHAPES: CagedShapeDef[] = [
+  { id: 'Em', baseRoot: 'E', name: 'Em Shape', relFrets: [0, 2, 2, 0, 0, 0], description: 'Originates from the open Em chord. Root is on the low E (6th) string. The most widely used minor barre chord shape — slide it up and barre behind it for any minor key.' },
+  { id: 'Am', baseRoot: 'A', name: 'Am Shape', relFrets: [-1, 0, 2, 2, 1, 0], description: 'Originates from the open Am chord. Root is on the A (5th) string. The second most common minor barre shape — together with Em shape, these two cover the whole neck.' },
+  { id: 'Dm', baseRoot: 'D', name: 'Dm Shape', relFrets: [-1, -1, 0, 2, 3, 1], description: 'Originates from the open Dm chord. Root is on the D (4th) string. Great for higher-register minor voicings and melodic playing on the upper strings.' },
+  { id: 'Gm', baseRoot: 'G', name: 'Gm Shape', relFrets: [3, 1, 0, 0, 3, 3], description: 'Originates from the open Gm chord. Root is on the low E (6th) string. Less common as a full barre but useful for partial voicings and understanding the chain between Em and Dm shapes.' },
+  { id: 'Cm', baseRoot: 'C', name: 'Cm Shape', relFrets: [-1, 3, 5, 5, 4, 3], description: 'The Cm barre shape with root on the A (5th) string. Connects the Am shape and the Gm shape in the chain. Played as a full barre at the fret of the root.' },
+];
+
 const COMMON_KEYS: Note[] = ['E', 'A', 'D', 'G', 'C', 'F', 'B', 'G#'];
 
-const PRACTICE_SCENARIOS: { label: string; mode: 'byKey' | 'byShape'; key?: Note; shapeId?: string; shift?: number }[] = [
-  { label: 'Open Chords in E',         mode: 'byKey',   key: 'E' },
-  { label: 'Open Chords in G',         mode: 'byKey',   key: 'G' },
-  { label: 'Open Chords in C',         mode: 'byKey',   key: 'C' },
-  { label: 'Open Chords in D',         mode: 'byKey',   key: 'D' },
-  { label: 'Barre Chords – E shape',   mode: 'byShape', shapeId: 'E', shift: 2 },
-  { label: 'Barre Chords – A shape',   mode: 'byShape', shapeId: 'A', shift: 2 },
-  { label: 'Upper Neck – G shape',     mode: 'byShape', shapeId: 'G', shift: 7 },
-  { label: 'Upper Neck – C shape',     mode: 'byShape', shapeId: 'C', shift: 5 },
+const PRACTICE_SCENARIOS: { label: string; mode: 'byKey' | 'byShape'; key?: Note; shapeId?: string; shift?: number; quality?: 'major' | 'minor' }[] = [
+  { label: 'Open Chords in E',          mode: 'byKey',   key: 'E' },
+  { label: 'Open Chords in G',          mode: 'byKey',   key: 'G' },
+  { label: 'Open Chords in C',          mode: 'byKey',   key: 'C' },
+  { label: 'Open Chords in D',          mode: 'byKey',   key: 'D' },
+  { label: 'Barre Chords – E shape',    mode: 'byShape', shapeId: 'E',  shift: 2 },
+  { label: 'Barre Chords – A shape',    mode: 'byShape', shapeId: 'A',  shift: 2 },
+  { label: 'Upper Neck – G shape',      mode: 'byShape', shapeId: 'G',  shift: 7 },
+  { label: 'Upper Neck – C shape',      mode: 'byShape', shapeId: 'C',  shift: 5 },
+  { label: 'Minor – Em shape',          mode: 'byShape', shapeId: 'Em', shift: 2,  quality: 'minor' },
+  { label: 'Minor – Am shape',          mode: 'byShape', shapeId: 'Am', shift: 2,  quality: 'minor' },
+  { label: 'Minor Chords in Am',        mode: 'byKey',   key: 'A',                 quality: 'minor' },
+  { label: 'Minor Chords in Em',        mode: 'byKey',   key: 'E',                 quality: 'minor' },
 ];
 
 const SEQ_DUR_MULT: Record<string, number> = { '16n': 0.25, '8n': 0.5, '4n': 1, '2n': 2, '1n': 4 };
@@ -39,9 +53,19 @@ function getDistance(from: Note, to: Note) {
 
 export function Caged() {
   const [viewMode, setViewMode] = useState<'byKey' | 'byShape'>('byKey');
+  const [quality, setQuality] = useState<'major' | 'minor'>('major');
   const [selectedKey, setSelectedKey] = useState<Note>('C');
   const [selectedShapeId, setSelectedShapeId] = useState<string>('C');
   const [shapeShift, setShapeShift] = useState<number>(0);
+
+  const activeShapes = quality === 'major' ? CAGED_BASE_SHAPES : CAGED_MINOR_BASE_SHAPES;
+
+  // Reset shape selection when switching quality
+  React.useEffect(() => {
+    setSelectedShapeId(quality === 'major' ? 'C' : 'Em');
+    setShapeShift(0);
+    setSeqPlaying(false);
+  }, [quality]);
 
   // Arpeggio sequencer (byShape mode)
   const [seqSteps, setSeqSteps] = useState<boolean[][]>(Array.from({ length: 6 }, () => Array(16).fill(false)));
@@ -53,7 +77,7 @@ export function Caged() {
   const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const stepIdxRef = React.useRef(0);
 
-  const activeShapeDef = CAGED_BASE_SHAPES.find(s => s.id === selectedShapeId)!;
+  const activeShapeDef = activeShapes.find(s => s.id === selectedShapeId) ?? activeShapes[0];
   const fretsForShape = useMemo(
     () => activeShapeDef.relFrets.map(f => f === -1 ? -1 : f + shapeShift),
     [activeShapeDef, shapeShift]
@@ -125,11 +149,12 @@ export function Caged() {
     setSeqNum(num);
   };
 
-  const getCagedChord = (shape: typeof CAGED_BASE_SHAPES[0], targetNote: Note) => {
+  const getCagedChord = (shape: CagedShapeDef, targetNote: Note) => {
     const shift = getDistance(shape.baseRoot as Note, targetNote);
     const finalFrets = shape.relFrets.map(f => f === -1 ? -1 : f + shift);
+    const qualityLabel = quality === 'major' ? 'Major' : 'minor';
     return {
-      name: `${targetNote} Major (${shape.name})`,
+      name: `${targetNote} ${qualityLabel} (${shape.name})`,
       frets: finalFrets,
       fingers: [-1,-1,-1,-1,-1,-1] as Finger[],
       fretsOnly: finalFrets
@@ -152,6 +177,7 @@ export function Caged() {
     const s = PRACTICE_SCENARIOS.find(p => p.label === label);
     if (!s) return;
     setViewMode(s.mode);
+    if (s.quality) setQuality(s.quality);
     if (s.key) setSelectedKey(s.key);
     if (s.shapeId) setSelectedShapeId(s.shapeId);
     if (s.shift !== undefined) setShapeShift(s.shift);
@@ -160,7 +186,7 @@ export function Caged() {
 
   const resultingNote = ALL_NOTES[(ALL_NOTES.indexOf(activeShapeDef.baseRoot as Note) + shapeShift) % 12];
   const byShapeChordData = {
-    name: `${resultingNote} Major (${activeShapeDef.name})`,
+    name: `${resultingNote} ${quality === 'major' ? 'Major' : 'minor'} (${activeShapeDef.name})`,
     frets: fretsForShape,
     fingers: [-1,-1,-1,-1,-1,-1] as Finger[],
     fretsOnly: fretsForShape
@@ -173,8 +199,7 @@ export function Caged() {
         <div>
            <h1 className="text-4xl font-serif font-bold text-brand-ink mb-2">The CAGED System</h1>
            <p className="text-brand-secondary text-lg max-w-2xl">
-             The CAGED system maps the guitar fretboard using five basic open chord shapes: C, A, G, E, and D.
-             By connecting these shapes, you can play any major chord anywhere on the neck.
+             The CAGED system maps the fretboard using five open chord shapes. By connecting them, you can play any major <em>or minor</em> chord anywhere on the neck.
            </p>
         </div>
         {/* Practice scenarios */}
@@ -187,19 +212,36 @@ export function Caged() {
         </select>
       </div>
 
-      <div className="flex bg-brand-surface rounded-lg p-1 border border-brand-line w-max mb-8 shadow-sm">
-        <button
-          onClick={() => setViewMode('byKey')}
-          className={`flex items-center gap-2 px-6 py-2.5 rounded-md font-bold text-sm transition-all duration-200 ${viewMode === 'byKey' ? 'bg-brand-primary text-white shadow-md' : 'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar'}`}
-        >
-          Find Shapes for Key
-        </button>
-        <button
-          onClick={() => setViewMode('byShape')}
-          className={`flex items-center gap-2 px-6 py-2.5 rounded-md font-bold text-sm transition-all duration-200 ${viewMode === 'byShape' ? 'bg-brand-primary text-white shadow-md' : 'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar'}`}
-        >
-          Move Shape on Neck
-        </button>
+      <div className="flex flex-wrap items-center gap-4 mb-8">
+        <div className="flex bg-brand-surface rounded-lg p-1 border border-brand-line shadow-sm">
+          <button
+            onClick={() => setViewMode('byKey')}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-md font-bold text-sm transition-all duration-200 ${viewMode === 'byKey' ? 'bg-brand-primary text-white shadow-md' : 'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar'}`}
+          >
+            Find Shapes for Key
+          </button>
+          <button
+            onClick={() => setViewMode('byShape')}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-md font-bold text-sm transition-all duration-200 ${viewMode === 'byShape' ? 'bg-brand-primary text-white shadow-md' : 'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar'}`}
+          >
+            Move Shape on Neck
+          </button>
+        </div>
+
+        <div className="flex bg-brand-surface rounded-lg p-1 border border-brand-line shadow-sm">
+          <button
+            onClick={() => setQuality('major')}
+            className={`px-5 py-2 rounded-md font-bold text-sm transition-all duration-200 ${quality === 'major' ? 'bg-brand-primary text-white shadow-md' : 'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar'}`}
+          >
+            Major
+          </button>
+          <button
+            onClick={() => setQuality('minor')}
+            className={`px-5 py-2 rounded-md font-bold text-sm transition-all duration-200 ${quality === 'minor' ? 'bg-indigo-600 text-white shadow-md' : 'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar'}`}
+          >
+            minor
+          </button>
+        </div>
       </div>
 
       {viewMode === 'byKey' ? (
@@ -246,7 +288,7 @@ export function Caged() {
           </div>
 
           <div className="space-y-12">
-            {CAGED_BASE_SHAPES.map(shape => {
+            {activeShapes.map(shape => {
                return { shape, chordData: getCagedChord(shape, selectedKey), shift: getDistance(shape.baseRoot as Note, selectedKey) };
             }).sort((a, b) => a.shift - b.shift).map(({shape, chordData}) => {
                const maxFret = Math.max(...chordData.fretsOnly);
@@ -298,8 +340,8 @@ export function Caged() {
           <div className="bg-brand-sidebar p-6 md:p-8 rounded-xl border border-brand-line flex flex-col md:flex-row items-start md:items-center gap-8">
              <div>
                 <h3 className="text-sm font-bold text-brand-secondary uppercase tracking-wider mb-3">Select Shape</h3>
-                <div className="flex gap-2">
-                   {CAGED_BASE_SHAPES.map(shape => (
+                <div className="flex gap-2 flex-wrap">
+                   {activeShapes.map(shape => (
                      <button
                        key={shape.id}
                        onClick={() => { setSelectedShapeId(shape.id); setShapeShift(0); setSeqPlaying(false); }}
@@ -337,7 +379,7 @@ export function Caged() {
           <div className="bg-brand-surface border border-brand-line rounded-xl p-6 md:p-10 shadow-sm">
              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b border-brand-line pb-8">
                 <div>
-                   <h2 className="text-4xl font-bold text-brand-ink mb-2">{resultingNote} Major</h2>
+                   <h2 className="text-4xl font-bold text-brand-ink mb-2">{resultingNote} {quality === 'major' ? 'Major' : 'minor'}</h2>
                    <p className="text-brand-secondary text-lg">
                      <strong className="text-brand-ink">{activeShapeDef.name}</strong> shifted by {shapeShift} fret{shapeShift !== 1 ? 's' : ''}
                    </p>
