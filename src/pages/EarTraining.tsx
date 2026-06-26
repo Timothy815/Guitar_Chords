@@ -39,6 +39,8 @@ import { RhythmTrainer } from '../components/RhythmTrainer';
 import { MelodyRound, MelodySettings, generateMelodyRound } from '../lib/melodyTraining';
 import { MelodyTrainer } from '../components/MelodyTrainer';
 import { CountItTrainer } from '../components/CountItTrainer';
+import { ScaleDrillTrainer } from '../components/ScaleDrillTrainer';
+import { generateScaleDrillRound, ScaleDrillRound } from '../lib/earTraining';
 
 function RhythmRoundLoader({ onLoad }: { onLoad: () => void }) {
   useEffect(() => { onLoad(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -101,6 +103,7 @@ export function EarTraining() {
   const [huntSessionRounds, setHuntSessionRounds] = useState<Array<{ firstTapSemitones: number; tapCount: number }>>([]);
   const practiceImportRef = useRef<HTMLInputElement>(null);
   const [practiceImportMsg, setPracticeImportMsg] = useState<string | null>(null);
+  const [scaleDrillRound, setScaleDrillRound] = useState<ScaleDrillRound>(() => generateScaleDrillRound());
 
   const FRETS_FOR: Record<DifficultyLevel, number> = { Beginner: 6, Intermediate: 10, Advanced: 13 };
 
@@ -324,6 +327,22 @@ export function EarTraining() {
       streak: wasCorrect ? s.streak + 1 : 0,
     }));
     setTimeout(() => advanceRound(), 400);
+  }
+
+  function handleScaleDrillMode() {
+    const next = { ...settings, mode: 'scaleDrill' as const };
+    setSettings(next);
+    setScaleDrillRound(generateScaleDrillRound());
+  }
+
+  function handleScaleDrillComplete(wasCorrect: boolean) {
+    setScore(s => ({
+      ...s,
+      correct: wasCorrect ? s.correct + 1 : s.correct,
+      total: s.total + 1,
+      streak: wasCorrect ? s.streak + 1 : 0,
+    }));
+    setScaleDrillRound(generateScaleDrillRound());
   }
 
   function handlePlanStart(ladderId: LadderId) {
@@ -729,6 +748,17 @@ export function EarTraining() {
           )}
         >
           Count It
+        </button>
+        <button
+          onClick={handleScaleDrillMode}
+          className={cn(
+            'flex-1 py-2.5 text-sm font-medium transition-colors',
+            settings.mode === 'scaleDrill'
+              ? 'bg-brand-primary text-white'
+              : 'text-brand-secondary hover:bg-brand-sidebar'
+          )}
+        >
+          Scale Drill
         </button>
       </div>
 
@@ -1604,6 +1634,12 @@ export function EarTraining() {
             ) : (
               <RhythmRoundLoader onLoad={() => advanceRound()} />
             )
+          ) : settings.mode === 'scaleDrill' ? (
+            <ScaleDrillTrainer
+              round={scaleDrillRound}
+              score={score}
+              onComplete={handleScaleDrillComplete}
+            />
           ) : (
             <div className="rounded-lg border border-brand-line bg-brand-surface p-6 space-y-6">
               {/* Replay button — also serves as the first user gesture to unlock audio */}

@@ -1,5 +1,6 @@
 import { ChordShape, Note } from '../types';
-import { ALL_NOTES, COMMON_CHORDS } from '../data/guitarData';
+import { ALL_NOTES, COMMON_CHORDS, COMMON_SCALES, generateScalePattern, getNoteFromFret } from '../data/guitarData';
+import { STANDARD_TUNING } from '../types';
 import { getFretNote, initAudio, playStrum, playNote } from './audio';
 import type { RhythmRound } from './rhythmTraining';
 import type { MelodyRound, MelodySettings } from './melodyTraining';
@@ -15,7 +16,7 @@ export interface IntervalDef {
 }
 
 export interface EarTrainingSettings {
-  mode: 'chord' | 'interval' | 'study' | 'fretboard' | 'plan' | 'rhythm' | 'melody' | 'mixed' | 'count';
+  mode: 'chord' | 'interval' | 'study' | 'fretboard' | 'plan' | 'rhythm' | 'melody' | 'mixed' | 'count' | 'scaleDrill';
   activeChordTypes: string[];
   activeIntervals: string[];
   settingsPanelOpen: boolean;
@@ -66,6 +67,16 @@ export interface FretboardRound {
   kind: 'fretboard';
   targetNote: string;
   fretsNum: number;
+}
+
+export interface ScaleDrillRound {
+  kind: 'scaleDrill';
+  scaleName: string;
+  root: Note;
+  targetStringIdx: number;   // 0 = low E
+  targetFret: number;
+  targetNote: Note;
+  options: Note[];           // 4 choices including correct answer
 }
 
 export type Round = ChordRound | IntervalRound | FretboardRound | RhythmRound | MelodyRound;
@@ -475,4 +486,36 @@ export function getSemitoneDirection(
   const wrapped = ((raw % 12) + 12) % 12;
   if (wrapped === 0) return 'correct';
   return wrapped <= 6 ? 'sharp' : 'flat';
+}
+
+export function generateScaleDrillRound(scaleIdx?: number): ScaleDrillRound {
+  const idx = scaleIdx ?? Math.floor(Math.random() * COMMON_SCALES.length);
+  const scaleDef = COMMON_SCALES[idx];
+  const root = ALL_NOTES[Math.floor(Math.random() * 12)];
+  const pattern = generateScalePattern(root, scaleDef);
+
+  // All fretboard positions of scale notes in frets 0-12
+  const positions: { stringIdx: number; fret: number; note: Note }[] = [];
+  STANDARD_TUNING.notes.forEach((openNote, stringIdx) => {
+    for (let fret = 0; fret <= 12; fret++) {
+      const note = getNoteFromFret(openNote, fret);
+      if (pattern.notes.includes(note)) {
+        positions.push({ stringIdx, fret, note });
+      }
+    }
+  });
+
+  const target = positions[Math.floor(Math.random() * positions.length)];
+  const wrong = ALL_NOTES.filter(n => n !== target.note).sort(() => Math.random() - 0.5).slice(0, 3);
+  const options = [target.note, ...wrong].sort(() => Math.random() - 0.5) as Note[];
+
+  return {
+    kind: 'scaleDrill',
+    scaleName: scaleDef.name,
+    root,
+    targetStringIdx: target.stringIdx,
+    targetFret: target.fret,
+    targetNote: target.note,
+    options,
+  };
 }
