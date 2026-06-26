@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import { Progression, ChordShape, ChordSlot, ArpeggioStep, ArpeggioPattern, Note } from '../types';
 import { COMMON_CHORDS, ALL_NOTES } from '../data/guitarData';
 import { Fretboard } from '../components/Fretboard';
@@ -596,6 +597,7 @@ function ChordSheetModal({
 // ─── Progressions page ───────────────────────────────────────────────────────
 
 export function Progressions() {
+  const navigate = useNavigate();
   const [progressions, setProgressions] = useState<Progression[]>([]);
   const [activeProgId, setActiveProgId] = useState<string | null>(null);
   const [chordPaletteKey, setChordPaletteKey] = useState<string>('C');
@@ -940,6 +942,12 @@ export function Progressions() {
                   </button>
                   <button onClick={() => handlePrint('print-area')} className="flex items-center gap-2 px-4 py-2 bg-transparent text-brand-ink border border-brand-line font-medium rounded-md hover:border-brand-primary hover:text-brand-primary transition-colors">
                     <Printer size={18} /> Print
+                  </button>
+                  <button
+                    onClick={() => navigate('/ear-training')}
+                    className="text-xs px-3 py-1.5 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink transition-colors"
+                  >
+                    Ear Training →
                   </button>
                   <button onClick={() => deleteProgression(activeProgression.id)} className="flex items-center gap-2 px-3 py-2 bg-transparent text-red-500 border border-brand-line font-medium rounded-md hover:border-red-500 hover:text-red-500 transition-colors" title="Delete Progression">
                     <Trash2 size={18} />

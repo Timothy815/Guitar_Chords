@@ -8,7 +8,7 @@ import { playStrum, playArpeggio, getFretNote, initAudio, playNote, setEffects }
 import { Volume2, ListMusic, Printer } from 'lucide-react';
 import { ChordShape, Note, TUNINGS, Tuning } from '../types';
 import { handlePrint } from '../lib/utils';
-import { addChordToActiveProgression } from '../lib/progressionUtils';
+import { addChordToActiveProgression } from '@/src/lib/progressionUtils';
 
 export function Dictionary() {
   const navigate = useNavigate();

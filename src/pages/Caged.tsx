@@ -5,7 +5,7 @@ import { Finger, Note } from '../types';
 import { ALL_NOTES } from '../data/guitarData';
 import { playStrum, playNote, initAudio, getFretNote, playArpeggio } from '../lib/audio';
 import { Volume2 } from 'lucide-react';
-import { addChordToActiveProgression } from '../lib/progressionUtils';
+import { addChordToActiveProgression } from '@/src/lib/progressionUtils';
 
 type CagedShapeDef = { id: string; baseRoot: string; name: string; relFrets: number[]; description: string };
 
