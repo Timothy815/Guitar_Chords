@@ -5,7 +5,7 @@ import {
   durationBeats, beatsPerMeasure, getCountLabel,
 } from '../lib/rhythmTraining';
 import { SessionScore } from '../lib/earTraining';
-import { initAudio, initPianoSampler, playRhythmRound, stopRhythm } from '../lib/audio';
+import { initAudio, playRhythmRound, stopRhythm } from '../lib/audio';
 import { RhythmStaff, CLEF_EXTRA, MIN_MEASURE_W } from './RhythmStaff';
 
 interface RhythmTrainerProps {
@@ -34,13 +34,10 @@ export function RhythmTrainer({ round, score, settings, onComplete }: RhythmTrai
 
   const handlePlay = useCallback(() => {
     setActiveUnitIdx(null);
-    initAudio()
-      .then(() => initPianoSampler())
-      .then(() => playRhythmRound(round, settings.enableLeadIn, setActiveUnitIdx))
-      .catch(() => {});
+    initAudio().then(() => playRhythmRound(round, settings.enableLeadIn, setActiveUnitIdx)).catch(() => {});
   }, [round, settings.enableLeadIn]);
 
-  // Auto-play on new round — wait for piano samples before playing
+  // Auto-play on new round
   useEffect(() => {
     setPlacedUnits([]);
     setSelectedDuration('q');
@@ -48,10 +45,7 @@ export function RhythmTrainer({ round, score, settings, onComplete }: RhythmTrai
     setFeedback(null);
     setAttempts(0);
     setActiveUnitIdx(null);
-    initAudio()
-      .then(() => initPianoSampler())
-      .then(() => playRhythmRound(round, settings.enableLeadIn, setActiveUnitIdx))
-      .catch(() => {});
+    initAudio().then(() => playRhythmRound(round, settings.enableLeadIn, setActiveUnitIdx)).catch(() => {});
     return () => stopRhythm();
   }, [round]);
 

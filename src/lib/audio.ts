@@ -17,9 +17,8 @@ let isPianoInitialized = false;
 let pianoInitPromise: Promise<void> | null = null;
 
 // Rhythm training dedicated synths (lazy-initialized, independent of main audio chain)
-let rhythmTickSynth: Tone.Synth | null = null;        // drumstick-click metronome
-let rhythmHitSynth: Tone.MembraneSynth | null = null; // loud note-onset punch
-// Sustained pitch uses pianoSampler (Salamander) — no dedicated synth needed
+let rhythmTickSynth: Tone.Synth | null = null;    // drumstick-click metronome
+let rhythmPianoSynth: Tone.PolySynth | null = null; // piano-like tone for note onsets
 
 export function getInstrument() {
   return currentInstrument;
@@ -430,7 +429,7 @@ export function stopRhythm(): void {
   Tone.Transport.stop();
   Tone.Transport.cancel();
   Tone.Transport.loop = false;
-  pianoSampler?.releaseAll();
+  rhythmPianoSynth?.releaseAll();
 }
 
 export function playRhythmRound(round: RhythmRound, enableLeadIn = true, onNote?: (unitIdx: number) => void): void {
@@ -442,15 +441,15 @@ export function playRhythmRound(round: RhythmRound, enableLeadIn = true, onNote?
       oscillator: { type: 'triangle' },
       envelope: { attack: 0.001, decay: 0.025, sustain: 0, release: 0.01 },
     }).toDestination();
-    rhythmTickSynth.volume.value = -14;  // quiet background tick
+    rhythmTickSynth.volume.value = -14;
   }
-  if (!rhythmHitSynth) {
-    rhythmHitSynth = new Tone.MembraneSynth({
-      pitchDecay: 0.04,
-      octaves: 4,
-      envelope: { attack: 0.001, decay: 0.15, sustain: 0, release: 0.1 },
+  if (!rhythmPianoSynth) {
+    // Piano-like synth: fast strike, natural decay, no sustain — no network required
+    rhythmPianoSynth = new Tone.PolySynth(Tone.Synth, {
+      oscillator: { type: 'triangle8' } as any,
+      envelope: { attack: 0.003, decay: 0.6, sustain: 0.04, release: 1.4 },
     }).toDestination();
-    rhythmHitSynth.volume.value = 2;  // loud attack punch
+    rhythmPianoSynth.volume.value = -4;
   }
 
   const spb = 60 / round.bpm;         // seconds per quarter-note beat
@@ -496,11 +495,9 @@ export function playRhythmRound(round: RhythmRound, enableLeadIn = true, onNote?
   for (let i = 0; i < round.units.length; i++) {
     const unit = round.units[i];
     const t = patternStart + cursor * spb;
-    const durationSec = durationBeats(unit.duration) * spb;
     if (!unit.isRest) {
       Tone.Transport.schedule(time => {
-        rhythmHitSynth!.triggerAttackRelease('C3', '16n', time, 1.0);
-        pianoSampler?.triggerAttackRelease('C4', durationSec, time, 0.9);
+        rhythmPianoSynth!.triggerAttackRelease('C4', '8n', time, 0.8);
       }, t);
     }
     if (onNote) {
