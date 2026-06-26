@@ -130,7 +130,7 @@ export const DEFAULT_SETTINGS: EarTrainingSettings = {
   activeChordTypes: ['major', 'minor'],
   activeIntervals: ['Unison', 'Perfect 4th', 'Perfect 5th', 'Octave'],
   settingsPanelOpen: true,
-  melodySettings: { rootKey: 'random', bpm: 80 },
+  melodySettings: { rootKey: 'random', bpm: 80, showFirstNote: true },
 };
 
 // Chord type classification — order matters: most specific patterns first.

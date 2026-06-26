@@ -1001,6 +1001,20 @@ export function EarTraining() {
                     className="w-full accent-brand-primary"
                   />
                 </div>
+
+                <div>
+                  <button
+                    onClick={() => setSettings(s => ({ ...s, melodySettings: { ...s.melodySettings, showFirstNote: !s.melodySettings.showFirstNote } }))}
+                    className={cn(
+                      'px-3 py-1.5 rounded text-xs font-medium border transition-colors',
+                      settings.melodySettings.showFirstNote
+                        ? 'bg-brand-primary text-white border-brand-primary'
+                        : 'border-brand-line text-brand-secondary hover:border-brand-primary/60',
+                    )}
+                  >
+                    {settings.melodySettings.showFirstNote ? 'First note: Given' : 'First note: Hidden'}
+                  </button>
+                </div>
               </div>
             )}
 

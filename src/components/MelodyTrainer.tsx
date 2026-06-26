@@ -22,9 +22,6 @@ export function MelodyTrainer({ round, score, settings, difficulty, onComplete }
   const [attempts, setAttempts] = useState(0);
   const timeoutIds = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  // Suppress unused-variable warning for settings (used by parent, passed as prop)
-  void settings;
-
   const allowedPitches = buildAllowedPitches(round.rootKey, difficulty);
 
   function stopMelody() {
@@ -45,7 +42,7 @@ export function MelodyTrainer({ round, score, settings, difficulty, onComplete }
 
   // Auto-play on new round; clear state
   useEffect(() => {
-    setPlacedNotes([]);
+    setPlacedNotes(settings.showFirstNote ? [round.notes[0]] : []);
     setFeedback(null);
     setAttempts(0);
     initAudio().then(() => playSequence(round.notes)).catch(() => {});
@@ -68,6 +65,7 @@ export function MelodyTrainer({ round, score, settings, difficulty, onComplete }
 
   function handleDelete() {
     if (feedback) return;
+    if (settings.showFirstNote && placedNotes.length <= 1) return;
     setPlacedNotes(prev => prev.slice(0, -1));
   }
 
@@ -82,7 +80,7 @@ export function MelodyTrainer({ round, score, settings, difficulty, onComplete }
   }
 
   function handleTryAgain() {
-    setPlacedNotes([]);
+    setPlacedNotes(settings.showFirstNote ? [round.notes[0]] : []);
     setFeedback(null);
   }
 
@@ -114,13 +112,15 @@ export function MelodyTrainer({ round, score, settings, difficulty, onComplete }
           {round.notes.map((_, i) => {
             const placed = placedNotes[i];
             const fb = feedback?.[i];
+            const isGiven = settings.showFirstNote && i === 0;
             return (
               <div
                 key={i}
                 className={cn(
                   'w-10 h-10 rounded-lg border text-sm font-bold flex items-center justify-center',
                   !placed && 'border-brand-line text-brand-secondary',
-                  placed && !feedback && 'border-brand-primary bg-brand-sidebar text-brand-ink',
+                  placed && !feedback && !isGiven && 'border-brand-primary bg-brand-sidebar text-brand-ink',
+                  isGiven && !feedback && 'border-brand-secondary bg-brand-sidebar text-brand-secondary opacity-70',
                   fb === 'correct' && 'border-green-500 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
                   fb === 'wrong' && 'border-red-500 bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400',
                 )}

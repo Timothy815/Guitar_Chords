@@ -12,6 +12,7 @@ export interface MelodyRound {
 export interface MelodySettings {
   rootKey: string;   // 'random' or specific root like 'C'
   bpm: number;
+  showFirstNote: boolean;
 }
 
 const MAJOR_INTERVALS = [0, 2, 4, 5, 7, 9, 11];
