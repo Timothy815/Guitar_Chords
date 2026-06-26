@@ -452,8 +452,6 @@ export function playRhythmRound(round: RhythmRound, enableLeadIn = true, onNote?
     }).toDestination();
     rhythmHitSynth.volume.value = 2;  // loud attack punch
   }
-  // Start loading Salamander piano in background if not already loading
-  if (!pianoInitPromise) initPianoSampler().catch(() => {});
 
   const spb = 60 / round.bpm;         // seconds per quarter-note beat
   const bpb = beatsPerMeasure(round.timeSignature);
@@ -502,10 +500,7 @@ export function playRhythmRound(round: RhythmRound, enableLeadIn = true, onNote?
     if (!unit.isRest) {
       Tone.Transport.schedule(time => {
         rhythmHitSynth!.triggerAttackRelease('C3', '16n', time, 1.0);
-        // Use Salamander piano if loaded, silent fallback otherwise (loads fast on repeat)
-        if (isPianoInitialized && pianoSampler) {
-          pianoSampler.triggerAttackRelease('C4', durationSec, time, 0.9);
-        }
+        pianoSampler?.triggerAttackRelease('C4', durationSec, time, 0.9);
       }, t);
     }
     if (onNote) {

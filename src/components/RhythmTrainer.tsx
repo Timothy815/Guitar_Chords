@@ -34,15 +34,13 @@ export function RhythmTrainer({ round, score, settings, onComplete }: RhythmTrai
 
   const handlePlay = useCallback(() => {
     setActiveUnitIdx(null);
-    initAudio().then(() => playRhythmRound(round, settings.enableLeadIn, setActiveUnitIdx)).catch(() => {});
+    initAudio()
+      .then(() => initPianoSampler())
+      .then(() => playRhythmRound(round, settings.enableLeadIn, setActiveUnitIdx))
+      .catch(() => {});
   }, [round, settings.enableLeadIn]);
 
-  // Pre-load Salamander piano samples as soon as component mounts
-  useEffect(() => {
-    initAudio().then(() => initPianoSampler()).catch(() => {});
-  }, []);
-
-  // Auto-play on new round
+  // Auto-play on new round — wait for piano samples before playing
   useEffect(() => {
     setPlacedUnits([]);
     setSelectedDuration('q');
@@ -50,7 +48,10 @@ export function RhythmTrainer({ round, score, settings, onComplete }: RhythmTrai
     setFeedback(null);
     setAttempts(0);
     setActiveUnitIdx(null);
-    initAudio().then(() => playRhythmRound(round, settings.enableLeadIn, setActiveUnitIdx)).catch(() => {});
+    initAudio()
+      .then(() => initPianoSampler())
+      .then(() => playRhythmRound(round, settings.enableLeadIn, setActiveUnitIdx))
+      .catch(() => {});
     return () => stopRhythm();
   }, [round]);
 
