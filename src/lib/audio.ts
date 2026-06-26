@@ -315,8 +315,12 @@ export function playSnare() {
 }
 
 let lastClickTime = 0;
-export function playClick(isHigh = false) {
+export function playClick(isHigh = false, atTime?: number | string) {
   if (!isInitialized) return;
+  if (atTime !== undefined) {
+    clickSynth.triggerAttackRelease(isHigh ? 'G5' : 'C4', '32n', atTime);
+    return;
+  }
   let now = Tone.now();
   if (now <= lastClickTime) now = lastClickTime + 0.01;
   clickSynth.triggerAttackRelease(isHigh ? "C5" : "C4", "16n", now);
