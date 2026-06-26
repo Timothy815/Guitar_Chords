@@ -24,6 +24,7 @@ export function RhythmTrainer({ round, score, settings, onComplete }: RhythmTrai
   const [selectedDuration, setSelectedDuration] = useState<RhythmDuration>('q');
   const [isRest, setIsRest] = useState(false);
   const [feedback, setFeedback] = useState<('correct' | 'wrong' | null)[] | null>(null);
+  const [attempts, setAttempts] = useState(0);
 
   const totalBeats = beatsPerMeasure(round.timeSignature) * round.measures;
   const usedBeats = placedUnits.reduce((s, u) => s + durationBeats(u.duration), 0);
@@ -39,6 +40,7 @@ export function RhythmTrainer({ round, score, settings, onComplete }: RhythmTrai
     setSelectedDuration('q');
     setIsRest(false);
     setFeedback(null);
+    setAttempts(0);
     initAudio().then(() => playRhythmRound(round, settings.enableLeadIn)).catch(() => {});
     return () => stopRhythm();
   }, [round]);
@@ -55,6 +57,7 @@ export function RhythmTrainer({ round, score, settings, onComplete }: RhythmTrai
 
   function handleSubmit() {
     if (remainingBeats > 0.001 || feedback) return;
+    setAttempts(a => a + 1);
     const fb = round.units.map((correct, i) => {
       const placed = placedUnits[i];
       if (!placed) return 'wrong' as const;
@@ -76,8 +79,14 @@ export function RhythmTrainer({ round, score, settings, onComplete }: RhythmTrai
 
   function handleNext() {
     const allCorrect = feedback !== null && feedback.every(f => f === 'correct');
+    const wasCorrect = attempts === 1 && allCorrect;
     stopRhythm();
-    onComplete(allCorrect);
+    onComplete(wasCorrect);
+  }
+
+  function handleTryAgain() {
+    setPlacedUnits([]);
+    setFeedback(null);
   }
 
   const handlePlayAnswer = useCallback(() => {
@@ -225,6 +234,14 @@ export function RhythmTrainer({ round, score, settings, onComplete }: RhythmTrai
             className="px-4 py-2 rounded-lg text-sm font-medium bg-green-600 text-white hover:bg-green-700 transition-colors"
           >
             Submit
+          </button>
+        )}
+        {feedback && !feedback.every(f => f === 'correct') && (
+          <button
+            onClick={handleTryAgain}
+            className="px-4 py-2 rounded-lg text-sm font-medium border border-brand-line text-brand-secondary hover:border-brand-primary/60 transition-colors"
+          >
+            Try Again
           </button>
         )}
         {feedback && (
