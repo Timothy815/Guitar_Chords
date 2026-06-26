@@ -70,7 +70,10 @@ export function RhythmStaff({ round, placedUnits, feedback, onSwap }: RhythmStaf
     const inkColor = isDark ? '#e5e7eb' : '#000000';
     const placeholderColor = isDark ? '#4b5563' : '#cccccc';
 
-    const W = Math.max((wrapRef.current?.clientWidth ?? 700) - 8, 400);
+    const W = Math.max(
+      (wrapRef.current?.clientWidth ?? 700) - 8,
+      CLEF_EXTRA + MIN_MEASURE_W * round.measures,
+    );
     const renderer = new Renderer(div, Renderer.Backends.SVG);
     renderer.resize(W, STAFF_H);
     const ctx = renderer.getContext();
