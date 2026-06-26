@@ -23,6 +23,14 @@ function getAdaptiveStep(enabledDurations: RhythmDuration[]): number {
   return 1.0;
 }
 
+// Convert a count label like "1+", "2e", "3a" to its spoken syllable
+function spokenName(countLabel: string): string {
+  if (countLabel.endsWith('+')) return 'and';
+  if (countLabel.endsWith('e')) return 'e';
+  if (countLabel.endsWith('a')) return 'a';
+  return countLabel; // bare beat number: "1", "2", etc.
+}
+
 export function CountItTrainer({ round, score, settings, onComplete }: CountItTrainerProps) {
   const step = getAdaptiveStep(settings.enabledDurations);
   const totalBeats = beatsPerMeasure(round.timeSignature) * round.measures;
@@ -231,6 +239,40 @@ export function CountItTrainer({ round, score, settings, onComplete }: CountItTr
         )}>
           {feedback.every(f => f === 'correct') ? 'Correct! 🎯' : 'Not quite — slots highlighted above'}
         </p>
+      )}
+
+      {/* Spoken count display — shown after a correct submission */}
+      {feedback && feedback.every(f => f === 'correct') && (
+        <div className="rounded-lg bg-brand-bg border border-brand-line p-3 space-y-2">
+          <p className="text-xs font-semibold text-brand-secondary">How to count it aloud:</p>
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 font-mono">
+            {slots.map((slot, i) => {
+              const role = correctLabels[i];
+              const word = spokenName(slot.label);
+              if (role === 'N') {
+                return (
+                  <span key={i} className="text-sm font-bold text-brand-ink">{word}</span>
+                );
+              }
+              if (role === 'H') {
+                return (
+                  <span key={i} className="text-xs text-brand-line italic">({word})</span>
+                );
+              }
+              // rest
+              return (
+                <span key={i} className="text-xs text-brand-line">[{word}]</span>
+              );
+            })}
+          </div>
+          <p className="text-[10px] text-brand-line leading-relaxed">
+            <span className="font-bold text-brand-ink not-italic">voiced</span>
+            {' · '}
+            <span className="italic">(held — feel it, don't say it)</span>
+            {' · '}
+            <span>[rest — count silently]</span>
+          </p>
+        </div>
       )}
 
       {/* Controls */}
