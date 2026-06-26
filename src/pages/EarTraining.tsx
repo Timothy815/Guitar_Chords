@@ -14,7 +14,7 @@ import { initAudio, playStrum, playNote, startDrone, stopDrone, stopRhythm } fro
 import { FretboardTrainer } from '../components/FretboardTrainer';
 import { PianoTrainer } from '../components/PianoTrainer';
 import { FretboardFocusSelector } from '../components/FretboardFocusSelector';
-import { PlanProgress, PlanStage, PLAN_STAGES, loadPlanProgress, savePlanProgress, resetPlanProgress } from '../lib/planProgress';
+import { LadderId, LadderStage, SkillLadder, SKILL_LADDERS, PlanProgress, loadPlanProgress, savePlanProgress, resetPlanProgress, isMixedUnlocked } from '../lib/planProgress';
 import { HuntHistoryEntry, appendHuntEntries, loadHuntHistory } from '../lib/huntHistory';
 import {
   ChordHistoryEntry,
@@ -49,6 +49,7 @@ function makeRound(
   focus: FretboardFocus = {},
 ): Round {
   if (s.mode === 'chord') return generateChordRound(s.activeChordTypes);
+  if (s.mode === 'mixed') return Math.random() < 0.5 ? generateChordRound(s.activeChordTypes) : generateIntervalRound(s.activeIntervals);
   if (s.mode === 'fretboard') return generateFretboardRound(difficulty, focus);
   return generateIntervalRound(s.activeIntervals);
 }
@@ -83,6 +84,7 @@ export function EarTraining() {
   const roundStartTimeRef = useRef<number>(Date.now());
   const [planProgress, setPlanProgress] = useState<PlanProgress>(loadPlanProgress);
   const [planPracticing, setPlanPracticing] = useState(false);
+  const [activeLadder, setActiveLadder] = useState<LadderId | null>(null);
   const [rhythmSettings, setRhythmSettings] = useState<RhythmSettings>({
     timeSignature: '4/4',
     enabledDurations: ['h', 'q'],
@@ -161,8 +163,8 @@ export function EarTraining() {
 
   function advanceRound(s: EarTrainingSettings = settings, focusOverride?: FretboardFocus, pianoViewOverride?: boolean) {
     const activeFocus = focusOverride ?? fretboardFocus;
-    const effectiveMode = s.mode === 'plan'
-      ? PLAN_STAGES[planProgress.stageIndex].mode
+    const effectiveMode = s.mode === 'plan' && activeLadder
+      ? SKILL_LADDERS.find((l: SkillLadder) => l.id === activeLadder)!.mode
       : s.mode;
     let r: Round;
     if (effectiveMode === 'fretboard') {
@@ -190,6 +192,10 @@ export function EarTraining() {
       setRound(mr);
       roundStartTimeRef.current = Date.now();
       return;
+    } else if (effectiveMode === 'mixed') {
+      r = Math.random() < 0.5
+        ? generateChordRound(s.activeChordTypes)
+        : generateIntervalRound(s.activeIntervals);
     } else {
       r = makeRound({ ...s, mode: effectiveMode }, difficulty, activeFocus);
     }
@@ -233,6 +239,7 @@ export function EarTraining() {
   function handlePlanMode() {
     setSettings(s => ({ ...s, mode: 'plan' }));
     setPlanPracticing(false);
+    setActiveLadder(null);
   }
 
   function handleRhythmMode() {
@@ -243,12 +250,22 @@ export function EarTraining() {
   }
 
   function handleRhythmComplete(wasCorrect: boolean) {
+    const newCorrect = score.correct + (wasCorrect ? 1 : 0);
+    const newTotal = score.total + 1;
     setScore(s => ({
       ...s,
       correct: wasCorrect ? s.correct + 1 : s.correct,
       total: s.total + 1,
       streak: wasCorrect ? s.streak + 1 : 0,
     }));
+    if (settings.mode === 'plan' && planPracticing && activeLadder !== null) {
+      const _ladder = SKILL_LADDERS.find((l: SkillLadder) => l.id === activeLadder)!;
+      const _stage = _ladder.stages[planProgress[activeLadder].stageIndex];
+      if (newTotal >= _stage.requiredRounds && newCorrect / newTotal >= _stage.requiredAccuracy) {
+        setTimeout(() => handlePlanAdvance(newCorrect / newTotal), 400);
+        return;
+      }
+    }
     setTimeout(() => advanceRound(), 400);
   }
 
@@ -259,27 +276,43 @@ export function EarTraining() {
   }
 
   function handleMelodyComplete(wasCorrect: boolean) {
+    const newCorrect = score.correct + (wasCorrect ? 1 : 0);
+    const newTotal = score.total + 1;
     setScore(s => ({
       ...s,
       correct: wasCorrect ? s.correct + 1 : s.correct,
       total: s.total + 1,
       streak: wasCorrect ? s.streak + 1 : 0,
     }));
+    if (settings.mode === 'plan' && planPracticing && activeLadder !== null) {
+      const _ladder = SKILL_LADDERS.find((l: SkillLadder) => l.id === activeLadder)!;
+      const _stage = _ladder.stages[planProgress[activeLadder].stageIndex];
+      if (newTotal >= _stage.requiredRounds && newCorrect / newTotal >= _stage.requiredAccuracy) {
+        setTimeout(() => handlePlanAdvance(newCorrect / newTotal), 400);
+        return;
+      }
+    }
     setTimeout(() => advanceRound(), 400);
   }
 
-  function handlePlanStart() {
-    const stage = PLAN_STAGES[planProgress.stageIndex];
+  function handlePlanStart(ladderId: LadderId) {
+    const ladder = SKILL_LADDERS.find((l: SkillLadder) => l.id === ladderId)!;
+    const stageIdx = planProgress[ladderId].stageIndex;
+    const stage = ladder.stages[stageIdx];
     const next: EarTrainingSettings = {
       ...settings,
-      mode: 'plan',
-      activeChordTypes: stage.mode === 'chord'
+      mode: 'plan' as const,
+      activeChordTypes: (ladder.mode === 'chord' || ladder.mode === 'mixed')
         ? [...DIFFICULTY_PRESETS.chord[stage.difficulty]]
         : settings.activeChordTypes,
-      activeIntervals: stage.mode === 'interval'
+      activeIntervals: (ladder.mode === 'interval' || ladder.mode === 'mixed')
         ? [...DIFFICULTY_PRESETS.interval[stage.difficulty]]
         : settings.activeIntervals,
+      melodySettings: stage.melodyShowFirstNote !== undefined
+        ? { ...settings.melodySettings, showFirstNote: stage.melodyShowFirstNote }
+        : settings.melodySettings,
     };
+    setActiveLadder(ladderId);
     setSettings(next);
     setDifficulty(stage.difficulty);
     setFretboardSubMode(stage.subMode ?? 'guess');
@@ -288,29 +321,49 @@ export function EarTraining() {
     deckRef.current = [];
     deckKeyRef.current = '';
     setPlanPracticing(true);
-    advanceRound(next);
+    if (ladder.mode === 'rhythm' && stage.rhythmDurations) {
+      const newRhythmSettings = { ...rhythmSettings, enabledDurations: stage.rhythmDurations };
+      setRhythmSettings(newRhythmSettings);
+      const rr = generateRhythmRound(stage.difficulty, newRhythmSettings);
+      setSelected(null);
+      setTentative(null);
+      setRound(rr);
+      roundStartTimeRef.current = Date.now();
+    } else {
+      advanceRound(next);
+    }
   }
 
   function handlePlanAdvance(accuracyFraction: number) {
+    if (activeLadder === null) return;
     const accuracyPct = Math.round(accuracyFraction * 100);
-    const currentStage = PLAN_STAGES[planProgress.stageIndex];
-    const nextIndex = planProgress.stageIndex + 1;
-    const isFinal = nextIndex >= PLAN_STAGES.length;
+    const ladder = SKILL_LADDERS.find((l: SkillLadder) => l.id === activeLadder)!;
+    const currentStageIdx = planProgress[activeLadder].stageIndex;
+    const nextStageIdx = currentStageIdx + 1;
+    const isFinal = nextStageIdx >= ladder.stages.length;
     const updatedProgress: PlanProgress = {
-      stageIndex: isFinal ? planProgress.stageIndex : nextIndex,
-      completedStages: {
-        ...planProgress.completedStages,
-        [planProgress.stageIndex]: {
-          accuracy: accuracyPct,
-          completedAt: new Date().toISOString(),
+      ...planProgress,
+      [activeLadder]: {
+        stageIndex: isFinal ? currentStageIdx : nextStageIdx,
+        completedStages: {
+          ...planProgress[activeLadder].completedStages,
+          [currentStageIdx]: {
+            accuracy: accuracyPct,
+            completedAt: new Date().toISOString(),
+          },
         },
       },
     };
     setPlanProgress(updatedProgress);
     setScore(initialScore());
     setPlanPracticing(false);
+    setActiveLadder(null);
     confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-    setShowPlanComplete({ accuracy: accuracyPct, stageLabel: currentStage.label, isFinal });
+    setShowPlanComplete({
+      accuracy: accuracyPct,
+      stageLabel: `${ladder.label} · ${ladder.stages[currentStageIdx].label}`,
+      isFinal,
+    });
   }
 
   function handleFocusChange(focus: FretboardFocus) {
@@ -362,9 +415,13 @@ export function EarTraining() {
         { firstTapSemitones: huntResult.firstSelectionSemitones, tapCount: huntResult.selectionCount },
       ]);
     }
-    if (settings.mode === 'plan' && planPracticing && newTotal >= 20 && newCorrect / newTotal >= 0.85) {
-      handlePlanAdvance(newCorrect / newTotal);
-      return;
+    if (settings.mode === 'plan' && planPracticing && activeLadder !== null) {
+      const _ladder = SKILL_LADDERS.find((l: SkillLadder) => l.id === activeLadder)!;
+      const _stage = _ladder.stages[planProgress[activeLadder].stageIndex];
+      if (newTotal >= _stage.requiredRounds && newCorrect / newTotal >= _stage.requiredAccuracy) {
+        handlePlanAdvance(newCorrect / newTotal);
+        return;
+      }
     }
     advanceRound();
   }
@@ -461,8 +518,12 @@ export function EarTraining() {
       }]);
     }
 
-    if (settings.mode === 'plan' && planPracticing && newTotal >= 20 && newCorrect / newTotal >= 0.85) {
-      handlePlanAdvance(newCorrect / newTotal);
+    if (settings.mode === 'plan' && planPracticing && activeLadder !== null) {
+      const _ladder = SKILL_LADDERS.find((l: SkillLadder) => l.id === activeLadder)!;
+      const _stage = _ladder.stages[planProgress[activeLadder].stageIndex];
+      if (newTotal >= _stage.requiredRounds && newCorrect / newTotal >= _stage.requiredAccuracy) {
+        handlePlanAdvance(newCorrect / newTotal);
+      }
     }
   }
 
@@ -1076,76 +1137,73 @@ export function EarTraining() {
       </div>
       )}
 
-      {/* Plan tab body */}
+      {/* Plan tab body — dashboard grid rendered by Task 4 */}
       {settings.mode === 'plan' && (
         <>
-          {/* Stage ladder */}
-          <div className="rounded-lg border border-brand-line bg-brand-surface overflow-hidden">
-            {planPracticing ? (
-              /* Collapsed header while practicing */
-              <div className="px-4 py-3 flex items-center justify-between">
-                <span className="text-sm font-medium text-brand-ink">
-                  Plan · Stage {planProgress.stageIndex + 1} of {PLAN_STAGES.length} · {PLAN_STAGES[planProgress.stageIndex].label}
-                </span>
-                <button
-                  onClick={() => setPlanPracticing(false)}
-                  className="text-xs text-brand-secondary hover:text-brand-primary transition-colors"
-                >
-                  View ladder ↑
-                </button>
+          {/* Collapsed header while practicing */}
+          {planPracticing && activeLadder !== null && (() => {
+            const _ladder = SKILL_LADDERS.find((l: SkillLadder) => l.id === activeLadder)!;
+            const _stageIdx = planProgress[activeLadder].stageIndex;
+            const _stage = _ladder.stages[_stageIdx];
+            return (
+              <div className="rounded-lg border border-brand-line bg-brand-surface overflow-hidden">
+                <div className="px-4 py-3 flex items-center justify-between">
+                  <span className="text-sm font-medium text-brand-ink">
+                    {_ladder.label} · {_stage.label} · Stage {_stageIdx + 1} of {_ladder.stages.length}
+                  </span>
+                  <button
+                    onClick={() => { setPlanPracticing(false); setActiveLadder(null); }}
+                    className="text-xs text-brand-secondary hover:text-brand-primary transition-colors"
+                  >
+                    View ladders ↑
+                  </button>
+                </div>
               </div>
-            ) : (
-              /* Full ladder */
-              <div className="divide-y divide-brand-line">
-                {PLAN_STAGES.map((stage: PlanStage, i: number) => {
-                  const completed = !!planProgress.completedStages[i];
-                  const current = i === planProgress.stageIndex;
-                  const locked = i > planProgress.stageIndex;
-                  return (
-                    <div
-                      key={i}
-                      className={cn(
-                        'px-4 py-3 flex items-center gap-3',
-                        locked && 'opacity-40'
-                      )}
-                    >
-                      <span className="w-5 shrink-0 flex items-center justify-center">
-                        {completed
-                          ? <Check size={14} className="text-green-500" />
-                          : current
-                            ? <span className="text-brand-primary font-bold text-sm">→</span>
-                            : <span className="text-brand-line text-sm">·</span>}
+            );
+          })()}
+
+          {/* Skill ladder cards — placeholder for Task 4 dashboard grid */}
+          {!planPracticing && (
+            <div className="rounded-lg border border-brand-line bg-brand-surface p-4 space-y-2">
+              {SKILL_LADDERS.map((ladder: SkillLadder) => {
+                const ladderProgress = planProgress[ladder.id];
+                const stageIdx = ladderProgress.stageIndex;
+                const isFinal = stageIdx >= ladder.stages.length;
+                const stage = isFinal ? ladder.stages[ladder.stages.length - 1] : ladder.stages[stageIdx];
+                const completed = isFinal;
+                return (
+                  <div key={ladder.id} className="flex items-center gap-3 py-2 border-b border-brand-line last:border-0">
+                    <span className="w-5 shrink-0 flex items-center justify-center">
+                      {completed
+                        ? <Check size={14} className="text-green-500" />
+                        : <span className="text-brand-primary font-bold text-sm">→</span>}
+                    </span>
+                    <span className="flex-1 text-sm font-medium text-brand-ink">
+                      {ladder.label}
+                      <span className="ml-2 text-xs font-normal text-brand-secondary">
+                        {completed ? 'Complete' : `Stage ${stageIdx + 1}/${ladder.stages.length} · ${stage.label}`}
                       </span>
-                      <span className={cn(
-                        'flex-1 text-sm',
-                        current ? 'font-medium text-brand-ink' : 'text-brand-secondary'
-                      )}>
-                        {stage.label}
-                      </span>
-                      {completed && (
-                        <span className="text-xs text-brand-secondary">
-                          {planProgress.completedStages[i].accuracy}%
-                        </span>
-                      )}
-                      {current && (
-                        <button
-                          onClick={handlePlanStart}
-                          className="px-3 py-1 rounded-md bg-brand-primary text-white text-xs font-medium hover:bg-brand-primary/90 transition-colors"
-                        >
-                          Start
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+                    </span>
+                    {!completed && (
+                      <button
+                        onClick={() => handlePlanStart(ladder.id)}
+                        className="px-3 py-1 rounded-md bg-brand-primary text-white text-xs font-medium hover:bg-brand-primary/90 transition-colors"
+                      >
+                        Start
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           {/* Practice area — only shown after Start is clicked */}
-          {planPracticing && (() => {
-            const stage = PLAN_STAGES[planProgress.stageIndex];
-            if (stage.mode === 'fretboard') {
+          {planPracticing && activeLadder !== null && (() => {
+            const _ladder = SKILL_LADDERS.find((l: SkillLadder) => l.id === activeLadder)!;
+            const _stageIdx = planProgress[activeLadder].stageIndex;
+            const _stage = _ladder.stages[_stageIdx];
+            if (_ladder.mode === 'fretboard') {
               return (
                 <FretboardTrainer
                   round={round as FretboardRound}
@@ -1163,6 +1221,33 @@ export function EarTraining() {
                 />
               );
             }
+            if (_ladder.mode === 'rhythm') {
+              return round.kind === 'rhythm' ? (
+                <RhythmTrainer
+                  round={round as RhythmRound}
+                  score={score}
+                  settings={rhythmSettings}
+                  onComplete={handleRhythmComplete}
+                />
+              ) : (
+                <RhythmRoundLoader onLoad={() => advanceRound()} />
+              );
+            }
+            if (_ladder.mode === 'melody') {
+              return round.kind === 'melody' ? (
+                <MelodyTrainer
+                  round={round as MelodyRound}
+                  score={score}
+                  settings={settings.melodySettings}
+                  difficulty={difficulty}
+                  onComplete={handleMelodyComplete}
+                />
+              ) : (
+                <RhythmRoundLoader onLoad={() => advanceRound()} />
+              );
+            }
+            // chord / interval / mixed
+            void _stage;
             return (
               <div className="rounded-lg border border-brand-line bg-brand-surface p-6 space-y-6">
                 <div className="flex justify-center">
@@ -1497,7 +1582,7 @@ export function EarTraining() {
                 onClick={() => setShowPlanComplete(null)}
                 className="w-full py-2.5 rounded-lg bg-brand-primary text-white text-sm font-medium hover:bg-brand-primary/90 transition-colors"
               >
-                Continue → {PLAN_STAGES[planProgress.stageIndex].label}
+                Continue
               </button>
             )}
           </div>
