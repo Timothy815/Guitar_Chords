@@ -6,7 +6,7 @@ import {
 } from '../lib/rhythmTraining';
 import { SessionScore } from '../lib/earTraining';
 import { initAudio, playRhythmRound, stopRhythm } from '../lib/audio';
-import { RhythmStaff, CLEF_EXTRA, MIN_MEASURE_W } from './RhythmStaff';
+import { RhythmStaff, staffMinWidth } from './RhythmStaff';
 
 interface RhythmTrainerProps {
   round: RhythmRound;
@@ -172,7 +172,7 @@ export function RhythmTrainer({ round, score, settings, onComplete }: RhythmTrai
 
       {/* Staff + count hint in a shared horizontal scroll container */}
       <div className="overflow-x-auto">
-        <div style={{ minWidth: CLEF_EXTRA + MIN_MEASURE_W * round.measures }}>
+        <div style={{ minWidth: staffMinWidth(round, placedUnits) }}>
           <RhythmStaff
             round={round}
             placedUnits={placedUnits}

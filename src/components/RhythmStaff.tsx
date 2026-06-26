@@ -12,6 +12,30 @@ interface RhythmStaffProps {
 const STAFF_H = 110;
 export const CLEF_EXTRA = 70;
 export const MIN_MEASURE_W = 200;
+const PX_PER_NOTE = 58; // minimum pixels per note/rest for VexFlow
+
+// Compute the minimum staff pixel width needed to render all notes without crowding.
+// Uses note density per measure so complex rounds trigger horizontal scroll.
+export function staffMinWidth(round: RhythmRound, placedUnits: RhythmUnit[]): number {
+  const bpb = beatsPerMeasure(round.timeSignature);
+  const unitsPerMeasure = (units: RhythmUnit[]) => {
+    const counts = new Array<number>(round.measures).fill(0);
+    let cur = 0;
+    for (const u of units) {
+      const m = Math.min(Math.floor(cur / bpb + 0.001), round.measures - 1);
+      counts[m]++;
+      cur += durationBeats(u.duration);
+    }
+    return counts;
+  };
+  const correct = unitsPerMeasure(round.units);
+  const placed  = unitsPerMeasure(placedUnits);
+  let w = CLEF_EXTRA;
+  for (let m = 0; m < round.measures; m++) {
+    w += Math.max(correct[m] ?? 0, placed[m] ?? 0, 4) * PX_PER_NOTE;
+  }
+  return w;
+}
 
 function makeStaveNote(unit: RhythmUnit): StaveNote {
   const isDotted = unit.duration === 'hd' || unit.duration === 'qd';
@@ -70,10 +94,14 @@ export function RhythmStaff({ round, placedUnits, feedback, onSwap }: RhythmStaf
     const inkColor = isDark ? '#e5e7eb' : '#000000';
     const placeholderColor = isDark ? '#4b5563' : '#cccccc';
 
+    // Use note-density minimum so the SVG is always wide enough and
+    // forces the scroll container to scroll rather than crowding notes.
     const W = Math.max(
-      (wrapRef.current?.clientWidth ?? 700) - 8,
-      CLEF_EXTRA + MIN_MEASURE_W * round.measures,
+      (wrapRef.current?.clientWidth ?? 0) - 8,
+      staffMinWidth(round, placedUnits),
     );
+    // Explicitly size the wrapper so the overflow-x-auto ancestor sees real content width.
+    if (wrapRef.current) wrapRef.current.style.minWidth = `${W}px`;
     const renderer = new Renderer(div, Renderer.Backends.SVG);
     renderer.resize(W, STAFF_H);
     const ctx = renderer.getContext();
