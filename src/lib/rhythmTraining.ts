@@ -36,9 +36,9 @@ export function getCountLabel(beatPos: number, ts: TimeSignature): string {
   const beatNumber = Math.floor(posInMeasure) + 1;
   const fraction = posInMeasure - Math.floor(posInMeasure);
   if (fraction < 0.001) return String(beatNumber);
-  if (Math.abs(fraction - 0.25) < 0.001) return 'e';
-  if (Math.abs(fraction - 0.5) < 0.001) return '+';
-  if (Math.abs(fraction - 0.75) < 0.001) return 'a';
+  if (Math.abs(fraction - 0.25) < 0.001) return `${beatNumber}e`;
+  if (Math.abs(fraction - 0.5) < 0.001) return `${beatNumber}+`;
+  if (Math.abs(fraction - 0.75) < 0.001) return `${beatNumber}a`;
   return '?';
 }
 
