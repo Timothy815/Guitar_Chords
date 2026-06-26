@@ -2,6 +2,7 @@ import { ChordShape, Note } from '../types';
 import { ALL_NOTES, COMMON_CHORDS } from '../data/guitarData';
 import { getFretNote, initAudio, playStrum, playNote } from './audio';
 import type { RhythmRound } from './rhythmTraining';
+import type { MelodyRound, MelodySettings } from './melodyTraining';
 
 export interface ChordTypeDef {
   id: string;
@@ -14,10 +15,11 @@ export interface IntervalDef {
 }
 
 export interface EarTrainingSettings {
-  mode: 'chord' | 'interval' | 'study' | 'fretboard' | 'plan' | 'rhythm';
+  mode: 'chord' | 'interval' | 'study' | 'fretboard' | 'plan' | 'rhythm' | 'melody';
   activeChordTypes: string[];
   activeIntervals: string[];
   settingsPanelOpen: boolean;
+  melodySettings: MelodySettings;
 }
 
 export interface ChordAnswer {
@@ -66,7 +68,7 @@ export interface FretboardRound {
   fretsNum: number;
 }
 
-export type Round = ChordRound | IntervalRound | FretboardRound | RhythmRound;
+export type Round = ChordRound | IntervalRound | FretboardRound | RhythmRound | MelodyRound;
 
 export interface SessionScore {
   correct: number;
@@ -128,6 +130,7 @@ export const DEFAULT_SETTINGS: EarTrainingSettings = {
   activeChordTypes: ['major', 'minor'],
   activeIntervals: ['Unison', 'Perfect 4th', 'Perfect 5th', 'Octave'],
   settingsPanelOpen: true,
+  melodySettings: { rootKey: 'random', bpm: 80 },
 };
 
 // Chord type classification — order matters: most specific patterns first.

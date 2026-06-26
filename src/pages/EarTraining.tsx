@@ -35,6 +35,8 @@ import {
 import { ALL_NOTES } from '../data/guitarData';
 import { RhythmRound, RhythmSettings, RhythmDuration, generateRhythmRound } from '../lib/rhythmTraining';
 import { RhythmTrainer } from '../components/RhythmTrainer';
+import { MelodyRound, MelodySettings, generateMelodyRound } from '../lib/melodyTraining';
+import { MelodyTrainer } from '../components/MelodyTrainer';
 
 function RhythmRoundLoader({ onLoad }: { onLoad: () => void }) {
   useEffect(() => { onLoad(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -181,6 +183,13 @@ export function EarTraining() {
       setRound(rr);
       roundStartTimeRef.current = Date.now();
       return;
+    } else if (effectiveMode === 'melody') {
+      const mr = generateMelodyRound(difficulty, settings.melodySettings);
+      setSelected(null);
+      setTentative(null);
+      setRound(mr);
+      roundStartTimeRef.current = Date.now();
+      return;
     } else {
       r = makeRound({ ...s, mode: effectiveMode }, difficulty, activeFocus);
     }
@@ -234,6 +243,22 @@ export function EarTraining() {
   }
 
   function handleRhythmComplete(wasCorrect: boolean) {
+    setScore(s => ({
+      ...s,
+      correct: wasCorrect ? s.correct + 1 : s.correct,
+      total: s.total + 1,
+      streak: wasCorrect ? s.streak + 1 : 0,
+    }));
+    setTimeout(() => advanceRound(), 400);
+  }
+
+  function handleMelodyMode() {
+    const next = { ...settings, mode: 'melody' as const };
+    setSettings(next);
+    advanceRound(next);
+  }
+
+  function handleMelodyComplete(wasCorrect: boolean) {
     setScore(s => ({
       ...s,
       correct: wasCorrect ? s.correct + 1 : s.correct,
@@ -591,6 +616,17 @@ export function EarTraining() {
         >
           Rhythm
         </button>
+        <button
+          onClick={handleMelodyMode}
+          className={cn(
+            'flex-1 py-2.5 text-sm font-medium transition-colors',
+            settings.mode === 'melody'
+              ? 'bg-brand-primary text-white'
+              : 'text-brand-secondary hover:bg-brand-sidebar'
+          )}
+        >
+          Melody
+        </button>
       </div>
 
       {/* Settings panel */}
@@ -928,6 +964,46 @@ export function EarTraining() {
               </div>
             )}
 
+            {/* Melody settings — melody mode only */}
+            {settings.mode === 'melody' && (
+              <div className="pt-3 space-y-3 border-t border-brand-line">
+                <p className="text-xs font-semibold uppercase tracking-widest text-brand-secondary">Melody Settings</p>
+
+                <div>
+                  <p className="text-xs text-brand-secondary mb-1.5">Root Key</p>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {(['random', 'C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'] as const).map(key => (
+                      <button
+                        key={key}
+                        onClick={() => setSettings(s => ({ ...s, melodySettings: { ...s.melodySettings, rootKey: key } }))}
+                        className={cn(
+                          'px-2 py-0.5 rounded text-xs font-medium border transition-colors',
+                          settings.melodySettings.rootKey === key
+                            ? 'bg-brand-primary text-white border-brand-primary'
+                            : 'border-brand-line text-brand-secondary hover:border-brand-primary/60',
+                        )}
+                      >
+                        {key === 'random' ? 'Random' : key}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs text-brand-secondary mb-1.5">BPM: {settings.melodySettings.bpm}</p>
+                  <input
+                    type="range"
+                    min={40}
+                    max={120}
+                    step={5}
+                    value={settings.melodySettings.bpm}
+                    onChange={e => setSettings(s => ({ ...s, melodySettings: { ...s.melodySettings, bpm: Number(e.target.value) } }))}
+                    className="w-full accent-brand-primary"
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Weakest types hint + Export/Import — chord/interval only */}
             {(settings.mode === 'chord' || settings.mode === 'interval') && (() => {
               const history = (settings.mode === 'chord' ? loadChordHistory() : loadIntervalHistory()) as Array<ChordHistoryEntry | IntervalHistoryEntry>;
@@ -1260,6 +1336,18 @@ export function EarTraining() {
                 score={score}
                 settings={rhythmSettings}
                 onComplete={handleRhythmComplete}
+              />
+            ) : (
+              <RhythmRoundLoader onLoad={() => advanceRound()} />
+            )
+          ) : settings.mode === 'melody' ? (
+            round.kind === 'melody' ? (
+              <MelodyTrainer
+                round={round as MelodyRound}
+                score={score}
+                settings={settings.melodySettings}
+                difficulty={difficulty}
+                onComplete={handleMelodyComplete}
               />
             ) : (
               <RhythmRoundLoader onLoad={() => advanceRound()} />
