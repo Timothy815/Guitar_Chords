@@ -474,20 +474,22 @@ export function playRhythmRound(
 
   Tone.Transport.bpm.value = round.bpm;
 
-  // Helper: schedule a tick (drumstick click) — accent on beat 1, softer otherwise
-  const tick = (t: number, accent: boolean) => {
-    const freq = accent ? 1200 : 900;
-    const vel  = accent ? 0.7  : 0.45;
-    Tone.Transport.schedule(time => { rhythmTickSynth!.triggerAttackRelease(freq, '32n', time, vel); }, t);
+  // Helper: schedule a tick — strong=true for lead-in beat 1 (distinct high pitch),
+  // accent=true for measure beat 1, softer otherwise
+  const tick = (t: number, accent: boolean, strong = false) => {
+    const freq = strong ? 1700 : accent ? 1200 : 900;
+    const vel  = strong ? 0.9  : accent ? 0.7  : 0.45;
+    const dur  = strong ? '16n' : '32n';
+    Tone.Transport.schedule(time => { rhythmTickSynth!.triggerAttackRelease(freq, dur, time, vel); }, t);
   };
 
-  // Count-in ticks
+  // Count-in ticks — beat 1 of the lead-in gets a distinct high click
   if (enableLeadIn) {
     if (is6_8) {
-      ([0, 1.5] as number[]).forEach((b, i) => tick(b * spb, i === 0));
+      ([0, 1.5] as number[]).forEach((b, i) => tick(b * spb, i === 0, i === 0));
       ([0.5, 1.0, 2.0, 2.5] as number[]).forEach(b => tick(b * spb, false));
     } else {
-      for (let b = 0; b < bpb; b++) tick(b * spb, b === 0);
+      for (let b = 0; b < bpb; b++) tick(b * spb, b === 0, b === 0);
     }
   }
 
