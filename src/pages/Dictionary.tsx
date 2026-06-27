@@ -613,6 +613,30 @@ export function Dictionary() {
 
               {mode === 'scales' && (
                   <>
+                    <h3 className="text-sm font-bold text-brand-secondary uppercase tracking-wider pt-4">Isolate Position</h3>
+                    <div className="space-y-2">
+                       <select
+                         value={scaleFretRange.join(',')}
+                         onChange={(e) => {
+                            if (e.target.value === 'all') {
+                               setScaleFretRange([]);
+                            } else {
+                               const [s, t] = e.target.value.split(',').map(Number);
+                               setScaleFretRange([s, t]);
+                            }
+                         }}
+                         className="w-full p-2 text-sm border border-brand-line rounded-md bg-brand-surface text-brand-ink outline-none"
+                       >
+                         <option value="all">Full Fretboard</option>
+                         <option value="0,3">Position 1 (Frets 0-3)</option>
+                         <option value="2,5">Position 2 (Frets 2-5)</option>
+                         <option value="4,7">Position 3 (Frets 4-7)</option>
+                         <option value="7,10">Position 4 (Frets 7-10)</option>
+                         <option value="9,12">Position 5 (Frets 9-12)</option>
+                         <option value="12,15">Position 6 (Frets 12-15)</option>
+                       </select>
+                    </div>
+
                     <h3 className="text-sm font-bold text-brand-secondary uppercase tracking-wider pt-4">Pattern Types</h3>
                     {/* Category tabs */}
                     <div className="flex gap-1 flex-wrap">
@@ -637,30 +661,6 @@ export function Dictionary() {
                              {scaleDef.name}
                           </button>
                        ))}
-                    </div>
-                    
-                    <h3 className="text-sm font-bold text-brand-secondary uppercase tracking-wider pt-4">Isolate Position</h3>
-                    <div className="space-y-2">
-                       <select 
-                         value={scaleFretRange.join(',')}
-                         onChange={(e) => {
-                            if (e.target.value === 'all') {
-                               setScaleFretRange([]);
-                            } else {
-                               const [s, t] = e.target.value.split(',').map(Number);
-                               setScaleFretRange([s, t]);
-                            }
-                         }}
-                         className="w-full p-2 text-sm border border-brand-line rounded-md bg-brand-surface text-brand-ink outline-none"
-                       >
-                         <option value="all">Full Fretboard</option>
-                         <option value="0,3">Position 1 (Frets 0-3)</option>
-                         <option value="2,5">Position 2 (Frets 2-5)</option>
-                         <option value="4,7">Position 3 (Frets 4-7)</option>
-                         <option value="7,10">Position 4 (Frets 7-10)</option>
-                         <option value="9,12">Position 5 (Frets 9-12)</option>
-                         <option value="12,15">Position 6 (Frets 12-15)</option>
-                       </select>
                     </div>
                  </>
               )}
