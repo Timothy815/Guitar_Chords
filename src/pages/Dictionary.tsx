@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Chord as TonalChord } from '@tonaljs/tonal';
 import { Fretboard } from '../components/Fretboard';
 import { PianoKeyboard } from '../components/PianoKeyboard';
-import { COMMON_CHORDS, COMMON_SCALES, generateScalePattern, ALL_NOTES } from '../data/guitarData';
+import { COMMON_CHORDS, COMMON_SCALES, generateScalePattern, ALL_NOTES, ScaleCategory } from '../data/guitarData';
 import { playStrum, playArpeggio, getFretNote, initAudio, playNote, setEffects } from '../lib/audio';
 import { Volume2, ListMusic, Printer } from 'lucide-react';
 import { ChordShape, Note, TUNINGS, Tuning, Finger } from '../types';
@@ -24,6 +24,7 @@ export function Dictionary() {
   const [scaffoldLevel, setScaffoldLevel] = useState<0 | 1 | 2>(0);
   const [chordSortOrder, setChordSortOrder] = useState<'asc' | 'desc' | null>(null);
   const [positionFilter, setPositionFilter] = useState<PositionBucket>('all');
+  const [scaleCategory, setScaleCategory] = useState<ScaleCategory | 'All'>('All');
 
   function handleAddToProgression(chord: ChordShape) {
     const ok = addChordToActiveProgression(chord);
@@ -613,8 +614,21 @@ export function Dictionary() {
               {mode === 'scales' && (
                   <>
                     <h3 className="text-sm font-bold text-brand-secondary uppercase tracking-wider pt-4">Pattern Types</h3>
+                    {/* Category tabs */}
+                    <div className="flex gap-1 flex-wrap">
+                      {(['All', 'Pentatonic', 'Blues', 'Modes', 'Minor', 'Symmetric'] as const).map(cat => (
+                        <button
+                          key={cat}
+                          onClick={() => setScaleCategory(cat)}
+                          className={cn('px-2 py-0.5 rounded-full text-xs font-medium transition-colors', scaleCategory === cat ? 'bg-brand-active text-white' : 'bg-brand-bg border border-brand-line text-brand-secondary hover:text-brand-ink')}
+                        >{cat}</button>
+                      ))}
+                    </div>
                     <div className="space-y-2">
-                       {COMMON_SCALES.map((scaleDef, idx) => (
+                       {COMMON_SCALES
+                         .map((scaleDef, idx) => ({ scaleDef, idx }))
+                         .filter(({ scaleDef }) => scaleCategory === 'All' || scaleDef.category === scaleCategory)
+                         .map(({ scaleDef, idx }) => (
                           <button
                             key={idx}
                             onClick={() => setSelectedScaleIdx(idx)}

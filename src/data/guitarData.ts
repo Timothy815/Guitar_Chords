@@ -84,29 +84,31 @@ for (const note of ALL_NOTES) {
   }
 }
 
-export const COMMON_SCALES = [
+export type ScaleCategory = 'Pentatonic' | 'Blues' | 'Modes' | 'Minor' | 'Symmetric';
+
+export const COMMON_SCALES: { name: string; intervals: number[]; category: ScaleCategory }[] = [
   // ── Pentatonic ──────────────────────────────────────────────────────────────
-  { name: 'Minor Pentatonic',   intervals: [0, 3, 5, 7, 10] },
-  { name: 'Major Pentatonic',   intervals: [0, 2, 4, 7, 9] },
+  { name: 'Minor Pentatonic',        intervals: [0, 3, 5, 7, 10],          category: 'Pentatonic' },
+  { name: 'Major Pentatonic',        intervals: [0, 2, 4, 7, 9],           category: 'Pentatonic' },
   // ── Blues ───────────────────────────────────────────────────────────────────
-  { name: 'Minor Blues',        intervals: [0, 3, 5, 6, 7, 10] },
-  { name: 'Major Blues',        intervals: [0, 2, 3, 4, 7, 9] },
+  { name: 'Minor Blues',             intervals: [0, 3, 5, 6, 7, 10],       category: 'Blues' },
+  { name: 'Major Blues',             intervals: [0, 2, 3, 4, 7, 9],        category: 'Blues' },
   // ── Diatonic modes ──────────────────────────────────────────────────────────
-  { name: 'Major (Ionian)',     intervals: [0, 2, 4, 5, 7, 9, 11] },
-  { name: 'Dorian',             intervals: [0, 2, 3, 5, 7, 9, 10] },
-  { name: 'Phrygian',           intervals: [0, 1, 3, 5, 7, 8, 10] },
-  { name: 'Lydian',             intervals: [0, 2, 4, 6, 7, 9, 11] },
-  { name: 'Mixolydian',         intervals: [0, 2, 4, 5, 7, 9, 10] },
-  { name: 'Natural Minor (Aeolian)', intervals: [0, 2, 3, 5, 7, 8, 10] },
-  { name: 'Locrian',            intervals: [0, 1, 3, 5, 6, 8, 10] },
+  { name: 'Major (Ionian)',          intervals: [0, 2, 4, 5, 7, 9, 11],    category: 'Modes' },
+  { name: 'Dorian',                  intervals: [0, 2, 3, 5, 7, 9, 10],    category: 'Modes' },
+  { name: 'Phrygian',                intervals: [0, 1, 3, 5, 7, 8, 10],    category: 'Modes' },
+  { name: 'Lydian',                  intervals: [0, 2, 4, 6, 7, 9, 11],    category: 'Modes' },
+  { name: 'Mixolydian',              intervals: [0, 2, 4, 5, 7, 9, 10],    category: 'Modes' },
+  { name: 'Natural Minor (Aeolian)', intervals: [0, 2, 3, 5, 7, 8, 10],    category: 'Modes' },
+  { name: 'Locrian',                 intervals: [0, 1, 3, 5, 6, 8, 10],    category: 'Modes' },
   // ── Minor variants ──────────────────────────────────────────────────────────
-  { name: 'Harmonic Minor',     intervals: [0, 2, 3, 5, 7, 8, 11] },
-  { name: 'Melodic Minor',      intervals: [0, 2, 3, 5, 7, 9, 11] },
-  { name: 'Phrygian Dominant',  intervals: [0, 1, 4, 5, 7, 8, 10] },
+  { name: 'Harmonic Minor',          intervals: [0, 2, 3, 5, 7, 8, 11],    category: 'Minor' },
+  { name: 'Melodic Minor',           intervals: [0, 2, 3, 5, 7, 9, 11],    category: 'Minor' },
+  { name: 'Phrygian Dominant',       intervals: [0, 1, 4, 5, 7, 8, 10],    category: 'Minor' },
   // ── Symmetric ───────────────────────────────────────────────────────────────
-  { name: 'Whole Tone',         intervals: [0, 2, 4, 6, 8, 10] },
-  { name: 'Diminished (Half-Whole)', intervals: [0, 1, 3, 4, 6, 7, 9, 10] },
-  { name: 'Diminished (Whole-Half)', intervals: [0, 2, 3, 5, 6, 8, 9, 11] },
+  { name: 'Whole Tone',              intervals: [0, 2, 4, 6, 8, 10],       category: 'Symmetric' },
+  { name: 'Diminished (Half-Whole)', intervals: [0, 1, 3, 4, 6, 7, 9, 10], category: 'Symmetric' },
+  { name: 'Diminished (Whole-Half)', intervals: [0, 2, 3, 5, 6, 8, 9, 11], category: 'Symmetric' },
 ];
 
 export function generateScalePattern(rootNote: Note, scaleDef: {name: string, intervals: number[]}): ScalePattern {
