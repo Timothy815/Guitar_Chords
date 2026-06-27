@@ -480,15 +480,16 @@ export function playProgressionWithPatterns(
         offset += stepDurationSeconds(dur, bpm);
       }
     } else {
+      const slotDuration = (60 / bpm) * 4;
       const t = now + offset;
       const strumNotes = slot.notesByString.filter((n): n is string => n !== null);
       Tone.Draw.schedule(() => {
         if (myGen !== _generation) return;
         strumNotes.forEach((note, idx) => {
-          sampler!.triggerAttackRelease(note, '2n', Tone.now() + idx * 0.03);
+          sampler!.triggerAttackRelease(note, slotDuration, Tone.now() + idx * 0.03);
         });
       }, t);
-      offset += (60 / bpm) * 4;
+      offset += slotDuration;
     }
   }
 
