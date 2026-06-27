@@ -6,8 +6,8 @@ import { PianoKeyboard } from '../components/PianoKeyboard';
 import { COMMON_CHORDS, COMMON_SCALES, generateScalePattern, ALL_NOTES } from '../data/guitarData';
 import { playStrum, playArpeggio, getFretNote, initAudio, playNote, setEffects } from '../lib/audio';
 import { Volume2, ListMusic, Printer } from 'lucide-react';
-import { ChordShape, Note, TUNINGS, Tuning } from '../types';
-import { handlePrint } from '../lib/utils';
+import { ChordShape, Note, TUNINGS, Tuning, Finger } from '../types';
+import { handlePrint, cn } from '../lib/utils';
 import { addChordToActiveProgression } from '@/src/lib/progressionUtils';
 
 export function Dictionary() {
@@ -21,6 +21,7 @@ export function Dictionary() {
   const [playingNotes, setPlayingNotes] = useState<Set<string>>(new Set());
   const [identifiedFrets, setIdentifiedFrets] = useState<number[]>([-1,-1,-1,-1,-1,-1]);
   const [addedToast, setAddedToast] = useState<string | null>(null);
+  const [scaffoldLevel, setScaffoldLevel] = useState<0 | 1 | 2>(0);
 
   function handleAddToProgression(chord: ChordShape) {
     const ok = addChordToActiveProgression(chord);
@@ -78,6 +79,15 @@ export function Dictionary() {
     () => activeScaleBase ? generateScalePattern(selectedKey, activeScaleBase) : null,
     [selectedKey, selectedScaleIdx] // eslint-disable-line react-hooks/exhaustive-deps
   );
+
+  useEffect(() => { setScaffoldLevel(0); }, [selectedKey, selectedChordIdx]);
+
+  const scaffoldedChord = (() => {
+    if (mode !== 'chords' || !activeChord) return activeChord;
+    if (scaffoldLevel === 1) return { ...activeChord, fingers: Array(6).fill(0) as Finger[] };
+    if (scaffoldLevel === 2) return undefined;
+    return activeChord;
+  })();
 
   const identifiedNotesRaw = identifiedFrets.map((f, strIdx) => f !== -1 ? getFretNote(strIdx, f).replace(/[0-9]/g, '') : null).filter((n): n is string => n !== null);
   const uniqueNotes: string[] = Array.from(new Set(identifiedNotesRaw));
@@ -753,12 +763,36 @@ export function Dictionary() {
                  )}
               </div>
 
+              {mode === 'chords' && activeChord && (
+                <div className="w-full flex items-center gap-2 mb-4 print:hidden">
+                  <span className="text-xs text-brand-secondary font-medium mr-1">Practice:</span>
+                  {(['Full', 'Dots', 'Recall'] as const).map((label, idx) => (
+                    <button
+                      key={label}
+                      onClick={() => setScaffoldLevel(idx as 0 | 1 | 2)}
+                      className={cn(
+                        'px-3 py-1 text-xs font-medium rounded border transition-colors',
+                        scaffoldLevel === idx
+                          ? 'bg-brand-primary text-white border-brand-primary'
+                          : 'border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink'
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                  <span className="text-xs text-brand-secondary/50 ml-2">
+                    {scaffoldLevel === 0 ? 'finger numbers shown' : scaffoldLevel === 1 ? 'positions only' : 'from memory'}
+                  </span>
+                </div>
+              )}
+
               {((mode === 'chords' && activeChord) || (mode === 'scales' && activeScale) || mode === 'identify') ? (
                 <>
                   <div className="w-full" onMouseEnter={initAudio}>
-                     <Fretboard 
-                        fretsNum={15} 
-                        chord={mode === 'chords' ? activeChord : (mode === 'identify' ? { name: 'Identified', frets: identifiedFrets, fingers: [-1,-1,-1,-1,-1,-1] } : undefined)} 
+                     <Fretboard
+                        fretsNum={15}
+                        chord={mode === 'chords' ? scaffoldedChord : (mode === 'identify' ? { name: 'Identified', frets: identifiedFrets, fingers: [-1,-1,-1,-1,-1,-1] } : undefined)}
+                        showNoteNames={!(mode === 'chords' && scaffoldLevel === 1)}
                         scale={mode === 'scales' ? activeScale : undefined}
                         playingNotes={playingNotes}
                         fretRange={mode === 'scales' && scaleFretRange.length === 2 ? [scaleFretRange[0], scaleFretRange[1]] : undefined}

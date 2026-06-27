@@ -23,6 +23,16 @@ let rhythmTickSynth: Tone.Synth | null = null;    // drumstick-click metronome
 let rhythmPianoSynth: Tone.PolySynth | null = null; // piano-like tone for note onsets
 let countGridSynth: Tone.Synth | null = null;      // count-along subdivision tones
 
+// High-quality self-hosted acoustic guitar samples (University of Iowa recordings)
+// via nbrosowsky/tonejs-instruments. Dense note coverage means the Sampler only
+// ever pitch-shifts 1-2 semitones, so every note sounds like a real recording.
+const LOCAL_GUITAR_BASE = `${import.meta.env.BASE_URL}audio/guitar-acoustic/`;
+const LOCAL_GUITAR_NOTES: Record<string, string> = {
+  "E2": "E2.mp3", "G2": "G2.mp3", "A2": "A2.mp3", "B2": "B2.mp3",
+  "D3": "D3.mp3", "E3": "E3.mp3", "G3": "G3.mp3", "B3": "B3.mp3",
+  "E4": "E4.mp3", "G4": "G4.mp3", "A4": "A4.mp3", "D5": "D5.mp3",
+};
+
 export function getInstrument() {
   return currentInstrument;
 }
@@ -31,18 +41,17 @@ export async function setInstrument(inst: string) {
   if (currentInstrument === inst) return;
   currentInstrument = inst;
   if (!isInitialized) return;
-  
+
+  const isAcoustic = inst === 'acoustic_guitar_steel';
   return new Promise<void>((resolve) => {
     const newSampler = new Tone.Sampler({
-      urls: {
-        "E2": "E2.mp3",
-        "A2": "A2.mp3",
-        "D3": "D3.mp3",
-        "G3": "G3.mp3",
-        "B3": "B3.mp3",
-        "E4": "E4.mp3",
+      urls: isAcoustic ? LOCAL_GUITAR_NOTES : {
+        "E2": "E2.mp3", "A2": "A2.mp3", "D3": "D3.mp3",
+        "G3": "G3.mp3", "B3": "B3.mp3", "E4": "E4.mp3",
       },
-      baseUrl: `https://gleitz.github.io/midi-js-soundfonts/MusyngKite/${inst}-mp3/`,
+      baseUrl: isAcoustic
+        ? LOCAL_GUITAR_BASE
+        : `https://gleitz.github.io/midi-js-soundfonts/MusyngKite/${inst}-mp3/`,
       onload: () => {
         newSampler.connect(filterNode);
         newSampler.volume.value = 5;
@@ -139,22 +148,14 @@ export async function initAudio() {
 
   initPromise = new Promise<void>((resolve) => {
     sampler = new Tone.Sampler({
-      urls: {
-        "E2": "E2.mp3",
-        "A2": "A2.mp3",
-        "D3": "D3.mp3",
-        "G3": "G3.mp3",
-        "B3": "B3.mp3",
-        "E4": "E4.mp3",
-      },
-      baseUrl: `https://gleitz.github.io/midi-js-soundfonts/MusyngKite/${currentInstrument}-mp3/`,
+      urls: LOCAL_GUITAR_NOTES,
+      baseUrl: LOCAL_GUITAR_BASE,
       onload: () => {
-        console.log("Guitar sampler loaded");
         isInitialized = true;
         resolve();
       }
     }).connect(filterNode);
-    
+
     sampler.volume.value = 5;
   });
 
@@ -307,8 +308,8 @@ export async function playTunerString(
           Q: 5,
         }).connect(reverbNode);
         const s = new Tone.Sampler({
-          urls: { "E2": "E2.mp3", "A2": "A2.mp3", "D3": "D3.mp3", "G3": "G3.mp3", "B3": "B3.mp3", "E4": "E4.mp3" },
-          baseUrl: `https://gleitz.github.io/midi-js-soundfonts/MusyngKite/${currentInstrument}-mp3/`,
+          urls: LOCAL_GUITAR_NOTES,
+          baseUrl: LOCAL_GUITAR_BASE,
           onload: () => {
             s.volume.value = 5;
             tunerSampler = s;
