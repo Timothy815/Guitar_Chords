@@ -23,7 +23,7 @@ class ErrorBoundary extends (React.Component as any) {
 import { Dictionary } from './pages/Dictionary';
 import { Progressions } from './pages/Progressions';
 import { EarTraining } from './pages/EarTraining';
-import { Music, Calendar, BookOpen, Sun, Moon, Disc, Headphones, Clock, Layers } from 'lucide-react';
+import { Music, Calendar, BookOpen, Sun, Moon, Disc, Headphones, Clock, Layers, Gauge } from 'lucide-react';
 
 function Layout({ children }: { children: React.ReactNode }) {
   const [isDark, setIsDark] = useState(() => {
@@ -72,6 +72,9 @@ function Layout({ children }: { children: React.ReactNode }) {
               <NavLink title="Scale Positions" to="/scale-positions" className={({isActive}) => `p-2 rounded-md transition-colors ${isActive ? 'bg-brand-sidebar text-brand-ink' : 'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar/50'}`}>
                 <Layers size={18} />
               </NavLink>
+              <NavLink title="Tuner" to="/tuner" className={({isActive}) => `p-2 rounded-md transition-colors ${isActive ? 'bg-brand-sidebar text-brand-ink' : 'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar/50'}`}>
+                <Gauge size={18} />
+              </NavLink>
             </nav>
             <div className="w-px h-6 bg-brand-line"></div>
             <button 
@@ -96,6 +99,7 @@ import { Caged } from './pages/Caged';
 import { Circle } from './pages/Circle';
 import { Metronome } from './pages/Metronome';
 import { ScalePositions } from './pages/ScalePositions';
+import { Tuner } from './pages/Tuner';
 
 export default function App() {
   return (
@@ -111,6 +115,7 @@ export default function App() {
           <Route path="/ear-training" element={<EarTraining />} />
           <Route path="/metronome" element={<Metronome />} />
           <Route path="/scale-positions" element={<ScalePositions />} />
+          <Route path="/tuner" element={<Tuner />} />
         </Routes>
       </Layout>
       </ErrorBoundary>
