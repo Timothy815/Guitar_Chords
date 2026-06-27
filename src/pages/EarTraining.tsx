@@ -9,6 +9,8 @@ import {
   generateChordRound, generateIntervalRound, generateStudyDeck, generateFretboardRound,
   buildFretboardNotePool, makeFretboardRound, buildKeyboardNotePool,
   chordToNotes, playOptionAudio, playStudyCard,
+  generateScaleDrillRound, ScaleDrillRound,
+  generateIntervalFretboardRound, IntervalFretboardRound,
 } from '../lib/earTraining';
 import { loadSRSData, saveSRSData, updateSRS, getSRSCardId, defaultSRSState, buildSRSDeck } from '@/src/lib/srs';
 import { initAudio, playStrum, playNote, startDrone, stopDrone, stopRhythm } from '../lib/audio';
@@ -40,9 +42,7 @@ import { MelodyRound, MelodySettings, generateMelodyRound } from '../lib/melodyT
 import { MelodyTrainer } from '../components/MelodyTrainer';
 import { CountItTrainer } from '../components/CountItTrainer';
 import { ScaleDrillTrainer } from '../components/ScaleDrillTrainer';
-import { generateScaleDrillRound, ScaleDrillRound } from '../lib/earTraining';
 import { IntervalFretboardTrainer } from '../components/IntervalFretboardTrainer';
-import { generateIntervalFretboardRound, IntervalFretboardRound } from '../lib/earTraining';
 
 function RhythmRoundLoader({ onLoad }: { onLoad: () => void }) {
   useEffect(() => { onLoad(); }, []); // eslint-disable-line react-hooks/exhaustive-deps

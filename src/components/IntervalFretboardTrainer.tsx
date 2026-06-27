@@ -23,8 +23,9 @@ export function IntervalFretboardTrainer({ round, score, onComplete }: Props) {
   const handlePlay = useCallback(async () => {
     await initAudio();
     const rootOctave = STANDARD_TUNING.octaves[round.rootStringIdx];
+    const targetOctave = round.intervalSemitones === 12 ? rootOctave + 1 : rootOctave;
     playNote(`${round.rootNote}${rootOctave}`, '4n');
-    setTimeout(() => playNote(`${round.targetNote}${rootOctave}`, '4n'), 600);
+    setTimeout(() => playNote(`${round.targetNote}${targetOctave}`, '4n'), 600);
   }, [round]);
 
   const isCorrect = selected !== null &&
