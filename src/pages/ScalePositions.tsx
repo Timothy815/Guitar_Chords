@@ -21,7 +21,7 @@ const DIATONIC_MODES = [
   { name: 'Locrian', degree: 7 },
 ];
 
-type DrillMode = 'identify-position' | 'identify-mode' | 'free-explore';
+type DrillMode = 'identify-position' | 'free-explore';
 
 export function ScalePositions() {
   const [root, setRoot] = useState<Note>('G');
@@ -57,14 +57,15 @@ export function ScalePositions() {
   }, [pattern]);
 
   function startDrill() {
-    const correct = POSITION_LABELS[positionIdx];
+    const newIdx = Math.floor(Math.random() * 5);
+    const correct = POSITION_LABELS[newIdx];
     const shuffled = POSITION_LABELS.filter(l => l !== correct)
       .sort(() => Math.random() - 0.5).slice(0, 3);
     const opts = [correct, ...shuffled].sort(() => Math.random() - 0.5);
+    setPositionIdx(newIdx);
     setQuizOptions(opts);
     setCorrectAnswer(correct);
     setSelected(null);
-    setPositionIdx(Math.floor(Math.random() * 5));
   }
 
   function handleSelect(opt: string) {
@@ -73,8 +74,6 @@ export function ScalePositions() {
   }
 
   function nextQuestion() {
-    setSelected(null);
-    setPositionIdx(Math.floor(Math.random() * 5));
     startDrill();
   }
 
@@ -132,7 +131,7 @@ export function ScalePositions() {
 
       {/* Mode tabs */}
       <div className="flex gap-2">
-        {(['free-explore', 'identify-position', 'identify-mode'] as DrillMode[]).map(m => (
+        {(['free-explore', 'identify-position'] as DrillMode[]).map(m => (
           <button
             key={m}
             onClick={() => { setDrillMode(m); setSelected(null); if (m !== 'free-explore') startDrill(); }}
@@ -143,7 +142,7 @@ export function ScalePositions() {
                 : 'border-brand-line text-brand-ink hover:border-brand-primary/60',
             )}
           >
-            {m === 'free-explore' ? 'Explore' : m === 'identify-position' ? 'Drill: Name the Position' : 'Drill: Mode Context'}
+            {m === 'free-explore' ? 'Explore' : 'Drill: Name the Position'}
           </button>
         ))}
       </div>
