@@ -77,7 +77,7 @@ export const TUNING_DEFS: TuningDef[] = [
 export const DETUNE_WINDOWS = { Subtle: 15, Moderate: 30, Wild: 50 } as const;
 export type DetuneName = keyof typeof DETUNE_WINDOWS;
 
-export const CENT_STEPS = [0.5, 2, 5, 10, 20] as const;
+export const CENT_STEPS = [0.5, 2, 5, 10] as const;
 
 export const DEFAULT_SETTINGS: TunerSettings = {
   tuning: 'Standard',

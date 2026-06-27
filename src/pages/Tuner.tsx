@@ -388,7 +388,7 @@ export function Tuner() {
         <label className="flex items-center gap-2 shrink-0">
           <span className="w-12">Sustain</span>
           <input
-            type="range" min={0.5} max={6} step={0.5}
+            type="range" min={2} max={6} step={0.5}
             value={settings.sustainSeconds ?? 2}
             onChange={e => setSettings(s => ({ ...s, sustainSeconds: +e.target.value }))}
             className="w-28 accent-brand-primary cursor-pointer"
@@ -396,6 +396,19 @@ export function Tuner() {
           <span className="w-8 text-right">{(settings.sustainSeconds ?? 2).toFixed(1)}s</span>
         </label>
       </div>
+
+      {/* By Ear hint */}
+      {settings.scaffoldMode === 'ear' && (
+        <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-brand-surface border border-brand-line text-xs text-brand-secondary">
+          <Info size={14} className="shrink-0 mt-0.5" />
+          <p>
+            <span className="font-semibold text-brand-ink">Listen for the beat.</span>{' '}
+            Press <ChevronDown size={11} className="inline mb-0.5" /> to drop a string flat first — then tune upward so you always know your direction.
+            Press ▶ to hear the string against the reference pitch; you'll hear a rhythmic wobble.
+            The wobble slows as you get closer. Silence = in tune.
+          </p>
+        </div>
+      )}
 
       {/* String rows — high E at top, low E at bottom */}
       <div className="space-y-2">
@@ -406,6 +419,17 @@ export function Tuner() {
           const isSharp = s.centsOffset > 0;
           const pct = Math.min(50, (Math.abs(s.centsOffset) / 60) * 50);
           const showHzSection = settings.scaffoldMode === 'cents' || settings.showHz;
+
+          const abs = Math.abs(s.centsOffset);
+          const earLabel = inTune ? 'In tune ✓'
+            : abs <= 5 ? 'Nearly there'
+            : abs <= 12 ? 'Slowing...'
+            : 'Fast beat';
+          const earLabelColor = inTune
+            ? 'text-green-600 dark:text-green-400'
+            : abs <= 12
+              ? 'text-yellow-600 dark:text-yellow-400'
+              : 'text-red-500 dark:text-red-400';
 
           const rowClass = cn(
             'flex items-center gap-2 p-3 rounded-xl border transition-colors',
@@ -440,6 +464,13 @@ export function Tuner() {
                     <div className="text-[10px] text-brand-secondary/70 leading-tight">{fretRef}</div>
                   )}
                 </div>
+
+                {/* Ear mode: verbal beat-rate label in the Hz column slot */}
+                {settings.scaffoldMode === 'ear' && (
+                  <div className="w-28 shrink-0">
+                    <div className={cn('text-xs font-semibold', earLabelColor)}>{earLabel}</div>
+                  </div>
+                )}
 
                 {/* Hz display + inline cents meter + cents label — fixed w-28 so row width never varies */}
                 {showHzSection && (
@@ -561,7 +592,7 @@ export function Tuner() {
               {settings.showBeatIndicator && (
                 <motion.div
                   key={`beat-${realIdx}-${Math.round(Math.abs(s.centsOffset))}`}
-                  className="w-2.5 h-2.5 rounded-full shrink-0"
+                  className={cn('rounded-full shrink-0', settings.scaffoldMode === 'ear' ? 'w-4 h-4' : 'w-2.5 h-2.5')}
                   style={{
                     backgroundColor: inTune
                       ? '#22c55e'
