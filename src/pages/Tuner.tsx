@@ -288,7 +288,7 @@ export function Tuner() {
           );
 
           const arrowText = inTune ? '✓' : isSharp ? '↑' : '↓';
-          const arrowColor = inTune
+          const arrowColor = Math.abs(s.centsOffset) <= 3
             ? 'text-green-600 dark:text-green-400'
             : Math.abs(s.centsOffset) <= 10
               ? 'text-yellow-600 dark:text-yellow-400'
