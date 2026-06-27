@@ -14,7 +14,7 @@ interface ScaleDrillTrainerProps {
 export function ScaleDrillTrainer({ round, score, onComplete }: ScaleDrillTrainerProps) {
   const [selected, setSelected] = useState<Note | null>(null);
 
-  const scaleDef = COMMON_SCALES.find(s => s.name === round.scaleName)!;
+  const scaleDef = COMMON_SCALES.find(s => s.name === round.scaleName) ?? COMMON_SCALES[0];
   const scalePattern = generateScalePattern(round.root, scaleDef);
 
   // Build highlight frets: full scale in grey, target in orange/red
