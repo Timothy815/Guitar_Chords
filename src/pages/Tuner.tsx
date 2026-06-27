@@ -83,13 +83,39 @@ export function Tuner() {
     setAllInTune(false);
   }
 
-  function playRef(baseHz: number, duration = '1n') {
+  function svol(idx: number) { return (settings.stringVolumes?.[idx] ?? 80) / 100; }
+  function rvol(idx: number) { return settings.referenceVolumes?.[idx] ?? 70; }
+
+  function setStringVolume(idx: number, val: number) {
+    setSettings(s => {
+      const vols = [...(s.stringVolumes ?? [80,80,80,80,80,80])];
+      vols[idx] = val;
+      return { ...s, stringVolumes: vols };
+    });
+  }
+
+  function setReferenceVolume(idx: number, val: number) {
+    setSettings(s => {
+      const vols = [...(s.referenceVolumes ?? [70,70,70,70,70,70])];
+      vols[idx] = val;
+      return { ...s, referenceVolumes: vols };
+    });
+  }
+
+  function setAllStringVolume(val: number) {
+    setSettings(s => ({ ...s, stringVolumes: Array(6).fill(val) }));
+  }
+
+  function setAllReferenceVolume(val: number) {
+    setSettings(s => ({ ...s, referenceVolumes: Array(6).fill(val) }));
+  }
+
+  function playRef(baseHz: number, duration: string, refVolPct: number, strVolPct: number) {
     if (settings.referenceMode === 'pitchpipe') {
-      playReferenceTone(baseHz, duration);
+      playReferenceTone(baseHz, duration, refVolPct);
     } else if (settings.referenceMode === 'guitar') {
       // 2 ms stagger so the sampler allocates an independent buffer source
-      // for the reference rather than treating it as the same voice
-      playTunedString(baseHz, 0, duration, 0.002);
+      playTunedString(baseHz, 0, duration, 0.002, strVolPct / 100);
     }
   }
 
@@ -97,8 +123,8 @@ export function Tuner() {
     setStrings(prev => prev.map((s, i) => {
       if (i !== idx) return s;
       const newOffset = Math.max(-60, Math.min(60, s.centsOffset + delta));
-      playTunedString(s.targetHz, newOffset, '4n');
-      if (settings.referenceMode !== 'off') playRef(s.targetHz, '4n');
+      playTunedString(s.targetHz, newOffset, '4n', undefined, svol(i));
+      if (settings.referenceMode !== 'off') playRef(s.targetHz, '4n', rvol(i), settings.stringVolumes?.[i] ?? 80);
       return { ...s, centsOffset: newOffset };
     }));
   }
@@ -107,15 +133,15 @@ export function Tuner() {
     setStrings(prev => prev.map((s, i) => {
       if (i !== idx) return s;
       const newOffset = -25;
-      playTunedString(s.targetHz, newOffset, '4n');
-      if (settings.referenceMode !== 'off') playRef(s.targetHz, '4n');
+      playTunedString(s.targetHz, newOffset, '4n', undefined, svol(i));
+      if (settings.referenceMode !== 'off') playRef(s.targetHz, '4n', rvol(i), settings.stringVolumes?.[i] ?? 80);
       return { ...s, centsOffset: newOffset };
     }));
   }
 
   async function playSingleString(idx: number) {
-    playTunedString(strings[idx].targetHz, strings[idx].centsOffset, '1n');
-    if (settings.referenceMode !== 'off') playRef(strings[idx].targetHz, '1n');
+    playTunedString(strings[idx].targetHz, strings[idx].centsOffset, '1n', undefined, svol(idx));
+    if (settings.referenceMode !== 'off') playRef(strings[idx].targetHz, '1n', rvol(idx), settings.stringVolumes?.[idx] ?? 80);
   }
 
   async function handlePlayAll() {
@@ -130,16 +156,16 @@ export function Tuner() {
       if (settings.audioMode === 'simultaneous') {
         strings.forEach((s, i) => {
           setTimeout(() => {
-            playTunedString(s.targetHz, s.centsOffset, '1n');
-            if (settings.referenceMode !== 'off') playRef(s.targetHz, '1n');
+            playTunedString(s.targetHz, s.centsOffset, '1n', undefined, svol(i));
+            if (settings.referenceMode !== 'off') playRef(s.targetHz, '1n', rvol(i), settings.stringVolumes?.[i] ?? 80);
           }, i * 20);
         });
         await new Promise<void>(r => setTimeout(r, 2500));
       } else {
         for (let i = 5; i >= 0; i--) {
           if (!playingRef.current) break;
-          playTunedString(strings[i].targetHz, strings[i].centsOffset, '1n');
-          if (settings.referenceMode !== 'off') playRef(strings[i].targetHz, '1n');
+          playTunedString(strings[i].targetHz, strings[i].centsOffset, '1n', undefined, svol(i));
+          if (settings.referenceMode !== 'off') playRef(strings[i].targetHz, '1n', rvol(i), settings.stringVolumes?.[i] ?? 80);
           if (i > 0) await new Promise<void>(r => setTimeout(r, 2000));
         }
       }
@@ -336,6 +362,27 @@ export function Tuner() {
         </div>
       )}
 
+      {/* Global volume controls */}
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-2.5 rounded-xl bg-brand-surface border border-brand-line text-xs text-brand-secondary">
+        <span className="font-semibold text-brand-ink shrink-0">Set all:</span>
+        <label className="flex items-center gap-2 shrink-0">
+          <span className="w-12">String</span>
+          <input
+            type="range" min={0} max={100} defaultValue={80}
+            onChange={e => setAllStringVolume(+e.target.value)}
+            className="w-28 accent-brand-primary cursor-pointer"
+          />
+        </label>
+        <label className="flex items-center gap-2 shrink-0">
+          <span className="w-12">Reference</span>
+          <input
+            type="range" min={0} max={100} defaultValue={70}
+            onChange={e => setAllReferenceVolume(+e.target.value)}
+            className="w-28 accent-brand-primary cursor-pointer"
+          />
+        </label>
+      </div>
+
       {/* String rows — high E at top, low E at bottom */}
       <div className="space-y-2">
         {displayedStrings.map((s, displayIdx) => {
@@ -486,8 +533,8 @@ export function Tuner() {
               {/* Play target pitch alone — follows reference mode */}
               <button
                 onClick={() => settings.referenceMode === 'guitar'
-                  ? playTunedString(s.targetHz, 0, '1n')
-                  : playReferenceTone(s.targetHz, '1n')
+                  ? playTunedString(s.targetHz, 0, '1n', undefined, rvol(realIdx) / 100)
+                  : playReferenceTone(s.targetHz, '1n', rvol(realIdx))
                 }
                 title={`Play target pitch alone (${s.targetNote} = ${s.targetHz.toFixed(1)} Hz)`}
                 className="shrink-0 p-2 rounded-lg border border-brand-line text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar/50 transition-colors"
@@ -498,6 +545,7 @@ export function Tuner() {
               {/* Beat indicator — pulses at the beating frequency; off when in tune */}
               {settings.showBeatIndicator && (
                 <motion.div
+                  key={`beat-${realIdx}-${Math.round(Math.abs(s.centsOffset))}`}
                   className="w-2.5 h-2.5 rounded-full shrink-0"
                   style={{
                     backgroundColor: inTune
@@ -512,6 +560,32 @@ export function Tuner() {
                   }}
                 />
               )}
+
+              {/* Per-string volume sliders */}
+              <div className="flex flex-col gap-0.5 shrink-0 text-[10px] text-brand-secondary pl-1">
+                <label className="flex items-center gap-1">
+                  <span className="w-3 font-medium">S</span>
+                  <input
+                    type="range" min={0} max={100}
+                    value={settings.stringVolumes?.[realIdx] ?? 80}
+                    onChange={e => setStringVolume(realIdx, +e.target.value)}
+                    className="w-16 accent-brand-primary cursor-pointer"
+                    style={{ height: '6px' }}
+                  />
+                  <span className="w-7 text-right">{settings.stringVolumes?.[realIdx] ?? 80}%</span>
+                </label>
+                <label className="flex items-center gap-1">
+                  <span className="w-3 font-medium">R</span>
+                  <input
+                    type="range" min={0} max={100}
+                    value={settings.referenceVolumes?.[realIdx] ?? 70}
+                    onChange={e => setReferenceVolume(realIdx, +e.target.value)}
+                    className="w-16 accent-brand-primary cursor-pointer"
+                    style={{ height: '6px' }}
+                  />
+                  <span className="w-7 text-right">{settings.referenceVolumes?.[realIdx] ?? 70}%</span>
+                </label>
+              </div>
             </div>
           );
         })}

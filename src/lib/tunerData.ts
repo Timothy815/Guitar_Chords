@@ -27,6 +27,8 @@ export interface TunerSettings {
   showHz: boolean;
   referenceMode: ReferenceMode;
   showBeatIndicator: boolean;
+  stringVolumes: number[];   // per-string 0–100, index matches strings[] (0=low E)
+  referenceVolumes: number[]; // per-string 0–100
 }
 
 export type ScaffoldMode = 'ear' | 'color' | 'cents';
@@ -84,6 +86,8 @@ export const DEFAULT_SETTINGS: TunerSettings = {
   showHz: false,
   referenceMode: 'pitchpipe',
   showBeatIndicator: true,
+  stringVolumes: [80, 80, 80, 80, 80, 80],
+  referenceVolumes: [70, 70, 70, 70, 70, 70],
 };
 
 export const IN_TUNE_THRESHOLD = 1.5;

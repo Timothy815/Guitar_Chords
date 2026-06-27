@@ -271,18 +271,19 @@ export async function playTunedString(
   baseHz: number,
   centsOffset: number,
   duration = '2n',
-  startOffset?: number   // seconds from Tone.now() — used to stagger guitar voices
+  startOffset?: number,  // seconds from Tone.now() — used to stagger guitar voices
+  velocity = 1           // 0–1 amplitude scale
 ): Promise<void> {
   await initAudio();
   if (!sampler) return;
   const detunedHz = baseHz * Math.pow(2, centsOffset / 1200);
   const time = startOffset !== undefined ? Tone.now() + startOffset : undefined;
-  sampler.triggerAttackRelease(`${detunedHz.toFixed(3)}hz`, duration, time);
+  sampler.triggerAttackRelease(`${detunedHz.toFixed(3)}hz`, duration, time, velocity);
 }
 
 // Plays the exact reference pitch through a dedicated sine synth so it
 // doesn't compete with the guitar sampler's voice allocation.
-export async function playReferenceTone(baseHz: number, duration = '1n'): Promise<void> {
+export async function playReferenceTone(baseHz: number, duration = '1n', volumePct = 70): Promise<void> {
   await initAudio();
   if (!referenceSynth) {
     referenceSynth = new Tone.Synth({
@@ -292,6 +293,8 @@ export async function playReferenceTone(baseHz: number, duration = '1n'): Promis
       volume: -18,
     }).connect(reverbNode);
   }
+  // Map 0–100 → dB: 0%=-60dB, 70%=-18dB, 100%=0dB
+  referenceSynth.volume.value = (volumePct - 100) * 0.6;
   referenceSynth.triggerAttackRelease(`${baseHz.toFixed(3)}hz`, duration);
 }
 
