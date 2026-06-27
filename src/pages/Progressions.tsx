@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Progression, ChordShape, ChordSlot, ArpeggioStep, ArpeggioPattern, Note } from '../types';
@@ -12,6 +12,7 @@ import { playStrum, initAudio, getFretNote, playProgressionWithPatterns } from '
 import { handlePrint, printChordSheet } from '../lib/utils';
 import { cn } from '../lib/utils';
 import { analyzeVoiceLeading } from '@/src/lib/voiceLeading';
+import { analyzeKey } from '@/src/lib/keyAnalysis';
 import { VoiceLeadingPanel } from '@/src/components/VoiceLeadingPanel';
 import { STANDARD_TUNING } from '../types';
 
@@ -759,6 +760,11 @@ export function Progressions() {
 
   const activeProgression = progressions.find(p => p.id === activeProgId) || progressions[0];
 
+  const topKeys = useMemo(() => {
+    if (!activeProgression) return [];
+    return analyzeKey(activeProgression.slots.map(s => s.chord));
+  }, [activeProgression]);
+
   const addChordToProgression = (chord: ChordShape) => {
     if (!activeProgression) return;
     const updated = progressions.map(p => {
@@ -1063,7 +1069,21 @@ export function Progressions() {
                             {slot.pattern.steps.length} steps
                           </span>
                         )}
-                        <h4 className="text-center font-bold text-brand-ink mb-2 mt-3 print:mb-2 print:mt-0 print:text-xl">{chord.name}</h4>
+                        {topKeys[0]?.chordLabels[i] && (
+                          <div className={cn(
+                            'text-[10px] font-bold text-center mt-3 mb-0.5 print:hidden',
+                            topKeys[0].chordLabels[i].isBorrowed
+                              ? 'text-amber-500 dark:text-amber-400'
+                              : 'text-brand-secondary'
+                          )}>
+                            {topKeys[0].chordLabels[i].roman}
+                            {topKeys[0].chordLabels[i].isBorrowed && ' ♭'}
+                          </div>
+                        )}
+                        <h4 className={cn(
+                          'text-center font-bold text-brand-ink mb-2 print:mb-2 print:mt-0 print:text-xl',
+                          topKeys[0]?.chordLabels[i] ? 'mt-0' : 'mt-3'
+                        )}>{chord.name}</h4>
                         <Fretboard fretsNum={displayFrets} chord={chord} showNoteNames={false} className="pointer-events-none origin-top print:scale-100 scale-75" />
                       </Reorder.Item>
                     );
@@ -1074,6 +1094,32 @@ export function Progressions() {
                   <div className="text-brand-secondary/70 p-8 border-2 border-dashed border-brand-line bg-brand-bg/50 rounded-lg w-full text-center">
                     No chords yet. Add some from the dictionary below.
                   </div>
+                </div>
+              )}
+
+              {/* Key analysis summary */}
+              {topKeys.length > 0 && (
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 print:hidden">
+                  <span className="text-xs font-bold text-brand-secondary uppercase tracking-wider shrink-0">Key</span>
+                  <span className="px-2.5 py-0.5 rounded-full bg-brand-primary/10 border border-brand-primary/30 text-brand-primary font-semibold text-sm shrink-0">
+                    {topKeys[0].label}
+                  </span>
+                  <span className="text-xs text-brand-secondary shrink-0">
+                    {topKeys[0].diatonicCount}/{topKeys[0].totalChords} diatonic
+                  </span>
+                  <span className="text-xs font-mono text-brand-secondary">
+                    {topKeys[0].chordLabels.map(l => l.roman).join(' — ')}
+                  </span>
+                  {topKeys[1] && topKeys[1].score >= topKeys[0].score - 0.05 && topKeys[1].label !== topKeys[0].label && (
+                    <span className="text-xs text-brand-secondary">
+                      · also fits: <span className="font-medium text-brand-ink">{topKeys[1].label}</span>
+                    </span>
+                  )}
+                  {topKeys[0].chordLabels.some(l => l.isBorrowed) && (
+                    <span className="text-xs text-amber-500 dark:text-amber-400">
+                      ♭ = borrowed chord
+                    </span>
+                  )}
                 </div>
               )}
 
