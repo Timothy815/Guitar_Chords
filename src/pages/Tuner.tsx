@@ -233,7 +233,7 @@ export function Tuner() {
     const dur = settings.sustainSeconds ?? 2;
     setStrings(prev => prev.map((s, i) => {
       if (i !== idx) return s;
-      const newOffset = -25;
+      const newOffset = Math.max(-60, s.centsOffset - 25);
       playTunerString(s.targetHz, newOffset, dur, undefined, svol(i));
       if (settings.referenceMode !== 'off') playRef(s.targetHz, dur.toString(), rvol(i), settings.stringVolumes?.[i] ?? 80);
       return { ...s, centsOffset: newOffset };
