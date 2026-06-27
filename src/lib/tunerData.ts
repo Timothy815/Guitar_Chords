@@ -23,7 +23,12 @@ export interface TunerSettings {
   tuning: TuningName;
   detuneWindowCents: number;
   audioMode: 'simultaneous' | 'sequential';
+  scaffoldMode: ScaffoldMode;
+  showHz: boolean;
+  playReference: boolean;
 }
+
+export type ScaffoldMode = 'ear' | 'color' | 'cents';
 
 // Hz values pre-calculated at A4 = 440 Hz to avoid enharmonic note-name issues
 export const TUNING_DEFS: TuningDef[] = [
@@ -73,6 +78,9 @@ export const DEFAULT_SETTINGS: TunerSettings = {
   tuning: 'Standard',
   detuneWindowCents: 30,
   audioMode: 'simultaneous',
+  scaffoldMode: 'cents',
+  showHz: false,
+  playReference: true,
 };
 
 export const IN_TUNE_THRESHOLD = 1.5;
@@ -116,4 +124,13 @@ export function getDetuneColors(centsOffset: number): { bar: string; text: strin
     text: 'text-red-500 dark:text-red-400',
     row: 'border-brand-line',
   };
+}
+
+export function getColorModeRowStyle(centsOffset: number): string {
+  const abs = Math.abs(centsOffset);
+  if (abs <= 3)
+    return 'bg-green-50 dark:bg-green-950/30 border-green-400';
+  if (abs <= 10)
+    return 'bg-yellow-50 dark:bg-yellow-950/30 border-yellow-400';
+  return 'bg-red-50 dark:bg-red-950/30 border-red-400';
 }
