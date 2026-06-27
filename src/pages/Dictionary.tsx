@@ -7,7 +7,7 @@ import { COMMON_CHORDS, COMMON_SCALES, generateScalePattern, ALL_NOTES } from '.
 import { playStrum, playArpeggio, getFretNote, initAudio, playNote, setEffects } from '../lib/audio';
 import { Volume2, ListMusic, Printer } from 'lucide-react';
 import { ChordShape, Note, TUNINGS, Tuning, Finger } from '../types';
-import { handlePrint, cn, avgChordPitch } from '../lib/utils';
+import { handlePrint, cn, avgChordPitch, chordPositionBucket, PositionBucket, POSITION_LABELS } from '../lib/utils';
 import { addChordToActiveProgression } from '@/src/lib/progressionUtils';
 
 export function Dictionary() {
@@ -23,6 +23,7 @@ export function Dictionary() {
   const [addedToast, setAddedToast] = useState<string | null>(null);
   const [scaffoldLevel, setScaffoldLevel] = useState<0 | 1 | 2>(0);
   const [chordSortOrder, setChordSortOrder] = useState<'asc' | 'desc' | null>(null);
+  const [positionFilter, setPositionFilter] = useState<PositionBucket>('all');
 
   function handleAddToProgression(chord: ChordShape) {
     const ok = addChordToActiveProgression(chord);
@@ -76,11 +77,19 @@ export function Dictionary() {
   const activeChord = currentChords[selectedChordIdx] || null;
 
   const sortedChordEntries = useMemo(() => {
-    const entries = currentChords.map((chord, origIdx) => ({ chord, origIdx }));
+    let entries = currentChords.map((chord, origIdx) => ({ chord, origIdx }));
+    if (positionFilter !== 'all') entries = entries.filter(e => chordPositionBucket(e.chord) === positionFilter);
     if (chordSortOrder === 'asc') return [...entries].sort((a, b) => avgChordPitch(a.chord) - avgChordPitch(b.chord));
     if (chordSortOrder === 'desc') return [...entries].sort((a, b) => avgChordPitch(b.chord) - avgChordPitch(a.chord));
     return entries;
-  }, [currentChords, chordSortOrder]);
+  }, [currentChords, chordSortOrder, positionFilter]);
+
+  // When filter changes, ensure the selected chord is still visible
+  useEffect(() => {
+    if (sortedChordEntries.length > 0 && !sortedChordEntries.some(e => e.origIdx === selectedChordIdx)) {
+      setSelectedChordIdx(sortedChordEntries[0].origIdx);
+    }
+  }, [sortedChordEntries]);
   
   const activeScaleBase = COMMON_SCALES[selectedScaleIdx];
   const activeScale = useMemo(
@@ -575,6 +584,15 @@ export function Dictionary() {
                           className={cn('px-2 py-0.5 rounded text-xs font-bold transition-colors', chordSortOrder === 'desc' ? 'bg-brand-primary text-white' : 'text-brand-secondary hover:text-brand-ink border border-transparent hover:border-brand-line')}
                         >↓ High</button>
                       </div>
+                    </div>
+                    <div className="flex gap-1 flex-wrap">
+                      {(['all', 'open', 'low', 'high'] as PositionBucket[]).map(bucket => (
+                        <button
+                          key={bucket}
+                          onClick={() => setPositionFilter(bucket)}
+                          className={cn('px-2 py-0.5 rounded-full text-xs font-medium transition-colors', positionFilter === bucket ? 'bg-brand-active text-white' : 'bg-brand-bg border border-brand-line text-brand-secondary hover:text-brand-ink')}
+                        >{POSITION_LABELS[bucket]}</button>
+                      ))}
                     </div>
                     <div className="space-y-2">
                        {sortedChordEntries.length > 0 ? sortedChordEntries.map(({ chord, origIdx }) => (

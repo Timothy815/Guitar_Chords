@@ -12,6 +12,22 @@ export function avgChordPitch(chord: ChordShape): number {
   return pitches.length ? pitches.reduce((a, b) => a + b, 0) / pitches.length : 0;
 }
 
+export type PositionBucket = 'all' | 'open' | 'low' | 'high';
+
+export const POSITION_LABELS: Record<PositionBucket, string> = {
+  all:  'All',
+  open: 'Open',
+  low:  'Low (2–7)',
+  high: 'High (8+)',
+};
+
+export function chordPositionBucket(chord: ChordShape): Exclude<PositionBucket, 'all'> {
+  if (chord.frets.some(f => f === 0)) return 'open';
+  const fretted = chord.frets.filter(f => f > 0);
+  if (fretted.length === 0) return 'open';
+  return Math.min(...fretted) <= 7 ? 'low' : 'high';
+}
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }

@@ -9,7 +9,7 @@ import { ChordSheet } from '../components/ChordSheet';
 import { Plus, Trash2, Play, Printer, Disc, GripHorizontal, Square, RotateCcw, Pencil, X, Upload, FileText } from 'lucide-react';
 import { Reorder } from 'motion/react';
 import { playStrum, initAudio, getFretNote, playProgressionWithPatterns } from '../lib/audio';
-import { handlePrint, printChordSheet, cn, avgChordPitch } from '../lib/utils';
+import { handlePrint, printChordSheet, cn, avgChordPitch, chordPositionBucket, PositionBucket, POSITION_LABELS } from '../lib/utils';
 import { analyzeVoiceLeading } from '@/src/lib/voiceLeading';
 import { analyzeKey } from '@/src/lib/keyAnalysis';
 import { VoiceLeadingPanel } from '@/src/components/VoiceLeadingPanel';
@@ -620,6 +620,7 @@ export function Progressions() {
   const [countDownBeat, setCountDownBeat] = useState<number | null>(null);
   const tapTimesRef = useRef<number[]>([]);
   const [paletteSortOrder, setPaletteSortOrder] = useState<'asc' | 'desc' | null>(null);
+  const [palettePositionFilter, setPalettePositionFilter] = useState<PositionBucket>('all');
 
   useEffect(() => {
     const saved = localStorage.getItem('guitar_progressions');
@@ -1321,38 +1322,44 @@ export function Progressions() {
                   })}
                 </div>
 
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs text-brand-secondary">Click to add</span>
-                  <div className="flex gap-0.5">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex gap-1 flex-wrap">
+                    {(['all', 'open', 'low', 'high'] as PositionBucket[]).map(bucket => (
+                      <button
+                        key={bucket}
+                        onClick={() => setPalettePositionFilter(bucket)}
+                        className={cn('px-2 py-0.5 rounded-full text-xs font-medium transition-colors', palettePositionFilter === bucket ? 'bg-brand-active text-white' : 'bg-brand-bg border border-brand-line text-brand-secondary hover:text-brand-ink')}
+                      >{POSITION_LABELS[bucket]}</button>
+                    ))}
+                  </div>
+                  <div className="flex gap-0.5 ml-2">
                     <button
                       onClick={() => setPaletteSortOrder(paletteSortOrder === 'asc' ? null : 'asc')}
                       title="Sort low to high"
                       className={cn('px-2 py-0.5 rounded text-xs font-bold transition-colors', paletteSortOrder === 'asc' ? 'bg-brand-primary text-white' : 'text-brand-secondary hover:text-brand-ink border border-transparent hover:border-brand-line')}
-                    >↑ Low</button>
+                    >↑</button>
                     <button
                       onClick={() => setPaletteSortOrder(paletteSortOrder === 'desc' ? null : 'desc')}
                       title="Sort high to low"
                       className={cn('px-2 py-0.5 rounded text-xs font-bold transition-colors', paletteSortOrder === 'desc' ? 'bg-brand-primary text-white' : 'text-brand-secondary hover:text-brand-ink border border-transparent hover:border-brand-line')}
-                    >↓ High</button>
+                    >↓</button>
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {(paletteSortOrder
-                    ? [...(COMMON_CHORDS[chordPaletteKey] ?? [])].sort((a, b) =>
-                        paletteSortOrder === 'asc'
-                          ? avgChordPitch(a) - avgChordPitch(b)
-                          : avgChordPitch(b) - avgChordPitch(a)
-                      )
-                    : (COMMON_CHORDS[chordPaletteKey] ?? [])
-                  ).map((chord, i) => (
-                    <button
-                      key={i}
-                      onClick={() => addChordToProgression(chord)}
-                      className="px-3 py-1.5 border border-brand-line bg-brand-surface rounded-md text-sm text-brand-ink hover:bg-brand-bg hover:border-brand-primary transition-colors"
-                    >
-                      {chord.name}
-                    </button>
-                  ))}
+                  {(() => {
+                    let chords = COMMON_CHORDS[chordPaletteKey] ?? [];
+                    if (palettePositionFilter !== 'all') chords = chords.filter(c => chordPositionBucket(c) === palettePositionFilter);
+                    if (paletteSortOrder) chords = [...chords].sort((a, b) => paletteSortOrder === 'asc' ? avgChordPitch(a) - avgChordPitch(b) : avgChordPitch(b) - avgChordPitch(a));
+                    return chords.map((chord, i) => (
+                      <button
+                        key={i}
+                        onClick={() => addChordToProgression(chord)}
+                        className="px-3 py-1.5 border border-brand-line bg-brand-surface rounded-md text-sm text-brand-ink hover:bg-brand-bg hover:border-brand-primary transition-colors"
+                      >
+                        {chord.name}
+                      </button>
+                    ));
+                  })()}
                 </div>
               </div>
 
