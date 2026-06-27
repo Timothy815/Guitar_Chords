@@ -1,5 +1,16 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { ChordShape } from '../types';
+
+// MIDI pitch of each open string: E2 A2 D3 G3 B3 E4
+const OPEN_STRING_PITCHES = [40, 45, 50, 55, 59, 64];
+
+export function avgChordPitch(chord: ChordShape): number {
+  const pitches = chord.frets
+    .map((f, s) => f !== -1 ? OPEN_STRING_PITCHES[s] + f : null)
+    .filter((p): p is number => p !== null);
+  return pitches.length ? pitches.reduce((a, b) => a + b, 0) / pitches.length : 0;
+}
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));

@@ -9,8 +9,7 @@ import { ChordSheet } from '../components/ChordSheet';
 import { Plus, Trash2, Play, Printer, Disc, GripHorizontal, Square, RotateCcw, Pencil, X, Upload, FileText } from 'lucide-react';
 import { Reorder } from 'motion/react';
 import { playStrum, initAudio, getFretNote, playProgressionWithPatterns } from '../lib/audio';
-import { handlePrint, printChordSheet } from '../lib/utils';
-import { cn } from '../lib/utils';
+import { handlePrint, printChordSheet, cn, avgChordPitch } from '../lib/utils';
 import { analyzeVoiceLeading } from '@/src/lib/voiceLeading';
 import { analyzeKey } from '@/src/lib/keyAnalysis';
 import { VoiceLeadingPanel } from '@/src/components/VoiceLeadingPanel';
@@ -620,6 +619,7 @@ export function Progressions() {
   const [countInEnabled, setCountInEnabled] = useState(false);
   const [countDownBeat, setCountDownBeat] = useState<number | null>(null);
   const tapTimesRef = useRef<number[]>([]);
+  const [paletteSortOrder, setPaletteSortOrder] = useState<'asc' | 'desc' | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem('guitar_progressions');
@@ -1321,8 +1321,30 @@ export function Progressions() {
                   })}
                 </div>
 
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs text-brand-secondary">Click to add</span>
+                  <div className="flex gap-0.5">
+                    <button
+                      onClick={() => setPaletteSortOrder(paletteSortOrder === 'asc' ? null : 'asc')}
+                      title="Sort low to high"
+                      className={cn('px-2 py-0.5 rounded text-xs font-bold transition-colors', paletteSortOrder === 'asc' ? 'bg-brand-primary text-white' : 'text-brand-secondary hover:text-brand-ink border border-transparent hover:border-brand-line')}
+                    >↑ Low</button>
+                    <button
+                      onClick={() => setPaletteSortOrder(paletteSortOrder === 'desc' ? null : 'desc')}
+                      title="Sort high to low"
+                      className={cn('px-2 py-0.5 rounded text-xs font-bold transition-colors', paletteSortOrder === 'desc' ? 'bg-brand-primary text-white' : 'text-brand-secondary hover:text-brand-ink border border-transparent hover:border-brand-line')}
+                    >↓ High</button>
+                  </div>
+                </div>
                 <div className="flex flex-wrap gap-2">
-                  {COMMON_CHORDS[chordPaletteKey]?.map((chord, i) => (
+                  {(paletteSortOrder
+                    ? [...(COMMON_CHORDS[chordPaletteKey] ?? [])].sort((a, b) =>
+                        paletteSortOrder === 'asc'
+                          ? avgChordPitch(a) - avgChordPitch(b)
+                          : avgChordPitch(b) - avgChordPitch(a)
+                      )
+                    : (COMMON_CHORDS[chordPaletteKey] ?? [])
+                  ).map((chord, i) => (
                     <button
                       key={i}
                       onClick={() => addChordToProgression(chord)}

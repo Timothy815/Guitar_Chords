@@ -7,7 +7,7 @@ import { COMMON_CHORDS, COMMON_SCALES, generateScalePattern, ALL_NOTES } from '.
 import { playStrum, playArpeggio, getFretNote, initAudio, playNote, setEffects } from '../lib/audio';
 import { Volume2, ListMusic, Printer } from 'lucide-react';
 import { ChordShape, Note, TUNINGS, Tuning, Finger } from '../types';
-import { handlePrint, cn } from '../lib/utils';
+import { handlePrint, cn, avgChordPitch } from '../lib/utils';
 import { addChordToActiveProgression } from '@/src/lib/progressionUtils';
 
 export function Dictionary() {
@@ -22,6 +22,7 @@ export function Dictionary() {
   const [identifiedFrets, setIdentifiedFrets] = useState<number[]>([-1,-1,-1,-1,-1,-1]);
   const [addedToast, setAddedToast] = useState<string | null>(null);
   const [scaffoldLevel, setScaffoldLevel] = useState<0 | 1 | 2>(0);
+  const [chordSortOrder, setChordSortOrder] = useState<'asc' | 'desc' | null>(null);
 
   function handleAddToProgression(chord: ChordShape) {
     const ok = addChordToActiveProgression(chord);
@@ -73,6 +74,13 @@ export function Dictionary() {
 
   const currentChords = COMMON_CHORDS[selectedKey] || [];
   const activeChord = currentChords[selectedChordIdx] || null;
+
+  const sortedChordEntries = useMemo(() => {
+    const entries = currentChords.map((chord, origIdx) => ({ chord, origIdx }));
+    if (chordSortOrder === 'asc') return [...entries].sort((a, b) => avgChordPitch(a.chord) - avgChordPitch(b.chord));
+    if (chordSortOrder === 'desc') return [...entries].sort((a, b) => avgChordPitch(b.chord) - avgChordPitch(a.chord));
+    return entries;
+  }, [currentChords, chordSortOrder]);
   
   const activeScaleBase = COMMON_SCALES[selectedScaleIdx];
   const activeScale = useMemo(
@@ -553,13 +561,27 @@ export function Dictionary() {
 
               {mode === 'chords' && (
                  <>
-                    <h3 className="text-sm font-bold text-brand-secondary uppercase tracking-wider pt-4">Variations</h3>
+                    <div className="flex items-center justify-between pt-4">
+                      <h3 className="text-sm font-bold text-brand-secondary uppercase tracking-wider">Variations</h3>
+                      <div className="flex gap-0.5">
+                        <button
+                          onClick={() => setChordSortOrder(chordSortOrder === 'asc' ? null : 'asc')}
+                          title="Sort low to high"
+                          className={cn('px-2 py-0.5 rounded text-xs font-bold transition-colors', chordSortOrder === 'asc' ? 'bg-brand-primary text-white' : 'text-brand-secondary hover:text-brand-ink border border-transparent hover:border-brand-line')}
+                        >↑ Low</button>
+                        <button
+                          onClick={() => setChordSortOrder(chordSortOrder === 'desc' ? null : 'desc')}
+                          title="Sort high to low"
+                          className={cn('px-2 py-0.5 rounded text-xs font-bold transition-colors', chordSortOrder === 'desc' ? 'bg-brand-primary text-white' : 'text-brand-secondary hover:text-brand-ink border border-transparent hover:border-brand-line')}
+                        >↓ High</button>
+                      </div>
+                    </div>
                     <div className="space-y-2">
-                       {currentChords.length > 0 ? currentChords.map((chord, idx) => (
+                       {sortedChordEntries.length > 0 ? sortedChordEntries.map(({ chord, origIdx }) => (
                           <button
-                            key={idx}
-                            onClick={() => setSelectedChordIdx(idx)}
-                            className={`block w-full text-left px-4 py-3 rounded-md text-sm transition-colors ${selectedChordIdx === idx ? 'bg-[#F2F5F3] text-brand-primary font-medium border border-brand-primary' : 'text-brand-ink bg-brand-surface hover:bg-brand-bg border border-brand-line'}`}
+                            key={origIdx}
+                            onClick={() => setSelectedChordIdx(origIdx)}
+                            className={`block w-full text-left px-4 py-3 rounded-md text-sm transition-colors ${selectedChordIdx === origIdx ? 'bg-[#F2F5F3] text-brand-primary font-medium border border-brand-primary' : 'text-brand-ink bg-brand-surface hover:bg-brand-bg border border-brand-line'}`}
                           >
                              {chord.name}
                           </button>
