@@ -11,6 +11,9 @@ import { Reorder } from 'motion/react';
 import { playStrum, initAudio, getFretNote, playProgressionWithPatterns } from '../lib/audio';
 import { handlePrint, printChordSheet } from '../lib/utils';
 import { cn } from '../lib/utils';
+import { analyzeVoiceLeading } from '@/src/lib/voiceLeading';
+import { VoiceLeadingPanel } from '@/src/components/VoiceLeadingPanel';
+import { STANDARD_TUNING } from '../types';
 
 const MAJOR_INTERVALS = [0, 2, 4, 5, 7, 9, 11];
 
@@ -609,6 +612,7 @@ export function Progressions() {
   const [openSequencerSlotIdx, setOpenSequencerSlotIdx] = useState<number | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showChordSheetModal, setShowChordSheetModal] = useState(false);
+  const [showVoiceLeading, setShowVoiceLeading] = useState(false);
   const [showDiagrams, setShowDiagrams] = useState(true);
   const [showChart, setShowChart] = useState(true);
   const stopFnRef = useRef<(() => void) | null>(null);
@@ -944,6 +948,17 @@ export function Progressions() {
                     <Printer size={18} /> Print
                   </button>
                   <button
+                    onClick={() => setShowVoiceLeading(v => !v)}
+                    className={cn(
+                      'text-xs px-3 py-1.5 rounded border transition-colors',
+                      showVoiceLeading
+                        ? 'bg-brand-primary text-white border-brand-primary'
+                        : 'border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink'
+                    )}
+                  >
+                    {showVoiceLeading ? 'Hide Voice Leading' : 'Show Voice Leading'}
+                  </button>
+                  <button
                     onClick={() => navigate('/ear-training')}
                     className="text-xs px-3 py-1.5 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink transition-colors"
                   >
@@ -1041,6 +1056,26 @@ export function Progressions() {
                   onPatternChange={(pattern) => updateSlotPattern(openSequencerSlotIdx, pattern)}
                   onClose={() => setOpenSequencerSlotIdx(null)}
                 />
+              )}
+
+              {/* Voice leading analysis between adjacent chords */}
+              {showVoiceLeading && activeProgression.slots.length >= 2 && (
+                <div className="space-y-2 print:hidden">
+                  <h3 className="text-xs font-bold text-brand-secondary uppercase tracking-wider">Voice Leading</h3>
+                  {activeProgression.slots.slice(0, -1).map((slot, i) => {
+                    const next = activeProgression.slots[i + 1];
+                    const analysis = analyzeVoiceLeading(slot.chord, next.chord, STANDARD_TUNING.notes);
+                    return (
+                      <React.Fragment key={i}>
+                        <VoiceLeadingPanel
+                          analysis={analysis}
+                          fromChordName={slot.chord.name}
+                          toChordName={next.chord.name}
+                        />
+                      </React.Fragment>
+                    );
+                  })}
+                </div>
               )}
 
               {/* Add Chords Palette */}
