@@ -620,15 +620,21 @@ export function Progressions() {
   useEffect(() => {
     const saved = localStorage.getItem('guitar_progressions');
     if (saved) {
-      const parsed = JSON.parse(saved);
-      // Migrate old format { chords: ChordShape[] } → { slots: ChordSlot[], bpm: number }
-      const migrated = parsed.map((p: any) => {
-        if (p.chords && !p.slots) {
-          return { ...p, slots: p.chords.map((chord: ChordShape) => ({ chord })), bpm: p.bpm ?? 80, key: p.key ?? 'C' };
+      try {
+        const parsed = JSON.parse(saved);
+        // Migrate old format { chords: ChordShape[] } → { slots: ChordSlot[], bpm: number }
+        const migrated = parsed.map((p: any) => {
+          if (p.chords && !p.slots) {
+            return { ...p, slots: p.chords.map((chord: ChordShape) => ({ chord })), bpm: p.bpm ?? 80, key: p.key ?? 'C' };
+          }
+          return { ...p, bpm: p.bpm ?? 80, key: p.key ?? 'C' };
+        });
+        setProgressions(migrated);
+        const savedActiveId = localStorage.getItem('guitar_active_prog_id');
+        if (savedActiveId && migrated.find((p: Progression) => p.id === savedActiveId)) {
+          setActiveProgId(savedActiveId);
         }
-        return { ...p, bpm: p.bpm ?? 80, key: p.key ?? 'C' };
-      });
-      setProgressions(migrated);
+      } catch { /* ignore corrupt data */ }
     } else {
       const defaultProg: Progression = {
         id: '1',
@@ -644,6 +650,29 @@ export function Progressions() {
       };
       setProgressions([defaultProg]);
     }
+  }, []);
+
+  // Persist active progression ID so addChordToActiveProgression can target it
+  useEffect(() => {
+    if (activeProgId) {
+      try { localStorage.setItem('guitar_active_prog_id', activeProgId); } catch { /* quota */ }
+    }
+  }, [activeProgId]);
+
+  // Reload progressions when another page adds a chord (same-tab sync)
+  useEffect(() => {
+    function reload() {
+      try {
+        const saved = localStorage.getItem('guitar_progressions');
+        if (saved) setProgressions(JSON.parse(saved));
+      } catch { /* ignore */ }
+    }
+    window.addEventListener('guitar_progressions_updated', reload);
+    window.addEventListener('storage', reload);
+    return () => {
+      window.removeEventListener('guitar_progressions_updated', reload);
+      window.removeEventListener('storage', reload);
+    };
   }, []);
 
   useEffect(() => {

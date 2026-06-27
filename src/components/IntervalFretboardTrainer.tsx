@@ -3,6 +3,7 @@ import { cn } from '@/src/lib/utils';
 import { IntervalFretboardRound, SessionScore } from '@/src/lib/earTraining';
 import { initAudio, playNote } from '@/src/lib/audio';
 import { STANDARD_TUNING } from '@/src/types';
+import { ALL_NOTES } from '@/src/data/guitarData';
 
 const STRING_LABELS = ['E2', 'A2', 'D3', 'G3', 'B3', 'E4'];
 
@@ -23,7 +24,10 @@ export function IntervalFretboardTrainer({ round, score, onComplete }: Props) {
   const handlePlay = useCallback(async () => {
     await initAudio();
     const rootOctave = STANDARD_TUNING.octaves[round.rootStringIdx];
-    const targetOctave = round.intervalSemitones === 12 ? rootOctave + 1 : rootOctave;
+    const rootPCIdx = ALL_NOTES.indexOf(round.rootNote);
+    const targetPCIdx = ALL_NOTES.indexOf(round.targetNote);
+    // Always play ascending: target wraps to next octave when its pitch class is <= root's
+    const targetOctave = targetPCIdx > rootPCIdx ? rootOctave : rootOctave + 1;
     playNote(`${round.rootNote}${rootOctave}`, '4n');
     setTimeout(() => playNote(`${round.targetNote}${targetOctave}`, '4n'), 600);
   }, [round]);
