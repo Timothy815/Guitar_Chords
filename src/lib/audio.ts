@@ -265,6 +265,17 @@ export function stopDrone(): void {
   droneOsc = null;
 }
 
+export async function playTunedString(
+  baseHz: number,
+  centsOffset: number,
+  duration = '2n'
+): Promise<void> {
+  await initAudio();
+  if (!sampler) return;
+  const detunedHz = baseHz * Math.pow(2, centsOffset / 1200);
+  sampler.triggerAttackRelease(`${detunedHz.toFixed(3)}hz`, duration);
+}
+
 export function playStrum(notes: string[], duration: number | string = "1m", direction: 'down' | 'up' | 'up-down' | 'down-up' = 'down') {
   if (!isInitialized || !sampler) return;
   const now = Tone.now();
