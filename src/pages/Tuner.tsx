@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
 import confetti from 'canvas-confetti';
-import { RefreshCw, Play, Square, Volume2, ChevronDown, Info } from 'lucide-react';
+import { RefreshCw, Play, Square, Volume2, ChevronDown, Info, Mic, MicOff } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { playTunedString, playReferenceTone } from '@/src/lib/audio';
+import { detectPitch } from '@/src/lib/pitchDetection';
 import {
   TUNING_DEFS,
   DETUNE_WINDOWS,
@@ -39,6 +40,16 @@ const SCAFFOLD_LABELS: Record<ScaffoldMode, string> = {
   cents: 'Cents',
 };
 
+function findClosestString(hz: number, strings: StringState[]): { idx: number; centsOffset: number } | null {
+  let bestIdx = -1, bestAbs = Infinity, bestCents = 0;
+  for (let i = 0; i < strings.length; i++) {
+    const cents = 1200 * Math.log2(hz / strings[i].targetHz);
+    if (Math.abs(cents) < bestAbs) { bestAbs = Math.abs(cents); bestCents = cents; bestIdx = i; }
+  }
+  if (bestIdx === -1 || bestAbs > 100) return null;
+  return { idx: bestIdx, centsOffset: Math.round(bestCents * 10) / 10 };
+}
+
 export function Tuner() {
   const [settings, setSettings] = useState<TunerSettings>(loadSettings);
   const [strings, setStrings] = useState<StringState[]>(() => {
@@ -48,7 +59,28 @@ export function Tuner() {
   const [allInTune, setAllInTune] = useState(false);
   const [isPlayingAll, setIsPlayingAll] = useState(false);
   const [showTips, setShowTips] = useState(false);
+  const [micMode, setMicMode] = useState(false);
+  const [micError, setMicError] = useState<string | null>(null);
+  const [activeMicString, setActiveMicString] = useState<number | null>(null);
+
   const playingRef = useRef(false);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const stringsRef = useRef<StringState[]>(strings);
+  const lastDetectionRef = useRef<number>(0);
+  const lastOffsetsRef = useRef<number[]>(strings.map(s => s.centsOffset));
+
+  useEffect(() => { stringsRef.current = strings; }, [strings]);
+
+  useEffect(() => {
+    return () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+      streamRef.current?.getTracks().forEach(t => t.stop());
+      audioCtxRef.current?.close();
+    };
+  }, []);
 
   useEffect(() => {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(settings)); } catch {}
@@ -67,6 +99,73 @@ export function Tuner() {
     setAllInTune(false);
     playingRef.current = false;
     setIsPlayingAll(false);
+  }
+
+  function stopMicInternal() {
+    if (rafRef.current !== null) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    audioCtxRef.current?.close();
+    audioCtxRef.current = null;
+    analyserRef.current = null;
+    streamRef.current = null;
+  }
+
+  async function startMic() {
+    try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setMicError('Microphone not supported in this browser');
+        return;
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      streamRef.current = stream;
+      const ctx = new AudioContext();
+      audioCtxRef.current = ctx;
+      const source = ctx.createMediaStreamSource(stream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 2048;
+      analyser.smoothingTimeConstant = 0;
+      source.connect(analyser);
+      analyserRef.current = analyser;
+      const buffer = new Float32Array(analyser.fftSize);
+
+      function detect() {
+        if (!analyserRef.current) return;
+        analyserRef.current.getFloatTimeDomainData(buffer);
+        const hz = detectPitch(buffer, ctx.sampleRate);
+        const now = Date.now();
+        if (hz !== null) {
+          const result = findClosestString(hz, stringsRef.current);
+          if (result) {
+            lastDetectionRef.current = now;
+            const prev = lastOffsetsRef.current[result.idx];
+            if (Math.abs(result.centsOffset - prev) >= 0.2) {
+              lastOffsetsRef.current[result.idx] = result.centsOffset;
+              setActiveMicString(result.idx);
+              setStrings(p => p.map((s, i) => i === result.idx ? { ...s, centsOffset: result.centsOffset } : s));
+            }
+          }
+        }
+        if (now - lastDetectionRef.current > 600) {
+          setActiveMicString(p => p !== null ? null : p);
+        }
+        rafRef.current = requestAnimationFrame(detect);
+      }
+
+      rafRef.current = requestAnimationFrame(detect);
+      setMicMode(true);
+      setMicError(null);
+      setAllInTune(false);
+      setActiveMicString(null);
+    } catch (err) {
+      setMicError(err instanceof Error ? err.message : 'Could not access microphone');
+    }
+  }
+
+  function stopMic() {
+    stopMicInternal();
+    setMicMode(false);
+    setActiveMicString(null);
+    setMicError(null);
   }
 
   function handleTuningChange(name: TuningName) {
@@ -185,7 +284,9 @@ export function Tuner() {
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-3 p-4 rounded-xl bg-brand-surface border border-brand-line">
-        <h1 className="text-lg font-bold text-brand-ink font-serif mr-2">Tuner Simulator</h1>
+        <h1 className="text-lg font-bold text-brand-ink font-serif mr-2">
+          {micMode ? 'Live Tuner' : 'Tuner Simulator'}
+        </h1>
 
         <select
           value={settings.tuning}
@@ -312,12 +413,25 @@ export function Tuner() {
 
         <div className="flex gap-2 ml-auto">
           <button
-            onClick={reRandomize}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-brand-line text-sm text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar/50 transition-colors"
+            onClick={micMode ? stopMic : startMic}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm font-medium transition-colors',
+              micMode
+                ? 'bg-red-500 text-white border-red-500 hover:bg-red-600'
+                : 'bg-brand-bg text-brand-secondary border-brand-line hover:text-brand-ink hover:bg-brand-sidebar/50'
+            )}
           >
-            <RefreshCw size={14} />
-            Re-randomize
+            {micMode ? <><MicOff size={14} /> Stop Mic</> : <><Mic size={14} /> Live Mic</>}
           </button>
+          {!micMode && (
+            <button
+              onClick={reRandomize}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-brand-line text-sm text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar/50 transition-colors"
+            >
+              <RefreshCw size={14} />
+              Re-randomize
+            </button>
+          )}
           <button
             onClick={handlePlayAll}
             className={cn(
@@ -346,6 +460,29 @@ export function Tuner() {
             <li><span className="font-medium text-brand-ink">The five-fret rule.</span> On a real guitar, the 5th fret of each string matches the next open string (except G→B, which is the 4th fret). E at fret 5 = A; A at fret 5 = D, and so on.</li>
             <li><span className="font-medium text-brand-ink">Pipe vs Guitar reference.</span> <em>Pipe</em> uses a sine wave — its distinct timbre makes the beating easier to hear. <em>Guitar</em> uses the same string sound, closer to the real fret-5 technique.</li>
           </ul>
+        </div>
+      )}
+
+      {/* Mic error banner */}
+      {micError && (
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-300 dark:border-red-700 text-sm text-red-700 dark:text-red-400">
+          <MicOff size={14} className="shrink-0" />
+          <span>{micError}</span>
+        </div>
+      )}
+
+      {/* Mic listening banner */}
+      {micMode && !micError && (
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-300 dark:border-blue-600 text-sm">
+          <motion.div
+            className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0"
+            animate={{ opacity: [1, 0.3, 1] }}
+            transition={{ duration: 1.5, repeat: Infinity }}
+          />
+          <span className="text-blue-800 dark:text-blue-300 font-medium">
+            Listening — play each string to tune it.
+            {activeMicString !== null && ` Detecting: ${strings[activeMicString].targetNote}`}
+          </span>
         </div>
       )}
 
@@ -398,7 +535,7 @@ export function Tuner() {
       </div>
 
       {/* By Ear hint */}
-      {settings.scaffoldMode === 'ear' && (
+      {settings.scaffoldMode === 'ear' && !micMode && (
         <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-brand-surface border border-brand-line text-xs text-brand-secondary">
           <Info size={14} className="shrink-0 mt-0.5" />
           <p>
@@ -431,13 +568,16 @@ export function Tuner() {
               ? 'text-yellow-600 dark:text-yellow-400'
               : 'text-red-500 dark:text-red-400';
 
+          const isActiveMicStr = micMode && activeMicString === realIdx;
           const rowClass = cn(
             'flex items-center gap-2 p-3 rounded-xl border transition-colors',
-            settings.scaffoldMode === 'cents'
-              ? colors.row
-              : settings.scaffoldMode === 'color'
-                ? getColorModeRowStyle(s.centsOffset)
-                : 'border-brand-line'
+            isActiveMicStr
+              ? cn(colors.row, 'ring-2 ring-blue-400 ring-offset-1')
+              : settings.scaffoldMode === 'cents'
+                ? colors.row
+                : settings.scaffoldMode === 'color'
+                  ? getColorModeRowStyle(s.centsOffset)
+                  : 'border-brand-line'
           );
 
           const arrowText = inTune ? '✓' : isSharp ? '↑' : '↓';
@@ -518,48 +658,53 @@ export function Tuner() {
                 {/* Spacer */}
                 <div className="flex-1" />
 
-              {/* Flatten: set to −25¢ so you can tune up from a known flat starting point */}
-              <button
-                onClick={() => flattenString(realIdx)}
-                title="Flatten to −25¢ — then tune up to find pitch"
-                className="shrink-0 px-2 py-1.5 rounded border border-brand-line text-xs text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar/70 transition-colors"
-              >
-                <ChevronDown size={13} />
-              </button>
-
-              {/* Decrement buttons (gross → fine, right to left: −20 −10 −5 −2 −0.5) */}
-              <div className="flex gap-0.5 shrink-0">
-                {[...CENT_STEPS].reverse().map(step => (
+              {/* Flatten / adjust buttons — hidden in live mic mode */}
+              {!micMode && (
+                <>
+                  {/* Flatten: set to −25¢ so you can tune up from a known flat starting point */}
                   <button
-                    key={`dec-${step}`}
-                    onClick={() => adjustOffset(realIdx, -step)}
-                    className={cn(
-                      'rounded text-xs font-mono border border-brand-line transition-colors',
-                      'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar/70',
-                      step >= 10 ? 'px-2 py-1.5 font-bold' : 'px-1.5 py-1.5'
-                    )}
+                    onClick={() => flattenString(realIdx)}
+                    title="Flatten to −25¢ — then tune up to find pitch"
+                    className="shrink-0 px-2 py-1.5 rounded border border-brand-line text-xs text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar/70 transition-colors"
                   >
-                    −{step}
+                    <ChevronDown size={13} />
                   </button>
-                ))}
-              </div>
 
-              {/* Increment buttons (fine → gross, left to right: +0.5 +2 +5 +10 +20) */}
-              <div className="flex gap-0.5 shrink-0">
-                {[...CENT_STEPS].map(step => (
-                  <button
-                    key={`inc-${step}`}
-                    onClick={() => adjustOffset(realIdx, step)}
-                    className={cn(
-                      'rounded text-xs font-mono border border-brand-line transition-colors',
-                      'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar/70',
-                      step >= 10 ? 'px-2 py-1.5 font-bold' : 'px-1.5 py-1.5'
-                    )}
-                  >
-                    +{step}
-                  </button>
-                ))}
-              </div>
+                  {/* Decrement buttons (gross → fine, right to left) */}
+                  <div className="flex gap-0.5 shrink-0">
+                    {[...CENT_STEPS].reverse().map(step => (
+                      <button
+                        key={`dec-${step}`}
+                        onClick={() => adjustOffset(realIdx, -step)}
+                        className={cn(
+                          'rounded text-xs font-mono border border-brand-line transition-colors',
+                          'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar/70',
+                          step >= 10 ? 'px-2 py-1.5 font-bold' : 'px-1.5 py-1.5'
+                        )}
+                      >
+                        −{step}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Increment buttons (fine → gross, left to right) */}
+                  <div className="flex gap-0.5 shrink-0">
+                    {[...CENT_STEPS].map(step => (
+                      <button
+                        key={`inc-${step}`}
+                        onClick={() => adjustOffset(realIdx, step)}
+                        className={cn(
+                          'rounded text-xs font-mono border border-brand-line transition-colors',
+                          'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar/70',
+                          step >= 10 ? 'px-2 py-1.5 font-bold' : 'px-1.5 py-1.5'
+                        )}
+                      >
+                        +{step}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
 
               {/* Play button */}
               <button
@@ -636,11 +781,13 @@ export function Tuner() {
       </div>
 
       <p className="text-xs text-brand-secondary text-center pb-4">
-        {settings.scaffoldMode === 'ear'
-          ? 'Listen for the beating to slow and stop as each string approaches its target pitch.'
-          : settings.scaffoldMode === 'color'
-            ? 'Follow the arrows — tune until all rows turn green and show ✓.'
-            : 'Use the increment buttons to tune — listen for the beating to slow and stop as each string approaches its target pitch.'}
+        {micMode
+          ? 'Play each string — the tuner detects its pitch and updates the row automatically.'
+          : settings.scaffoldMode === 'ear'
+            ? 'Listen for the beating to slow and stop as each string approaches its target pitch.'
+            : settings.scaffoldMode === 'color'
+              ? 'Follow the arrows — tune until all rows turn green and show ✓.'
+              : 'Use the increment buttons to tune — listen for the beating to slow and stop as each string approaches its target pitch.'}
       </p>
     </div>
   );
