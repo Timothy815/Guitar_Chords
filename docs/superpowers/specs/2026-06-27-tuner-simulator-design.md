@@ -124,7 +124,7 @@ When all 6 strings reach `|offset| <= 1.5¢`:
 ## Audio Behavior
 
 ### Sequential Mode
-The ▶ button on each row (or Play All, which plays string 5 → 0 with ~600 ms gaps) plays a single string at its current detuned pitch. Duration: ~2 seconds (quarter note sustain).
+The ▶ button on each row (or Play All, which plays string 5 → 0 with ~2000 ms gaps) plays a single string at its current detuned pitch. Duration: ~2 seconds (1n sustain). The 2000 ms gap ensures each note finishes before the next begins.
 
 ### Simultaneous Mode
 Play All triggers all 6 strings at once (staggered by ~20 ms low→high to simulate a strum). The beating phenomenon — amplitude modulation between closely-tuned pitches — is audible and slows as the string approaches in-tune. A single ▶ button on any row triggers the full strum.
