@@ -408,7 +408,7 @@ export function Tuner() {
           const showHzSection = settings.scaffoldMode === 'cents' || settings.showHz;
 
           const rowClass = cn(
-            'flex flex-col p-3 rounded-xl border transition-colors gap-y-2',
+            'flex items-center gap-2 p-3 rounded-xl border transition-colors',
             settings.scaffoldMode === 'cents'
               ? colors.row
               : settings.scaffoldMode === 'color'
@@ -432,8 +432,6 @@ export function Tuner() {
 
           return (
             <div key={realIdx} className={rowClass}>
-              {/* Controls row */}
-              <div className="flex items-center gap-2 min-w-0">
                 {/* String label */}
                 <div className="w-14 shrink-0 text-center">
                   <div className="text-sm font-bold text-brand-ink">{s.targetNote}</div>
@@ -443,15 +441,30 @@ export function Tuner() {
                   )}
                 </div>
 
-                {/* Hz display */}
+                {/* Hz display + inline cents meter */}
                 {showHzSection && (
-                  <div className="w-28 shrink-0 text-right space-y-0.5">
+                  <div className="w-28 shrink-0 space-y-1">
                     <div className="text-sm font-mono text-brand-ink">
                       {displayHz(s.targetHz, s.centsOffset)} Hz
                     </div>
                     {settings.showHz && (
                       <div className="text-xs font-mono text-brand-secondary">
                         → {s.targetHz.toFixed(1)} target
+                      </div>
+                    )}
+                    {settings.scaffoldMode === 'cents' && (
+                      <div className="relative h-3 bg-brand-sidebar rounded-full overflow-hidden">
+                        <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-brand-ink/50 -translate-x-1/2 z-10" />
+                        <div
+                          className={cn('absolute top-0 bottom-0 transition-all duration-75', colors.bar)}
+                          style={
+                            inTune
+                              ? { left: '47%', right: '47%' }
+                              : isSharp
+                                ? { left: '50%', width: `${pct}%` }
+                                : { right: '50%', width: `${pct}%` }
+                          }
+                        />
                       </div>
                     )}
                   </div>
@@ -576,7 +589,6 @@ export function Tuner() {
                     className="w-16 accent-brand-primary cursor-pointer"
                     style={{ height: '6px' }}
                   />
-                  <span className="w-7 text-right">{settings.stringVolumes?.[realIdx] ?? 80}%</span>
                 </label>
                 <label className="flex items-center gap-1">
                   <span className="w-3 font-medium">R</span>
@@ -587,28 +599,8 @@ export function Tuner() {
                     className="w-16 accent-brand-primary cursor-pointer"
                     style={{ height: '6px' }}
                   />
-                  <span className="w-7 text-right">{settings.referenceVolumes?.[realIdx] ?? 70}%</span>
                 </label>
               </div>
-              </div>{/* end controls row */}
-
-              {/* Wide cents meter — full card width, below controls */}
-              {settings.scaffoldMode === 'cents' && (
-                <div className="relative h-4 bg-brand-sidebar rounded-full overflow-hidden">
-                  {/* Distinct center tune line */}
-                  <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-brand-ink/50 -translate-x-1/2 z-10" />
-                  <div
-                    className={cn('absolute top-0 bottom-0 transition-all duration-75 rounded-full', colors.bar)}
-                    style={
-                      inTune
-                        ? { left: '47%', right: '47%' }
-                        : isSharp
-                          ? { left: '50%', width: `${pct}%` }
-                          : { right: '50%', width: `${pct}%` }
-                    }
-                  />
-                </div>
-              )}
             </div>
           );
         })}
