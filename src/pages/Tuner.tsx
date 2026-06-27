@@ -441,7 +441,7 @@ export function Tuner() {
                   )}
                 </div>
 
-                {/* Hz display + inline cents meter */}
+                {/* Hz display + inline cents meter + cents label — fixed w-28 so row width never varies */}
                 {showHzSection && (
                   <div className="w-28 shrink-0 space-y-1">
                     <div className="text-sm font-mono text-brand-ink">
@@ -453,29 +453,27 @@ export function Tuner() {
                       </div>
                     )}
                     {settings.scaffoldMode === 'cents' && (
-                      <div className="relative h-3 bg-brand-sidebar rounded-full overflow-hidden">
-                        <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-brand-ink/50 -translate-x-1/2 z-10" />
-                        <div
-                          className={cn('absolute top-0 bottom-0 transition-all duration-75', colors.bar)}
-                          style={
-                            inTune
-                              ? { left: '47%', right: '47%' }
-                              : isSharp
-                                ? { left: '50%', width: `${pct}%` }
-                                : { right: '50%', width: `${pct}%` }
-                          }
-                        />
-                      </div>
+                      <>
+                        <div className="relative h-3 bg-brand-sidebar rounded-full overflow-hidden">
+                          <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-brand-ink/50 -translate-x-1/2 z-10" />
+                          <div
+                            className={cn('absolute top-0 bottom-0 transition-all duration-75', colors.bar)}
+                            style={
+                              inTune
+                                ? { left: '47%', right: '47%' }
+                                : isSharp
+                                  ? { left: '50%', width: `${pct}%` }
+                                  : { right: '50%', width: `${pct}%` }
+                            }
+                          />
+                        </div>
+                        <div className={cn('text-xs font-medium tabular-nums', colors.text)}>
+                          {inTune
+                            ? 'IN TUNE ✓'
+                            : `${isSharp ? '+' : ''}${s.centsOffset.toFixed(1)}¢ ${isSharp ? 'SHARP' : 'FLAT'}`}
+                        </div>
+                      </>
                     )}
-                  </div>
-                )}
-
-                {/* Cents label (text only — bar lives below) */}
-                {settings.scaffoldMode === 'cents' && (
-                  <div className={cn('shrink-0 text-xs font-medium tabular-nums', colors.text)}>
-                    {inTune
-                      ? 'IN TUNE ✓'
-                      : `${isSharp ? '+' : ''}${s.centsOffset.toFixed(1)}¢ ${isSharp ? 'SHARP' : 'FLAT'}`}
                   </div>
                 )}
 
