@@ -281,6 +281,50 @@ export async function playTunedString(
   sampler.triggerAttackRelease(`${detunedHz.toFixed(3)}hz`, duration, time, velocity);
 }
 
+// Tuner-specific string playback using a guitar Sampler routed through a
+// notch filter at B4 (494 Hz). The Gleitz B3 sample has a prominent 2nd
+// harmonic at B4 that becomes audible near 0-cent offset when beating stops.
+// The notch removes that specific overtone while leaving the guitar character
+// (attack transient, fundamental, all other harmonics) fully intact.
+let tunerSampler: Tone.Sampler | null = null;
+let tunerNotch: Tone.Filter | null = null;
+let tunerReadyPromise: Promise<void> | null = null;
+
+export async function playTunerString(
+  baseHz: number,
+  centsOffset: number,
+  duration: number | string = 2,
+  startOffset?: number,
+  velocity = 1
+): Promise<void> {
+  await initAudio();
+  if (!tunerSampler) {
+    if (!tunerReadyPromise) {
+      tunerReadyPromise = new Promise<void>((resolve) => {
+        tunerNotch = new Tone.Filter({
+          type: 'notch',
+          frequency: 494,
+          Q: 5,
+        }).connect(reverbNode);
+        const s = new Tone.Sampler({
+          urls: { "E2": "E2.mp3", "A2": "A2.mp3", "D3": "D3.mp3", "G3": "G3.mp3", "B3": "B3.mp3", "E4": "E4.mp3" },
+          baseUrl: `https://gleitz.github.io/midi-js-soundfonts/MusyngKite/${currentInstrument}-mp3/`,
+          onload: () => {
+            s.volume.value = 5;
+            tunerSampler = s;
+            resolve();
+          },
+        }).connect(tunerNotch!);
+      });
+    }
+    await tunerReadyPromise;
+  }
+  if (!tunerSampler) return;
+  const detunedHz = baseHz * Math.pow(2, centsOffset / 1200);
+  const time = startOffset !== undefined ? Tone.now() + startOffset : undefined;
+  tunerSampler.triggerAttackRelease(`${detunedHz.toFixed(3)}hz`, duration, time, velocity);
+}
+
 // Plays the exact reference pitch through a dedicated sine synth so it
 // doesn't compete with the guitar sampler's voice allocation.
 export async function playReferenceTone(baseHz: number, duration = '1n', volumePct = 70): Promise<void> {

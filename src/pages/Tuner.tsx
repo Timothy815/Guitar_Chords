@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import confetti from 'canvas-confetti';
 import { RefreshCw, Play, Square, Volume2, ChevronDown, Info, Mic, MicOff } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
-import { playTunedString, playReferenceTone } from '@/src/lib/audio';
+import { playTunerString, playReferenceTone } from '@/src/lib/audio';
 import { detectPitch } from '@/src/lib/pitchDetection';
 import {
   TUNING_DEFS,
@@ -213,8 +213,8 @@ export function Tuner() {
     if (settings.referenceMode === 'pitchpipe') {
       playReferenceTone(baseHz, duration, refVolPct);
     } else if (settings.referenceMode === 'guitar') {
-      // 2 ms stagger so the sampler allocates an independent buffer source
-      playTunedString(baseHz, 0, duration, 0.002, strVolPct / 100);
+      // 2 ms stagger so voices don't perfectly cancel at 0-cent offset
+      playTunerString(baseHz, 0, duration, 0.002, strVolPct / 100);
     }
   }
 
@@ -223,7 +223,7 @@ export function Tuner() {
     setStrings(prev => prev.map((s, i) => {
       if (i !== idx) return s;
       const newOffset = Math.max(-60, Math.min(60, s.centsOffset + delta));
-      playTunedString(s.targetHz, newOffset, dur, undefined, svol(i));
+      playTunerString(s.targetHz, newOffset, dur, undefined, svol(i));
       if (settings.referenceMode !== 'off') playRef(s.targetHz, dur.toString(), rvol(i), settings.stringVolumes?.[i] ?? 80);
       return { ...s, centsOffset: newOffset };
     }));
@@ -234,7 +234,7 @@ export function Tuner() {
     setStrings(prev => prev.map((s, i) => {
       if (i !== idx) return s;
       const newOffset = -25;
-      playTunedString(s.targetHz, newOffset, dur, undefined, svol(i));
+      playTunerString(s.targetHz, newOffset, dur, undefined, svol(i));
       if (settings.referenceMode !== 'off') playRef(s.targetHz, dur.toString(), rvol(i), settings.stringVolumes?.[i] ?? 80);
       return { ...s, centsOffset: newOffset };
     }));
@@ -242,7 +242,7 @@ export function Tuner() {
 
   async function playSingleString(idx: number) {
     const dur = settings.sustainSeconds ?? 2;
-    playTunedString(strings[idx].targetHz, strings[idx].centsOffset, dur, undefined, svol(idx));
+    playTunerString(strings[idx].targetHz, strings[idx].centsOffset, dur, undefined, svol(idx));
     if (settings.referenceMode !== 'off') playRef(strings[idx].targetHz, dur.toString(), rvol(idx), settings.stringVolumes?.[idx] ?? 80);
   }
 
@@ -259,7 +259,7 @@ export function Tuner() {
       if (settings.audioMode === 'simultaneous') {
         strings.forEach((s, i) => {
           setTimeout(() => {
-            playTunedString(s.targetHz, s.centsOffset, dur, undefined, svol(i));
+            playTunerString(s.targetHz, s.centsOffset, dur, undefined, svol(i));
             if (settings.referenceMode !== 'off') playRef(s.targetHz, dur.toString(), rvol(i), settings.stringVolumes?.[i] ?? 80);
           }, i * 20);
         });
@@ -267,7 +267,7 @@ export function Tuner() {
       } else {
         for (let i = 5; i >= 0; i--) {
           if (!playingRef.current) break;
-          playTunedString(strings[i].targetHz, strings[i].centsOffset, dur, undefined, svol(i));
+          playTunerString(strings[i].targetHz, strings[i].centsOffset, dur, undefined, svol(i));
           if (settings.referenceMode !== 'off') playRef(strings[i].targetHz, dur.toString(), rvol(i), settings.stringVolumes?.[i] ?? 80);
           if (i > 0) await new Promise<void>(r => setTimeout(r, dur * 1000 + 200));
         }
@@ -724,7 +724,7 @@ export function Tuner() {
                 onClick={() => {
                   const dur = settings.sustainSeconds ?? 2;
                   settings.referenceMode === 'guitar'
-                    ? playTunedString(s.targetHz, 0, dur, undefined, rvol(realIdx) / 100)
+                    ? playTunerString(s.targetHz, 0, dur, undefined, rvol(realIdx) / 100)
                     : playReferenceTone(s.targetHz, dur.toString(), rvol(realIdx));
                 }}
                 title={`Play target pitch alone (${s.targetNote} = ${s.targetHz.toFixed(1)} Hz)`}
