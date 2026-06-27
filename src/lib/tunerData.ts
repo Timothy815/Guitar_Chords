@@ -26,6 +26,7 @@ export interface TunerSettings {
   scaffoldMode: ScaffoldMode;
   showHz: boolean;
   referenceMode: ReferenceMode;
+  showBeatIndicator: boolean;
 }
 
 export type ScaffoldMode = 'ear' | 'color' | 'cents';
@@ -82,6 +83,7 @@ export const DEFAULT_SETTINGS: TunerSettings = {
   scaffoldMode: 'cents',
   showHz: false,
   referenceMode: 'pitchpipe',
+  showBeatIndicator: true,
 };
 
 export const IN_TUNE_THRESHOLD = 1.5;

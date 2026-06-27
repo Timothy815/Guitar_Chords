@@ -270,12 +270,14 @@ export function stopDrone(): void {
 export async function playTunedString(
   baseHz: number,
   centsOffset: number,
-  duration = '2n'
+  duration = '2n',
+  startOffset?: number   // seconds from Tone.now() — used to stagger guitar voices
 ): Promise<void> {
   await initAudio();
   if (!sampler) return;
   const detunedHz = baseHz * Math.pow(2, centsOffset / 1200);
-  sampler.triggerAttackRelease(`${detunedHz.toFixed(3)}hz`, duration);
+  const time = startOffset !== undefined ? Tone.now() + startOffset : undefined;
+  sampler.triggerAttackRelease(`${detunedHz.toFixed(3)}hz`, duration, time);
 }
 
 // Plays the exact reference pitch through a dedicated sine synth so it
@@ -285,8 +287,9 @@ export async function playReferenceTone(baseHz: number, duration = '1n'): Promis
   if (!referenceSynth) {
     referenceSynth = new Tone.Synth({
       oscillator: { type: 'sine' },
-      envelope: { attack: 0.02, decay: 0.1, sustain: 0.8, release: 1.5 },
-      volume: -22,
+      // Crisp attack like a pitch pipe; sustains long enough to hear beating
+      envelope: { attack: 0.005, decay: 0.15, sustain: 0.7, release: 1.5 },
+      volume: -18,
     }).connect(reverbNode);
   }
   referenceSynth.triggerAttackRelease(`${baseHz.toFixed(3)}hz`, duration);

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { motion } from 'motion/react';
 import confetti from 'canvas-confetti';
 import { RefreshCw, Play, Square, Volume2, ChevronDown, Info } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
@@ -83,8 +84,13 @@ export function Tuner() {
   }
 
   function playRef(baseHz: number, duration = '1n') {
-    if (settings.referenceMode === 'pitchpipe') playReferenceTone(baseHz, duration);
-    else if (settings.referenceMode === 'guitar') playTunedString(baseHz, 0, duration);
+    if (settings.referenceMode === 'pitchpipe') {
+      playReferenceTone(baseHz, duration);
+    } else if (settings.referenceMode === 'guitar') {
+      // 2 ms stagger so the sampler allocates an independent buffer source
+      // for the reference rather than treating it as the same voice
+      playTunedString(baseHz, 0, duration, 0.002);
+    }
   }
 
   function adjustOffset(idx: number, delta: number) {
@@ -246,6 +252,20 @@ export function Tuner() {
           Hz
         </button>
 
+        {/* Beat indicator toggle */}
+        <button
+          onClick={() => setSettings(s => ({ ...s, showBeatIndicator: !s.showBeatIndicator }))}
+          title={settings.showBeatIndicator ? 'Beat indicator on — click to hide (ear training mode)' : 'Beat indicator off — click to show'}
+          className={cn(
+            'px-3 py-1.5 rounded-md border text-sm font-medium transition-colors',
+            settings.showBeatIndicator
+              ? 'bg-brand-primary text-white border-brand-primary'
+              : 'bg-brand-bg text-brand-secondary border-brand-line hover:text-brand-ink hover:bg-brand-sidebar/50'
+          )}
+        >
+          Beat
+        </button>
+
         {/* Tips toggle */}
         <button
           onClick={() => setShowTips(v => !v)}
@@ -342,12 +362,22 @@ export function Tuner() {
               ? 'text-yellow-600 dark:text-yellow-400'
               : 'text-red-500 dark:text-red-400';
 
+          const prevString = realIdx > 0 ? strings[realIdx - 1] : null;
+          const fretRef = prevString
+            ? `fr.${Math.round(12 * Math.log2(s.targetHz / prevString.targetHz))} ${prevString.targetNote}`
+            : null;
+
+          const beatingHz = s.targetHz * Math.abs(Math.pow(2, s.centsOffset / 1200) - 1);
+
           return (
             <div key={realIdx} className={rowClass}>
               {/* String label */}
-              <div className="w-12 shrink-0 text-center">
+              <div className="w-14 shrink-0 text-center">
                 <div className="text-sm font-bold text-brand-ink">{s.targetNote}</div>
                 <div className="text-xs text-brand-secondary">str {realIdx + 1}</div>
+                {fretRef && (
+                  <div className="text-[10px] text-brand-secondary/70 leading-tight">{fretRef}</div>
+                )}
               </div>
 
               {/* Hz display — always visible in Cents mode; visible in other modes only when showHz toggle is on */}
@@ -464,6 +494,24 @@ export function Tuner() {
               >
                 <Volume2 size={14} />
               </button>
+
+              {/* Beat indicator — pulses at the beating frequency; off when in tune */}
+              {settings.showBeatIndicator && (
+                <motion.div
+                  className="w-2.5 h-2.5 rounded-full shrink-0"
+                  style={{
+                    backgroundColor: inTune
+                      ? '#22c55e'
+                      : Math.abs(s.centsOffset) <= 6 ? '#eab308' : '#ef4444',
+                  }}
+                  animate={inTune ? { opacity: 1 } : { opacity: [0.15, 1, 0.15] }}
+                  transition={inTune ? {} : {
+                    duration: 1 / Math.max(0.1, beatingHz),
+                    repeat: Infinity,
+                    ease: 'easeInOut',
+                  }}
+                />
+              )}
             </div>
           );
         })}
