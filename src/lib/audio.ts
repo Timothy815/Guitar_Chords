@@ -286,7 +286,7 @@ export async function playReferenceTone(baseHz: number, duration = '1n'): Promis
     referenceSynth = new Tone.Synth({
       oscillator: { type: 'sine' },
       envelope: { attack: 0.02, decay: 0.1, sustain: 0.8, release: 1.5 },
-      volume: -8,
+      volume: -22,
     }).connect(reverbNode);
   }
   referenceSynth.triggerAttackRelease(`${baseHz.toFixed(3)}hz`, duration);

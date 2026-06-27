@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import confetti from 'canvas-confetti';
-import { RefreshCw, Play, Square } from 'lucide-react';
+import { RefreshCw, Play, Square, Volume2 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { playTunedString, playReferenceTone } from '@/src/lib/audio';
 import {
@@ -391,6 +391,15 @@ export function Tuner() {
                 className="shrink-0 p-2 rounded-lg border border-brand-line text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar/50 transition-colors"
               >
                 <Play size={14} />
+              </button>
+
+              {/* Play target pitch alone */}
+              <button
+                onClick={() => playReferenceTone(s.targetHz, '1n')}
+                title={`Play target pitch alone (${s.targetNote} = ${s.targetHz.toFixed(1)} Hz)`}
+                className="shrink-0 p-2 rounded-lg border border-brand-line text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar/50 transition-colors"
+              >
+                <Volume2 size={14} />
               </button>
             </div>
           );
