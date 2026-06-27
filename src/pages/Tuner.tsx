@@ -120,21 +120,23 @@ export function Tuner() {
   }
 
   function adjustOffset(idx: number, delta: number) {
+    const dur = settings.sustainSeconds ?? 2;
     setStrings(prev => prev.map((s, i) => {
       if (i !== idx) return s;
       const newOffset = Math.max(-60, Math.min(60, s.centsOffset + delta));
-      playTunedString(s.targetHz, newOffset, 0.5, undefined, svol(i));
-      if (settings.referenceMode !== 'off') playRef(s.targetHz, '4n', rvol(i), settings.stringVolumes?.[i] ?? 80);
+      playTunedString(s.targetHz, newOffset, dur, undefined, svol(i));
+      if (settings.referenceMode !== 'off') playRef(s.targetHz, dur.toString(), rvol(i), settings.stringVolumes?.[i] ?? 80);
       return { ...s, centsOffset: newOffset };
     }));
   }
 
   function flattenString(idx: number) {
+    const dur = settings.sustainSeconds ?? 2;
     setStrings(prev => prev.map((s, i) => {
       if (i !== idx) return s;
       const newOffset = -25;
-      playTunedString(s.targetHz, newOffset, 0.5, undefined, svol(i));
-      if (settings.referenceMode !== 'off') playRef(s.targetHz, '4n', rvol(i), settings.stringVolumes?.[i] ?? 80);
+      playTunedString(s.targetHz, newOffset, dur, undefined, svol(i));
+      if (settings.referenceMode !== 'off') playRef(s.targetHz, dur.toString(), rvol(i), settings.stringVolumes?.[i] ?? 80);
       return { ...s, centsOffset: newOffset };
     }));
   }
@@ -349,10 +351,10 @@ export function Tuner() {
 
       {/* Celebration banner */}
       {allInTune && (
-        <div className="flex items-center justify-between p-4 rounded-xl bg-green-50 dark:bg-green-950/30 border border-green-400">
+        <div className="flex items-center justify-between p-4 rounded-xl bg-green-100 dark:bg-green-950/30 border border-green-600/40 dark:border-green-600">
           <div>
-            <p className="text-lg font-bold text-green-700 dark:text-green-400">Guitar in tune!</p>
-            <p className="text-sm text-green-600 dark:text-green-500">All strings within ±{IN_TUNE_THRESHOLD}¢</p>
+            <p className="text-lg font-bold text-green-900 dark:text-green-400">Guitar in tune!</p>
+            <p className="text-sm text-green-800 dark:text-green-500">All strings within ±{IN_TUNE_THRESHOLD}¢</p>
           </div>
           <button
             onClick={reRandomize}
@@ -406,7 +408,7 @@ export function Tuner() {
           const showHzSection = settings.scaffoldMode === 'cents' || settings.showHz;
 
           const rowClass = cn(
-            'flex items-center gap-2 p-3 rounded-xl border transition-colors',
+            'flex flex-col p-3 rounded-xl border transition-colors gap-y-2',
             settings.scaffoldMode === 'cents'
               ? colors.row
               : settings.scaffoldMode === 'color'
@@ -430,61 +432,49 @@ export function Tuner() {
 
           return (
             <div key={realIdx} className={rowClass}>
-              {/* String label */}
-              <div className="w-14 shrink-0 text-center">
-                <div className="text-sm font-bold text-brand-ink">{s.targetNote}</div>
-                <div className="text-xs text-brand-secondary">str {realIdx + 1}</div>
-                {fretRef && (
-                  <div className="text-[10px] text-brand-secondary/70 leading-tight">{fretRef}</div>
-                )}
-              </div>
-
-              {/* Hz display — always visible in Cents mode; visible in other modes only when showHz toggle is on */}
-              {showHzSection && (
-                <div className="w-28 shrink-0 text-right space-y-0.5">
-                  <div className="text-sm font-mono text-brand-ink">
-                    {displayHz(s.targetHz, s.centsOffset)} Hz
-                  </div>
-                  {settings.showHz && (
-                    <div className="text-xs font-mono text-brand-secondary">
-                      → {s.targetHz.toFixed(1)} target
-                    </div>
+              {/* Controls row */}
+              <div className="flex items-center gap-2 min-w-0">
+                {/* String label */}
+                <div className="w-14 shrink-0 text-center">
+                  <div className="text-sm font-bold text-brand-ink">{s.targetNote}</div>
+                  <div className="text-xs text-brand-secondary">str {realIdx + 1}</div>
+                  {fretRef && (
+                    <div className="text-[10px] text-brand-secondary/70 leading-tight">{fretRef}</div>
                   )}
                 </div>
-              )}
 
-              {/* Color mode: arrow indicator */}
-              {settings.scaffoldMode === 'color' && (
-                <div className={cn('w-8 shrink-0 text-center text-lg font-bold', arrowColor)}>
-                  {arrowText}
-                </div>
-              )}
-
-              {/* Cents mode: deviation meter bar + label */}
-              {settings.scaffoldMode === 'cents' ? (
-                <div className="flex-1 min-w-0 space-y-1">
-                  <div className="relative h-3 bg-brand-sidebar rounded-full overflow-hidden">
-                    <div className="absolute left-1/2 top-0 bottom-0 w-px bg-brand-secondary/50 -translate-x-1/2" />
-                    <div
-                      className={cn('absolute top-0 bottom-0 transition-all duration-75', colors.bar)}
-                      style={
-                        inTune
-                          ? { left: '48%', right: '48%' }
-                          : isSharp
-                            ? { left: '50%', width: `${pct}%` }
-                            : { right: '50%', width: `${pct}%` }
-                      }
-                    />
+                {/* Hz display */}
+                {showHzSection && (
+                  <div className="w-28 shrink-0 text-right space-y-0.5">
+                    <div className="text-sm font-mono text-brand-ink">
+                      {displayHz(s.targetHz, s.centsOffset)} Hz
+                    </div>
+                    {settings.showHz && (
+                      <div className="text-xs font-mono text-brand-secondary">
+                        → {s.targetHz.toFixed(1)} target
+                      </div>
+                    )}
                   </div>
-                  <div className={cn('text-xs font-medium', colors.text)}>
+                )}
+
+                {/* Cents label (text only — bar lives below) */}
+                {settings.scaffoldMode === 'cents' && (
+                  <div className={cn('shrink-0 text-xs font-medium tabular-nums', colors.text)}>
                     {inTune
                       ? 'IN TUNE ✓'
                       : `${isSharp ? '+' : ''}${s.centsOffset.toFixed(1)}¢ ${isSharp ? 'SHARP' : 'FLAT'}`}
                   </div>
-                </div>
-              ) : (
+                )}
+
+                {/* Color mode: arrow indicator */}
+                {settings.scaffoldMode === 'color' && (
+                  <div className={cn('w-8 shrink-0 text-center text-lg font-bold', arrowColor)}>
+                    {arrowText}
+                  </div>
+                )}
+
+                {/* Spacer */}
                 <div className="flex-1" />
-              )}
 
               {/* Flatten: set to −25¢ so you can tune up from a known flat starting point */}
               <button
@@ -600,6 +590,25 @@ export function Tuner() {
                   <span className="w-7 text-right">{settings.referenceVolumes?.[realIdx] ?? 70}%</span>
                 </label>
               </div>
+              </div>{/* end controls row */}
+
+              {/* Wide cents meter — full card width, below controls */}
+              {settings.scaffoldMode === 'cents' && (
+                <div className="relative h-4 bg-brand-sidebar rounded-full overflow-hidden">
+                  {/* Distinct center tune line */}
+                  <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-brand-ink/50 -translate-x-1/2 z-10" />
+                  <div
+                    className={cn('absolute top-0 bottom-0 transition-all duration-75 rounded-full', colors.bar)}
+                    style={
+                      inTune
+                        ? { left: '47%', right: '47%' }
+                        : isSharp
+                          ? { left: '50%', width: `${pct}%` }
+                          : { right: '50%', width: `${pct}%` }
+                    }
+                  />
+                </div>
+              )}
             </div>
           );
         })}
