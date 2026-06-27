@@ -51,47 +51,26 @@ function Layout({ children }: { children: React.ReactNode }) {
           
           <div className="flex gap-4 items-center">
             <nav className="flex gap-1">
-              <NavLink 
-                to="/dictionary" 
-                className={({isActive}) => `flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${isActive ? 'bg-brand-sidebar text-brand-ink' : 'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar/50'}`}
-              >
-                <BookOpen size={16} /> Dictionary
+              <NavLink title="Dictionary" to="/dictionary" className={({isActive}) => `p-2 rounded-md transition-colors ${isActive ? 'bg-brand-sidebar text-brand-ink' : 'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar/50'}`}>
+                <BookOpen size={18} />
               </NavLink>
-              <NavLink
-                to="/caged"
-                className={({isActive}) => `flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${isActive ? 'bg-brand-sidebar text-brand-ink' : 'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar/50'}`}
-              >
-                <Music size={16} /> CAGED System
+              <NavLink title="CAGED System" to="/caged" className={({isActive}) => `p-2 rounded-md transition-colors ${isActive ? 'bg-brand-sidebar text-brand-ink' : 'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar/50'}`}>
+                <Music size={18} />
               </NavLink>
-              <NavLink
-                to="/circle"
-                className={({isActive}) => `flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${isActive ? 'bg-brand-sidebar text-brand-ink' : 'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar/50'}`}
-              >
-                <Disc size={16} /> Circle of 5ths
+              <NavLink title="Circle of 5ths" to="/circle" className={({isActive}) => `p-2 rounded-md transition-colors ${isActive ? 'bg-brand-sidebar text-brand-ink' : 'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar/50'}`}>
+                <Disc size={18} />
               </NavLink>
-              <NavLink
-                to="/progressions"
-                className={({isActive}) => `flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${isActive ? 'bg-brand-sidebar text-brand-ink' : 'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar/50'}`}
-              >
-                <Calendar size={16} /> Practice
+              <NavLink title="Practice" to="/progressions" className={({isActive}) => `p-2 rounded-md transition-colors ${isActive ? 'bg-brand-sidebar text-brand-ink' : 'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar/50'}`}>
+                <Calendar size={18} />
               </NavLink>
-              <NavLink
-                to="/ear-training"
-                className={({isActive}) => `flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${isActive ? 'bg-brand-sidebar text-brand-ink' : 'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar/50'}`}
-              >
-                <Headphones size={16} /> Ear Training
+              <NavLink title="Ear Training" to="/ear-training" className={({isActive}) => `p-2 rounded-md transition-colors ${isActive ? 'bg-brand-sidebar text-brand-ink' : 'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar/50'}`}>
+                <Headphones size={18} />
               </NavLink>
-              <NavLink
-                to="/metronome"
-                className={({isActive}) => `flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${isActive ? 'bg-brand-sidebar text-brand-ink' : 'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar/50'}`}
-              >
-                <Clock size={16} /> Metronome
+              <NavLink title="Metronome" to="/metronome" className={({isActive}) => `p-2 rounded-md transition-colors ${isActive ? 'bg-brand-sidebar text-brand-ink' : 'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar/50'}`}>
+                <Clock size={18} />
               </NavLink>
-              <NavLink
-                to="/scale-positions"
-                className={({isActive}) => `flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${isActive ? 'bg-brand-sidebar text-brand-ink' : 'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar/50'}`}
-              >
-                <Layers size={16} /> Scales
+              <NavLink title="Scale Positions" to="/scale-positions" className={({isActive}) => `p-2 rounded-md transition-colors ${isActive ? 'bg-brand-sidebar text-brand-ink' : 'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar/50'}`}>
+                <Layers size={18} />
               </NavLink>
             </nav>
             <div className="w-px h-6 bg-brand-line"></div>

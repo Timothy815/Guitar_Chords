@@ -686,110 +686,116 @@ export function EarTraining() {
         <h1 className="text-2xl font-serif font-bold text-brand-ink">Ear Training</h1>
       </div>
 
-      {/* Mode tabs */}
-      <div className="flex rounded-lg border border-brand-line overflow-hidden">
-        {(['chord', 'interval'] as const).map(mode => (
+      {/* Mode tabs — two grouped rows */}
+      <div className="space-y-1">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-brand-secondary px-0.5">Recognition</p>
+        <div className="flex rounded-lg border border-brand-line overflow-hidden">
+          {(['chord', 'interval'] as const).map(mode => (
+            <button
+              key={mode}
+              onClick={() => handleModeChange(mode)}
+              className={cn(
+                'flex-1 py-2 text-sm font-medium transition-colors',
+                settings.mode === mode
+                  ? 'bg-brand-primary text-white'
+                  : 'text-brand-secondary hover:bg-brand-sidebar'
+              )}
+            >
+              {mode === 'chord' ? 'Chord' : 'Interval'}
+            </button>
+          ))}
           <button
-            key={mode}
-            onClick={() => handleModeChange(mode)}
+            onClick={handleFretboardMode}
             className={cn(
-              'flex-1 py-2.5 text-sm font-medium transition-colors',
-              settings.mode === mode
+              'flex-1 py-2 text-sm font-medium transition-colors',
+              settings.mode === 'fretboard'
                 ? 'bg-brand-primary text-white'
                 : 'text-brand-secondary hover:bg-brand-sidebar'
             )}
           >
-            {mode === 'chord' ? 'Chord Recognition' : 'Interval Recognition'}
+            Fretboard
           </button>
-        ))}
-        <button
-          onClick={handleStudyMode}
-          className={cn(
-            'flex-1 py-2.5 text-sm font-medium transition-colors',
-            settings.mode === 'study'
-              ? 'bg-brand-primary text-white'
-              : 'text-brand-secondary hover:bg-brand-sidebar'
-          )}
-        >
-          Study
-        </button>
-        <button
-          onClick={handleFretboardMode}
-          className={cn(
-            'flex-1 py-2.5 text-sm font-medium transition-colors',
-            settings.mode === 'fretboard'
-              ? 'bg-brand-primary text-white'
-              : 'text-brand-secondary hover:bg-brand-sidebar'
-          )}
-        >
-          Fretboard
-        </button>
-        <button
-          onClick={handlePlanMode}
-          className={cn(
-            'flex-1 py-2.5 text-sm font-medium transition-colors',
-            settings.mode === 'plan'
-              ? 'bg-brand-primary text-white'
-              : 'text-brand-secondary hover:bg-brand-sidebar'
-          )}
-        >
-          Plan
-        </button>
-        <button
-          onClick={handleRhythmMode}
-          className={cn(
-            'flex-1 py-2.5 text-sm font-medium transition-colors',
-            settings.mode === 'rhythm'
-              ? 'bg-brand-primary text-white'
-              : 'text-brand-secondary hover:bg-brand-sidebar'
-          )}
-        >
-          Rhythm
-        </button>
-        <button
-          onClick={handleMelodyMode}
-          className={cn(
-            'flex-1 py-2.5 text-sm font-medium transition-colors',
-            settings.mode === 'melody'
-              ? 'bg-brand-primary text-white'
-              : 'text-brand-secondary hover:bg-brand-sidebar'
-          )}
-        >
-          Melody
-        </button>
-        <button
-          onClick={handleCountMode}
-          className={cn(
-            'flex-1 py-2.5 text-sm font-medium transition-colors',
-            settings.mode === 'count'
-              ? 'bg-brand-primary text-white'
-              : 'text-brand-secondary hover:bg-brand-sidebar'
-          )}
-        >
-          Count It
-        </button>
-        <button
-          onClick={handleScaleDrillMode}
-          className={cn(
-            'flex-1 py-2.5 text-sm font-medium transition-colors',
-            settings.mode === 'scaleDrill'
-              ? 'bg-brand-primary text-white'
-              : 'text-brand-secondary hover:bg-brand-sidebar'
-          )}
-        >
-          Scale Drill
-        </button>
-        <button
-          onClick={handleIntervalFretboardMode}
-          className={cn(
-            'flex-1 py-2.5 text-sm font-medium transition-colors',
-            settings.mode === 'intervalFretboard'
-              ? 'bg-brand-primary text-white'
-              : 'text-brand-secondary hover:bg-brand-sidebar'
-          )}
-        >
-          Interval → Fretboard
-        </button>
+          <button
+            onClick={handleScaleDrillMode}
+            className={cn(
+              'flex-1 py-2 text-sm font-medium transition-colors',
+              settings.mode === 'scaleDrill'
+                ? 'bg-brand-primary text-white'
+                : 'text-brand-secondary hover:bg-brand-sidebar'
+            )}
+          >
+            Scale Drill
+          </button>
+          <button
+            onClick={handleIntervalFretboardMode}
+            className={cn(
+              'flex-1 py-2 text-sm font-medium transition-colors',
+              settings.mode === 'intervalFretboard'
+                ? 'bg-brand-primary text-white'
+                : 'text-brand-secondary hover:bg-brand-sidebar'
+            )}
+          >
+            Int → Fret
+          </button>
+        </div>
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-brand-secondary px-0.5 pt-1">Practice</p>
+        <div className="flex rounded-lg border border-brand-line overflow-hidden">
+          <button
+            onClick={handleStudyMode}
+            className={cn(
+              'flex-1 py-2 text-sm font-medium transition-colors',
+              settings.mode === 'study'
+                ? 'bg-brand-primary text-white'
+                : 'text-brand-secondary hover:bg-brand-sidebar'
+            )}
+          >
+            Study
+          </button>
+          <button
+            onClick={handlePlanMode}
+            className={cn(
+              'flex-1 py-2 text-sm font-medium transition-colors',
+              settings.mode === 'plan'
+                ? 'bg-brand-primary text-white'
+                : 'text-brand-secondary hover:bg-brand-sidebar'
+            )}
+          >
+            Plan
+          </button>
+          <button
+            onClick={handleRhythmMode}
+            className={cn(
+              'flex-1 py-2 text-sm font-medium transition-colors',
+              settings.mode === 'rhythm'
+                ? 'bg-brand-primary text-white'
+                : 'text-brand-secondary hover:bg-brand-sidebar'
+            )}
+          >
+            Rhythm
+          </button>
+          <button
+            onClick={handleMelodyMode}
+            className={cn(
+              'flex-1 py-2 text-sm font-medium transition-colors',
+              settings.mode === 'melody'
+                ? 'bg-brand-primary text-white'
+                : 'text-brand-secondary hover:bg-brand-sidebar'
+            )}
+          >
+            Melody
+          </button>
+          <button
+            onClick={handleCountMode}
+            className={cn(
+              'flex-1 py-2 text-sm font-medium transition-colors',
+              settings.mode === 'count'
+                ? 'bg-brand-primary text-white'
+                : 'text-brand-secondary hover:bg-brand-sidebar'
+            )}
+          >
+            Count It
+          </button>
+        </div>
       </div>
 
       {/* Settings panel */}
