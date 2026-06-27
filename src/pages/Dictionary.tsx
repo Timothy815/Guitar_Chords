@@ -752,6 +752,19 @@ export function Dictionary() {
                            </button>
                          </>
                        )}
+                       {mode === 'identify' && identifiedChordNames.length > 0 && (
+                         <button
+                           onClick={() => handleAddToProgression({
+                             name: identifiedChordNames[0],
+                             frets: identifiedFrets,
+                             fingers: identifiedFrets.map(f => (f === -1 ? -1 : 0)) as Finger[],
+                           })}
+                           className="text-xs px-2 py-1 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink transition-colors"
+                           title="Add identified chord to progression"
+                         >
+                           + Progression
+                         </button>
+                       )}
                     </div>
                  )}
                  {mode === 'scales' && activeScale && (
