@@ -41,6 +41,8 @@ import { MelodyTrainer } from '../components/MelodyTrainer';
 import { CountItTrainer } from '../components/CountItTrainer';
 import { ScaleDrillTrainer } from '../components/ScaleDrillTrainer';
 import { generateScaleDrillRound, ScaleDrillRound } from '../lib/earTraining';
+import { IntervalFretboardTrainer } from '../components/IntervalFretboardTrainer';
+import { generateIntervalFretboardRound, IntervalFretboardRound } from '../lib/earTraining';
 
 function RhythmRoundLoader({ onLoad }: { onLoad: () => void }) {
   useEffect(() => { onLoad(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -104,6 +106,7 @@ export function EarTraining() {
   const practiceImportRef = useRef<HTMLInputElement>(null);
   const [practiceImportMsg, setPracticeImportMsg] = useState<string | null>(null);
   const [scaleDrillRound, setScaleDrillRound] = useState<ScaleDrillRound>(() => generateScaleDrillRound());
+  const [intervalFretboardRound, setIntervalFretboardRound] = useState<IntervalFretboardRound>(() => generateIntervalFretboardRound());
 
   const FRETS_FOR: Record<DifficultyLevel, number> = { Beginner: 6, Intermediate: 10, Advanced: 13 };
 
@@ -343,6 +346,22 @@ export function EarTraining() {
       streak: wasCorrect ? s.streak + 1 : 0,
     }));
     setScaleDrillRound(generateScaleDrillRound());
+  }
+
+  function handleIntervalFretboardMode() {
+    const next = { ...settings, mode: 'intervalFretboard' as const };
+    setSettings(next);
+    setIntervalFretboardRound(generateIntervalFretboardRound());
+  }
+
+  function handleIntervalFretboardComplete(wasCorrect: boolean) {
+    setScore(s => ({
+      ...s,
+      correct: wasCorrect ? s.correct + 1 : s.correct,
+      total: s.total + 1,
+      streak: wasCorrect ? s.streak + 1 : 0,
+    }));
+    setIntervalFretboardRound(generateIntervalFretboardRound());
   }
 
   function handlePlanStart(ladderId: LadderId) {
@@ -759,6 +778,17 @@ export function EarTraining() {
           )}
         >
           Scale Drill
+        </button>
+        <button
+          onClick={handleIntervalFretboardMode}
+          className={cn(
+            'flex-1 py-2.5 text-sm font-medium transition-colors',
+            settings.mode === 'intervalFretboard'
+              ? 'bg-brand-primary text-white'
+              : 'text-brand-secondary hover:bg-brand-sidebar'
+          )}
+        >
+          Interval → Fretboard
         </button>
       </div>
 
@@ -1640,6 +1670,14 @@ export function EarTraining() {
                 round={scaleDrillRound}
                 score={score}
                 onComplete={handleScaleDrillComplete}
+              />
+            </React.Fragment>
+          ) : settings.mode === 'intervalFretboard' ? (
+            <React.Fragment key={`${intervalFretboardRound.rootNote}-${intervalFretboardRound.intervalLabel}-${intervalFretboardRound.rootStringIdx}-${intervalFretboardRound.rootFret}`}>
+              <IntervalFretboardTrainer
+                round={intervalFretboardRound}
+                score={score}
+                onComplete={handleIntervalFretboardComplete}
               />
             </React.Fragment>
           ) : (
