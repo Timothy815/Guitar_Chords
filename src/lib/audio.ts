@@ -16,6 +16,8 @@ let pianoSampler: Tone.Sampler | null = null;
 let isPianoInitialized = false;
 let pianoInitPromise: Promise<void> | null = null;
 
+let referenceSynth: Tone.Synth | null = null;
+
 // Rhythm training dedicated synths (lazy-initialized, independent of main audio chain)
 let rhythmTickSynth: Tone.Synth | null = null;    // drumstick-click metronome
 let rhythmPianoSynth: Tone.PolySynth | null = null; // piano-like tone for note onsets
@@ -274,6 +276,20 @@ export async function playTunedString(
   if (!sampler) return;
   const detunedHz = baseHz * Math.pow(2, centsOffset / 1200);
   sampler.triggerAttackRelease(`${detunedHz.toFixed(3)}hz`, duration);
+}
+
+// Plays the exact reference pitch through a dedicated sine synth so it
+// doesn't compete with the guitar sampler's voice allocation.
+export async function playReferenceTone(baseHz: number, duration = '1n'): Promise<void> {
+  await initAudio();
+  if (!referenceSynth) {
+    referenceSynth = new Tone.Synth({
+      oscillator: { type: 'sine' },
+      envelope: { attack: 0.02, decay: 0.1, sustain: 0.8, release: 1.5 },
+      volume: -8,
+    }).connect(reverbNode);
+  }
+  referenceSynth.triggerAttackRelease(`${baseHz.toFixed(3)}hz`, duration);
 }
 
 export function playStrum(notes: string[], duration: number | string = "1m", direction: 'down' | 'up' | 'up-down' | 'down-up' = 'down') {

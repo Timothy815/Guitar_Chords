@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import { RefreshCw, Play, Square } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
-import { playTunedString } from '@/src/lib/audio';
+import { playTunedString, playReferenceTone } from '@/src/lib/audio';
 import {
   TUNING_DEFS,
   DETUNE_WINDOWS,
@@ -83,15 +83,16 @@ export function Tuner() {
   function adjustOffset(idx: number, delta: number) {
     setStrings(prev => prev.map((s, i) => {
       if (i !== idx) return s;
-      return { ...s, centsOffset: Math.max(-60, Math.min(60, s.centsOffset + delta)) };
+      const newOffset = Math.max(-60, Math.min(60, s.centsOffset + delta));
+      playTunedString(s.targetHz, newOffset, '4n');
+      if (settings.playReference) playReferenceTone(s.targetHz, '4n');
+      return { ...s, centsOffset: newOffset };
     }));
   }
 
   async function playSingleString(idx: number) {
-    await playTunedString(strings[idx].targetHz, strings[idx].centsOffset, '1n');
-    if (settings.playReference) {
-      playTunedString(strings[idx].targetHz, 0, '1n');
-    }
+    playTunedString(strings[idx].targetHz, strings[idx].centsOffset, '1n');
+    if (settings.playReference) playReferenceTone(strings[idx].targetHz, '1n');
   }
 
   async function handlePlayAll() {
@@ -107,19 +108,15 @@ export function Tuner() {
         strings.forEach((s, i) => {
           setTimeout(() => {
             playTunedString(s.targetHz, s.centsOffset, '1n');
-            if (settings.playReference) {
-              playTunedString(s.targetHz, 0, '1n');
-            }
+            if (settings.playReference) playReferenceTone(s.targetHz, '1n');
           }, i * 20);
         });
         await new Promise<void>(r => setTimeout(r, 2500));
       } else {
         for (let i = 5; i >= 0; i--) {
           if (!playingRef.current) break;
-          await playTunedString(strings[i].targetHz, strings[i].centsOffset, '1n');
-          if (settings.playReference) {
-            playTunedString(strings[i].targetHz, 0, '1n');
-          }
+          playTunedString(strings[i].targetHz, strings[i].centsOffset, '1n');
+          if (settings.playReference) playReferenceTone(strings[i].targetHz, '1n');
           if (i > 0) await new Promise<void>(r => setTimeout(r, 2000));
         }
       }
