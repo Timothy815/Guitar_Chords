@@ -23,7 +23,7 @@ class ErrorBoundary extends (React.Component as any) {
 import { Dictionary } from './pages/Dictionary';
 import { Progressions } from './pages/Progressions';
 import { EarTraining } from './pages/EarTraining';
-import { Music, Calendar, BookOpen, Sun, Moon, Disc, Headphones, Clock } from 'lucide-react';
+import { Music, Calendar, BookOpen, Sun, Moon, Disc, Headphones, Clock, Layers } from 'lucide-react';
 
 function Layout({ children }: { children: React.ReactNode }) {
   const [isDark, setIsDark] = useState(() => {
@@ -87,6 +87,12 @@ function Layout({ children }: { children: React.ReactNode }) {
               >
                 <Clock size={16} /> Metronome
               </NavLink>
+              <NavLink
+                to="/scale-positions"
+                className={({isActive}) => `flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${isActive ? 'bg-brand-sidebar text-brand-ink' : 'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar/50'}`}
+              >
+                <Layers size={16} /> Scales
+              </NavLink>
             </nav>
             <div className="w-px h-6 bg-brand-line"></div>
             <button 
@@ -110,6 +116,7 @@ function Layout({ children }: { children: React.ReactNode }) {
 import { Caged } from './pages/Caged';
 import { Circle } from './pages/Circle';
 import { Metronome } from './pages/Metronome';
+import { ScalePositions } from './pages/ScalePositions';
 
 export default function App() {
   return (
@@ -124,6 +131,7 @@ export default function App() {
           <Route path="/circle" element={<Circle />} />
           <Route path="/ear-training" element={<EarTraining />} />
           <Route path="/metronome" element={<Metronome />} />
+          <Route path="/scale-positions" element={<ScalePositions />} />
         </Routes>
       </Layout>
       </ErrorBoundary>
