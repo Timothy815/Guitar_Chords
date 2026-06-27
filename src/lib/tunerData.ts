@@ -25,10 +25,11 @@ export interface TunerSettings {
   audioMode: 'simultaneous' | 'sequential';
   scaffoldMode: ScaffoldMode;
   showHz: boolean;
-  playReference: boolean;
+  referenceMode: ReferenceMode;
 }
 
 export type ScaffoldMode = 'ear' | 'color' | 'cents';
+export type ReferenceMode = 'off' | 'pitchpipe' | 'guitar';
 
 // Hz values pre-calculated at A4 = 440 Hz to avoid enharmonic note-name issues
 export const TUNING_DEFS: TuningDef[] = [
@@ -80,7 +81,7 @@ export const DEFAULT_SETTINGS: TunerSettings = {
   audioMode: 'simultaneous',
   scaffoldMode: 'cents',
   showHz: false,
-  playReference: true,
+  referenceMode: 'pitchpipe',
 };
 
 export const IN_TUNE_THRESHOLD = 1.5;

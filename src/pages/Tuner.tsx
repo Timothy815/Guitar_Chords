@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import confetti from 'canvas-confetti';
-import { RefreshCw, Play, Square, Volume2 } from 'lucide-react';
+import { RefreshCw, Play, Square, Volume2, ChevronDown, Info } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { playTunedString, playReferenceTone } from '@/src/lib/audio';
 import {
@@ -19,6 +19,7 @@ import {
   type StringState,
   type DetuneName,
   type ScaffoldMode,
+  type ReferenceMode,
 } from '@/src/lib/tunerData';
 
 const STORAGE_KEY = 'guitar_tuner_settings';
@@ -45,6 +46,7 @@ export function Tuner() {
   });
   const [allInTune, setAllInTune] = useState(false);
   const [isPlayingAll, setIsPlayingAll] = useState(false);
+  const [showTips, setShowTips] = useState(false);
   const playingRef = useRef(false);
 
   useEffect(() => {
@@ -80,19 +82,34 @@ export function Tuner() {
     setAllInTune(false);
   }
 
+  function playRef(baseHz: number, duration = '1n') {
+    if (settings.referenceMode === 'pitchpipe') playReferenceTone(baseHz, duration);
+    else if (settings.referenceMode === 'guitar') playTunedString(baseHz, 0, duration);
+  }
+
   function adjustOffset(idx: number, delta: number) {
     setStrings(prev => prev.map((s, i) => {
       if (i !== idx) return s;
       const newOffset = Math.max(-60, Math.min(60, s.centsOffset + delta));
       playTunedString(s.targetHz, newOffset, '4n');
-      if (settings.playReference) playReferenceTone(s.targetHz, '4n');
+      if (settings.referenceMode !== 'off') playRef(s.targetHz, '4n');
+      return { ...s, centsOffset: newOffset };
+    }));
+  }
+
+  function flattenString(idx: number) {
+    setStrings(prev => prev.map((s, i) => {
+      if (i !== idx) return s;
+      const newOffset = -25;
+      playTunedString(s.targetHz, newOffset, '4n');
+      if (settings.referenceMode !== 'off') playRef(s.targetHz, '4n');
       return { ...s, centsOffset: newOffset };
     }));
   }
 
   async function playSingleString(idx: number) {
     playTunedString(strings[idx].targetHz, strings[idx].centsOffset, '1n');
-    if (settings.playReference) playReferenceTone(strings[idx].targetHz, '1n');
+    if (settings.referenceMode !== 'off') playRef(strings[idx].targetHz, '1n');
   }
 
   async function handlePlayAll() {
@@ -108,7 +125,7 @@ export function Tuner() {
         strings.forEach((s, i) => {
           setTimeout(() => {
             playTunedString(s.targetHz, s.centsOffset, '1n');
-            if (settings.playReference) playReferenceTone(s.targetHz, '1n');
+            if (settings.referenceMode !== 'off') playRef(s.targetHz, '1n');
           }, i * 20);
         });
         await new Promise<void>(r => setTimeout(r, 2500));
@@ -116,7 +133,7 @@ export function Tuner() {
         for (let i = 5; i >= 0; i--) {
           if (!playingRef.current) break;
           playTunedString(strings[i].targetHz, strings[i].centsOffset, '1n');
-          if (settings.playReference) playReferenceTone(strings[i].targetHz, '1n');
+          if (settings.referenceMode !== 'off') playRef(strings[i].targetHz, '1n');
           if (i > 0) await new Promise<void>(r => setTimeout(r, 2000));
         }
       }
@@ -196,19 +213,24 @@ export function Tuner() {
           ))}
         </div>
 
-        {/* Ref toggle */}
-        <button
-          onClick={() => setSettings(s => ({ ...s, playReference: !s.playReference }))}
-          title={settings.playReference ? 'Reference tone on — click to disable' : 'Reference tone off — click to enable'}
-          className={cn(
-            'px-3 py-1.5 rounded-md border text-sm font-medium transition-colors',
-            settings.playReference
-              ? 'bg-brand-primary text-white border-brand-primary'
-              : 'bg-brand-bg text-brand-secondary border-brand-line hover:text-brand-ink hover:bg-brand-sidebar/50'
-          )}
-        >
-          Ref
-        </button>
+        {/* Reference mode */}
+        <div className="flex rounded-md border border-brand-line overflow-hidden text-sm">
+          {([['off', 'No Ref'], ['pitchpipe', 'Pipe'], ['guitar', 'Guitar']] as [ReferenceMode, string][]).map(([mode, label]) => (
+            <button
+              key={mode}
+              onClick={() => setSettings(s => ({ ...s, referenceMode: mode }))}
+              title={mode === 'off' ? 'No reference tone' : mode === 'pitchpipe' ? 'Pitch pipe reference (sine wave)' : 'Guitar string reference (same timbre)'}
+              className={cn(
+                'px-3 py-1.5 transition-colors',
+                settings.referenceMode === mode
+                  ? 'bg-brand-primary text-white'
+                  : 'bg-brand-bg text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar/50'
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
 
         {/* Hz toggle */}
         <button
@@ -222,6 +244,20 @@ export function Tuner() {
           )}
         >
           Hz
+        </button>
+
+        {/* Tips toggle */}
+        <button
+          onClick={() => setShowTips(v => !v)}
+          title="Tuning tips"
+          className={cn(
+            'p-1.5 rounded-md border text-sm transition-colors',
+            showTips
+              ? 'bg-brand-primary text-white border-brand-primary'
+              : 'bg-brand-bg text-brand-secondary border-brand-line hover:text-brand-ink hover:bg-brand-sidebar/50'
+          )}
+        >
+          <Info size={15} />
         </button>
 
         <div className="flex gap-2 ml-auto">
@@ -247,6 +283,21 @@ export function Tuner() {
           </button>
         </div>
       </div>
+
+      {/* Tuning tips */}
+      {showTips && (
+        <div className="p-4 rounded-xl bg-brand-surface border border-brand-line text-sm text-brand-ink space-y-2">
+          <p className="font-semibold text-brand-ink">How to tune by ear</p>
+          <ul className="space-y-1.5 text-brand-secondary list-none">
+            <li><span className="font-medium text-brand-ink">Always tune up to pitch.</span> You can't tell sharp from flat just from the beating speed. Use the <ChevronDown size={12} className="inline" /> flatten button to drop the string clearly below pitch, then tune upward — you'll always know your direction.</li>
+            <li><span className="font-medium text-brand-ink">Hear the target first.</span> Press <Volume2 size={12} className="inline" /> to play the perfectly-tuned reference pitch on its own. Sing or hum it, then press <Play size={12} className="inline" /> to hear your string — you'll immediately hear whether it's higher or lower.</li>
+            <li><span className="font-medium text-brand-ink">Listen for the beating.</span> When reference and string play together you'll hear a rhythmic wobble. As you tune closer the wobble slows. In tune = no wobble.</li>
+            <li><span className="font-medium text-brand-ink">Step down as you get close.</span> Use ±10 or ±5 when you're far off, then switch to ±2 or ±0.5 once the beating slows.</li>
+            <li><span className="font-medium text-brand-ink">The five-fret rule.</span> On a real guitar, the 5th fret of each string matches the next open string (except G→B, which is the 4th fret). E at fret 5 = A; A at fret 5 = D, and so on.</li>
+            <li><span className="font-medium text-brand-ink">Pipe vs Guitar reference.</span> <em>Pipe</em> uses a sine wave — its distinct timbre makes the beating easier to hear. <em>Guitar</em> uses the same string sound, closer to the real fret-5 technique.</li>
+          </ul>
+        </div>
+      )}
 
       {/* Celebration banner */}
       {allInTune && (
@@ -345,6 +396,15 @@ export function Tuner() {
               ) : (
                 <div className="flex-1" />
               )}
+
+              {/* Flatten: set to −25¢ so you can tune up from a known flat starting point */}
+              <button
+                onClick={() => flattenString(realIdx)}
+                title="Flatten to −25¢ — then tune up to find pitch"
+                className="shrink-0 px-2 py-1.5 rounded border border-brand-line text-xs text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar/70 transition-colors"
+              >
+                <ChevronDown size={13} />
+              </button>
 
               {/* Decrement buttons (gross → fine, right to left: −20 −10 −5 −2 −0.5) */}
               <div className="flex gap-0.5 shrink-0">
