@@ -617,6 +617,9 @@ export function Progressions() {
   const [showDiagrams, setShowDiagrams] = useState(true);
   const [showChart, setShowChart] = useState(true);
   const stopFnRef = useRef<(() => void) | null>(null);
+  const [countInEnabled, setCountInEnabled] = useState(false);
+  const [countDownBeat, setCountDownBeat] = useState<number | null>(null);
+  const tapTimesRef = useRef<number[]>([]);
 
   useEffect(() => {
     const saved = localStorage.getItem('guitar_progressions');
@@ -781,6 +784,53 @@ export function Progressions() {
     saveProgressions(progressions.map(p => p.id === activeProgression.id ? { ...p, bpm } : p));
   };
 
+  const handleTap = () => {
+    const now = performance.now();
+    const times = tapTimesRef.current;
+    if (times.length > 0 && now - times[times.length - 1] > 2500) {
+      tapTimesRef.current = [];
+    }
+    tapTimesRef.current.push(now);
+    if (tapTimesRef.current.length >= 2) {
+      const intervals = tapTimesRef.current.slice(1).map((t, i) => t - tapTimesRef.current[i]);
+      const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+      updateBpm(Math.min(200, Math.max(40, Math.round(60000 / avg))));
+    }
+    if (tapTimesRef.current.length > 8) tapTimesRef.current = tapTimesRef.current.slice(-4);
+  };
+
+  type PresetDef = { name: string; degrees: number[]; qualities: ('Major' | 'Minor' | 'dom7')[] };
+  const PROGRESSION_PRESETS: PresetDef[] = [
+    { name: 'I–IV–V',    degrees: [0, 5, 7],       qualities: ['Major', 'Major', 'Major'] },
+    { name: 'I–V–vi–IV', degrees: [0, 7, 9, 5],    qualities: ['Major', 'Major', 'Minor', 'Major'] },
+    { name: 'ii–V–I',    degrees: [2, 7, 0],        qualities: ['Minor', 'Major', 'Major'] },
+    { name: 'I–vi–IV–V', degrees: [0, 9, 5, 7],    qualities: ['Major', 'Minor', 'Major', 'Major'] },
+    {
+      name: '12-Bar Blues',
+      degrees: [0,0,0,0, 5,5,0,0, 7,5,0,0],
+      qualities: ['dom7','dom7','dom7','dom7', 'dom7','dom7','dom7','dom7', 'dom7','dom7','dom7','dom7'],
+    },
+  ];
+
+  const applyPreset = (preset: PresetDef) => {
+    if (!activeProgression) return;
+    const key = (activeProgression.key ?? 'C') as Note;
+    const rootIdx = ALL_NOTES.indexOf(key);
+    const slots: ChordSlot[] = preset.degrees.map((deg, i) => {
+      const degRoot = ALL_NOTES[(rootIdx + deg) % 12];
+      const chords = COMMON_CHORDS[degRoot] ?? [];
+      const q = preset.qualities[i];
+      let chord = q === 'Major' ? chords.find(c => c.name.includes('Major'))
+        : q === 'Minor' ? chords.find(c => c.name.includes('Minor'))
+        : chords.find(c => /dom7|7 /.test(c.name)) ?? chords.find(c => c.name.includes('Major'));
+      if (!chord) chord = chords[0];
+      return chord ? { chord } : null;
+    }).filter(Boolean) as ChordSlot[];
+    saveProgressions(progressions.map(p =>
+      p.id === activeProgression.id ? { ...p, slots } : p
+    ));
+  };
+
   const updateSlotPattern = (slotIdx: number, pattern: ArpeggioPattern) => {
     if (!activeProgression) return;
     const newSlots = activeProgression.slots.map((s, i) => i === slotIdx ? { ...s, pattern } : s);
@@ -803,11 +853,21 @@ export function Progressions() {
     setIsPlaying(true);
     setActiveChordIdx(0);
 
+    // Visual countdown (cosmetic — audio count-in is handled inside playProgressionWithPatterns)
+    if (countInEnabled) {
+      const beatMs = (60 / activeProgression.bpm) * 1000;
+      [4, 3, 2, 1].forEach((beat, i) => {
+        setTimeout(() => setCountDownBeat(beat), i * beatMs);
+      });
+      setTimeout(() => setCountDownBeat(null), 4 * beatMs);
+    }
+
     const stop = playProgressionWithPatterns(
       audioSlots,
       activeProgression.bpm,
       isLooping,
       (idx) => setActiveChordIdx(idx),
+      countInEnabled ? 4 : 0,
     );
 
     const clearPlaying = () => {
@@ -951,6 +1011,13 @@ export function Progressions() {
                       className="w-20 accent-brand-primary cursor-pointer"
                     />
                     <span className="text-sm font-mono font-bold text-brand-ink w-8">{activeProgression.bpm}</span>
+                    <button
+                      onClick={handleTap}
+                      className="text-xs px-2 py-1 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink transition-colors font-mono"
+                      title="Tap to set tempo"
+                    >
+                      Tap
+                    </button>
                   </div>
                   {/* Loop */}
                   <button
@@ -963,10 +1030,24 @@ export function Progressions() {
                   >
                     <RotateCcw size={16} />
                   </button>
+                  {/* Count-in toggle */}
+                  <button
+                    onClick={() => setCountInEnabled(v => !v)}
+                    title={countInEnabled ? 'Count-in on — click to disable' : 'Count-in off — 4-beat count-in before playback'}
+                    className={cn(
+                      'px-2 py-2 rounded-md border transition-colors text-xs font-bold tracking-widest',
+                      countInEnabled ? 'bg-brand-primary text-white border-brand-primary' : 'text-brand-secondary border-brand-line hover:text-brand-ink hover:border-brand-primary/50'
+                    )}
+                  >
+                    1234
+                  </button>
                   {/* Play / Stop */}
                   {isPlaying ? (
-                    <button onClick={handleStop} className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white font-medium rounded-md hover:bg-red-600 transition-colors">
-                      <Square size={16} fill="currentColor" /> Stop
+                    <button onClick={handleStop} className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white font-medium rounded-md hover:bg-red-600 transition-colors min-w-[80px] justify-center">
+                      {countDownBeat !== null
+                        ? <span className="font-mono text-base font-bold">{countDownBeat}</span>
+                        : <><Square size={16} fill="currentColor" /> Stop</>
+                      }
                     </button>
                   ) : (
                     <button onClick={handlePlay} onMouseEnter={initAudio} className="flex items-center gap-2 px-6 py-2 bg-[#F2F5F3] text-brand-primary font-medium border border-brand-primary/30 rounded-md hover:bg-brand-primary hover:text-white transition-colors dark:bg-brand-primary/20 dark:hover:bg-brand-primary dark:text-brand-ink">
@@ -1002,6 +1083,19 @@ export function Progressions() {
                   <button onClick={() => deleteProgression(activeProgression.id)} className="flex items-center gap-2 px-3 py-2 bg-transparent text-red-500 border border-brand-line font-medium rounded-md hover:border-red-500 hover:text-red-500 transition-colors" title="Delete Progression">
                     <Trash2 size={18} />
                   </button>
+                  {/* Presets — w-full forces a new wrapped row */}
+                  <div className="w-full flex items-center gap-2 flex-wrap pt-1">
+                    <span className="text-xs font-bold text-brand-secondary uppercase tracking-wider">Preset:</span>
+                    {PROGRESSION_PRESETS.map(preset => (
+                      <button
+                        key={preset.name}
+                        onClick={() => applyPreset(preset)}
+                        className="text-xs px-2 py-1 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink transition-colors"
+                      >
+                        {preset.name}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 

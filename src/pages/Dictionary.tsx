@@ -82,6 +82,45 @@ export function Dictionary() {
 
   useEffect(() => { setScaffoldLevel(0); }, [selectedKey, selectedChordIdx]);
 
+  // Which scales (rooted on selectedKey) contain all notes of the active chord
+  const relatedScales = useMemo(() => {
+    if (mode !== 'chords' || !activeChord) return [];
+    const chordNoteNames = new Set(
+      activeChord.frets
+        .map((f, s) => f !== -1 ? getFretNote(s, f).replace(/[0-9]/g, '') : null)
+        .filter((n): n is string => n !== null)
+    );
+    const rootIdx = ALL_NOTES.indexOf(selectedKey);
+    return COMMON_SCALES.filter(scaleDef => {
+      const scaleNotes = new Set<string>(scaleDef.intervals.map(i => ALL_NOTES[(rootIdx + i) % 12]));
+      return [...chordNoteNames].every(n => scaleNotes.has(n));
+    });
+  }, [mode, activeChord, selectedKey]);
+
+  // Diatonic triads for 7-note scales
+  const diatonicChords = useMemo(() => {
+    if (mode !== 'scales' || !activeScaleBase || activeScaleBase.intervals.length < 7) return [];
+    const rootIdx = ALL_NOTES.indexOf(selectedKey);
+    const scaleNotes = activeScaleBase.intervals.map(i => ALL_NOTES[(rootIdx + i) % 12]);
+    return scaleNotes.map((degRoot, deg) => {
+      const third = scaleNotes[(deg + 2) % 7];
+      const fifth  = scaleNotes[(deg + 4) % 7];
+      const ri = ALL_NOTES.indexOf(degRoot);
+      const thirdInt = (ALL_NOTES.indexOf(third) - ri + 12) % 12;
+      const fifthInt  = (ALL_NOTES.indexOf(fifth)  - ri + 12) % 12;
+      let quality: 'Major' | 'Minor' | 'dim' | null = null;
+      if (thirdInt === 4 && fifthInt === 7) quality = 'Major';
+      else if (thirdInt === 3 && fifthInt === 7) quality = 'Minor';
+      else if (thirdInt === 3 && fifthInt === 6) quality = 'dim';
+      if (!quality) return null;
+      const pool = COMMON_CHORDS[degRoot] ?? [];
+      const chord = quality === 'Major' ? pool.find(c => c.name.includes('Major'))
+        : quality === 'Minor' ? pool.find(c => c.name.includes('Minor'))
+        : pool.find(c => c.name.includes('dim ('));
+      return chord ?? null;
+    }).filter((c): c is ChordShape => c !== null);
+  }, [mode, activeScaleBase, selectedKey]);
+
   const scaffoldedChord = (() => {
     if (mode !== 'chords' || !activeChord) return activeChord;
     if (scaffoldLevel === 1) return { ...activeChord, fingers: Array(6).fill(0) as Finger[] };
@@ -830,6 +869,51 @@ export function Dictionary() {
                         previewKey={null}
                         onKeyClick={() => {}}
                       />
+                    </div>
+                  )}
+
+                  {/* Related scales (chord mode) */}
+                  {mode === 'chords' && relatedScales.length > 0 && (
+                    <div className="w-full mt-4 print:hidden">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-brand-secondary mb-2 text-center">Works over these scales</p>
+                      <div className="flex flex-wrap gap-2 justify-center">
+                        {relatedScales.map(scaleDef => (
+                          <button
+                            key={scaleDef.name}
+                            onClick={() => { setMode('scales'); setSelectedScaleIdx(COMMON_SCALES.indexOf(scaleDef)); }}
+                            className="text-xs px-3 py-1.5 rounded-full border border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink transition-colors"
+                          >
+                            {selectedKey} {scaleDef.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Diatonic chords (scale mode) */}
+                  {mode === 'scales' && diatonicChords.length > 0 && (
+                    <div className="w-full mt-4 print:hidden">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-brand-secondary mb-2 text-center">Diatonic chords</p>
+                      <div className="flex flex-wrap gap-2 justify-center">
+                        {diatonicChords.map(chord => {
+                          const chordRoot = chord.name.match(/^([A-G][#b]?)/)?.[1] as Note | undefined;
+                          return (
+                            <button
+                              key={chord.name}
+                              onClick={() => {
+                                if (!chordRoot) return;
+                                const idx = (COMMON_CHORDS[chordRoot] ?? []).findIndex(c => c.name === chord.name);
+                                setMode('chords');
+                                setSelectedKey(chordRoot);
+                                if (idx >= 0) setSelectedChordIdx(idx);
+                              }}
+                              className="text-xs px-3 py-1.5 rounded-full border border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink transition-colors"
+                            >
+                              {chord.name}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
 

@@ -438,6 +438,7 @@ export function playProgressionWithPatterns(
   bpm: number,
   loop: boolean,
   onChordChange?: (slotIndex: number) => void,
+  countInBeats = 0,
 ): () => void {
   if (!isInitialized || !sampler) return () => {};
 
@@ -448,7 +449,14 @@ export function playProgressionWithPatterns(
   if (_loopTimeoutId !== null) { clearTimeout(_loopTimeoutId); _loopTimeoutId = null; }
 
   const now = Tone.now();
-  let offset = 0;
+  const beatDur = 60 / bpm;
+
+  // Schedule count-in clicks (beat 1 is accented)
+  for (let i = 0; i < countInBeats; i++) {
+    playClick(i === 0, now + i * beatDur);
+  }
+
+  let offset = countInBeats * beatDur;
 
   for (let i = 0; i < slots.length; i++) {
     const slot = slots[i];
@@ -480,7 +488,7 @@ export function playProgressionWithPatterns(
         offset += stepDurationSeconds(dur, bpm);
       }
     } else {
-      const slotDuration = (60 / bpm) * 4;
+      const slotDuration = beatDur * 4;
       const t = now + offset;
       const strumNotes = slot.notesByString.filter((n): n is string => n !== null);
       Tone.Draw.schedule(() => {
