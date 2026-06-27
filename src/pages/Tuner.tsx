@@ -123,7 +123,7 @@ export function Tuner() {
     setStrings(prev => prev.map((s, i) => {
       if (i !== idx) return s;
       const newOffset = Math.max(-60, Math.min(60, s.centsOffset + delta));
-      playTunedString(s.targetHz, newOffset, '4n', undefined, svol(i));
+      playTunedString(s.targetHz, newOffset, 0.5, undefined, svol(i));
       if (settings.referenceMode !== 'off') playRef(s.targetHz, '4n', rvol(i), settings.stringVolumes?.[i] ?? 80);
       return { ...s, centsOffset: newOffset };
     }));
@@ -133,15 +133,16 @@ export function Tuner() {
     setStrings(prev => prev.map((s, i) => {
       if (i !== idx) return s;
       const newOffset = -25;
-      playTunedString(s.targetHz, newOffset, '4n', undefined, svol(i));
+      playTunedString(s.targetHz, newOffset, 0.5, undefined, svol(i));
       if (settings.referenceMode !== 'off') playRef(s.targetHz, '4n', rvol(i), settings.stringVolumes?.[i] ?? 80);
       return { ...s, centsOffset: newOffset };
     }));
   }
 
   async function playSingleString(idx: number) {
-    playTunedString(strings[idx].targetHz, strings[idx].centsOffset, '1n', undefined, svol(idx));
-    if (settings.referenceMode !== 'off') playRef(strings[idx].targetHz, '1n', rvol(idx), settings.stringVolumes?.[idx] ?? 80);
+    const dur = settings.sustainSeconds ?? 2;
+    playTunedString(strings[idx].targetHz, strings[idx].centsOffset, dur, undefined, svol(idx));
+    if (settings.referenceMode !== 'off') playRef(strings[idx].targetHz, dur.toString(), rvol(idx), settings.stringVolumes?.[idx] ?? 80);
   }
 
   async function handlePlayAll() {
@@ -150,23 +151,24 @@ export function Tuner() {
       setIsPlayingAll(false);
       return;
     }
+    const dur = settings.sustainSeconds ?? 2;
     playingRef.current = true;
     setIsPlayingAll(true);
     try {
       if (settings.audioMode === 'simultaneous') {
         strings.forEach((s, i) => {
           setTimeout(() => {
-            playTunedString(s.targetHz, s.centsOffset, '1n', undefined, svol(i));
-            if (settings.referenceMode !== 'off') playRef(s.targetHz, '1n', rvol(i), settings.stringVolumes?.[i] ?? 80);
+            playTunedString(s.targetHz, s.centsOffset, dur, undefined, svol(i));
+            if (settings.referenceMode !== 'off') playRef(s.targetHz, dur.toString(), rvol(i), settings.stringVolumes?.[i] ?? 80);
           }, i * 20);
         });
-        await new Promise<void>(r => setTimeout(r, 2500));
+        await new Promise<void>(r => setTimeout(r, dur * 1000 + 500));
       } else {
         for (let i = 5; i >= 0; i--) {
           if (!playingRef.current) break;
-          playTunedString(strings[i].targetHz, strings[i].centsOffset, '1n', undefined, svol(i));
-          if (settings.referenceMode !== 'off') playRef(strings[i].targetHz, '1n', rvol(i), settings.stringVolumes?.[i] ?? 80);
-          if (i > 0) await new Promise<void>(r => setTimeout(r, 2000));
+          playTunedString(strings[i].targetHz, strings[i].centsOffset, dur, undefined, svol(i));
+          if (settings.referenceMode !== 'off') playRef(strings[i].targetHz, dur.toString(), rvol(i), settings.stringVolumes?.[i] ?? 80);
+          if (i > 0) await new Promise<void>(r => setTimeout(r, dur * 1000 + 200));
         }
       }
     } finally {
@@ -381,6 +383,16 @@ export function Tuner() {
             className="w-28 accent-brand-primary cursor-pointer"
           />
         </label>
+        <label className="flex items-center gap-2 shrink-0">
+          <span className="w-12">Sustain</span>
+          <input
+            type="range" min={0.5} max={6} step={0.5}
+            value={settings.sustainSeconds ?? 2}
+            onChange={e => setSettings(s => ({ ...s, sustainSeconds: +e.target.value }))}
+            className="w-28 accent-brand-primary cursor-pointer"
+          />
+          <span className="w-8 text-right">{(settings.sustainSeconds ?? 2).toFixed(1)}s</span>
+        </label>
       </div>
 
       {/* String rows — high E at top, low E at bottom */}
@@ -532,10 +544,12 @@ export function Tuner() {
 
               {/* Play target pitch alone — follows reference mode */}
               <button
-                onClick={() => settings.referenceMode === 'guitar'
-                  ? playTunedString(s.targetHz, 0, '1n', undefined, rvol(realIdx) / 100)
-                  : playReferenceTone(s.targetHz, '1n', rvol(realIdx))
-                }
+                onClick={() => {
+                  const dur = settings.sustainSeconds ?? 2;
+                  settings.referenceMode === 'guitar'
+                    ? playTunedString(s.targetHz, 0, dur, undefined, rvol(realIdx) / 100)
+                    : playReferenceTone(s.targetHz, dur.toString(), rvol(realIdx));
+                }}
                 title={`Play target pitch alone (${s.targetNote} = ${s.targetHz.toFixed(1)} Hz)`}
                 className="shrink-0 p-2 rounded-lg border border-brand-line text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar/50 transition-colors"
               >

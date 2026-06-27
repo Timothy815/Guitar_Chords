@@ -270,7 +270,7 @@ export function stopDrone(): void {
 export async function playTunedString(
   baseHz: number,
   centsOffset: number,
-  duration = '2n',
+  duration: number | string = '2n',
   startOffset?: number,  // seconds from Tone.now() — used to stagger guitar voices
   velocity = 1           // 0–1 amplitude scale
 ): Promise<void> {

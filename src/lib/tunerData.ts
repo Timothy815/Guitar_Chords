@@ -29,6 +29,7 @@ export interface TunerSettings {
   showBeatIndicator: boolean;
   stringVolumes: number[];   // per-string 0–100, index matches strings[] (0=low E)
   referenceVolumes: number[]; // per-string 0–100
+  sustainSeconds: number;    // note duration for main play actions (0.5–6)
 }
 
 export type ScaffoldMode = 'ear' | 'color' | 'cents';
@@ -88,6 +89,7 @@ export const DEFAULT_SETTINGS: TunerSettings = {
   showBeatIndicator: true,
   stringVolumes: [80, 80, 80, 80, 80, 80],
   referenceVolumes: [70, 70, 70, 70, 70, 70],
+  sustainSeconds: 2,
 };
 
 export const IN_TUNE_THRESHOLD = 1.5;
