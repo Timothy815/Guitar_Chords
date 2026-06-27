@@ -453,9 +453,12 @@ export function Tuner() {
                 <Play size={14} />
               </button>
 
-              {/* Play target pitch alone */}
+              {/* Play target pitch alone — follows reference mode */}
               <button
-                onClick={() => playReferenceTone(s.targetHz, '1n')}
+                onClick={() => settings.referenceMode === 'guitar'
+                  ? playTunedString(s.targetHz, 0, '1n')
+                  : playReferenceTone(s.targetHz, '1n')
+                }
                 title={`Play target pitch alone (${s.targetNote} = ${s.targetHz.toFixed(1)} Hz)`}
                 className="shrink-0 p-2 rounded-lg border border-brand-line text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar/50 transition-colors"
               >
