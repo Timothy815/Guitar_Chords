@@ -1021,7 +1021,7 @@ export function Dictionary() {
               {mode === 'chords' && activeChord && (
                 <div className="w-full flex items-center gap-2 mb-4 print:hidden">
                   <span className="text-xs text-brand-secondary font-medium mr-1">Practice:</span>
-                  {(['Full', 'Dots', 'Recall'] as const).map((label, idx) => (
+                  {(['Finger', 'Dots', 'Recall'] as const).map((label, idx) => (
                     <button
                       key={label}
                       onClick={() => setScaffoldLevel(idx as 0 | 1 | 2)}
