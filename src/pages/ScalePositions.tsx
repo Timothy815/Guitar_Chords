@@ -81,13 +81,13 @@ export function ScalePositions() {
     return notes.sort((a, b) => a[1] - b[1]);
   }, [pattern, startFret, endFret]);
 
-  const handlePlay = useCallback(async (direction: 'ascending' | 'descending' | 'arpeggio') => {
+  const handlePlay = useCallback(async (direction: 'ascending' | 'descending' | 'up-down' | 'down-up') => {
     await initAudio();
     const asc = getBoxNotes();
     const desc = [...asc].reverse();
-    // arpeggio = up then back down, skipping the repeated top note
     const seq = direction === 'descending' ? desc
-               : direction === 'arpeggio'  ? [...asc, ...desc.slice(1)]
+               : direction === 'up-down'   ? [...asc, ...desc.slice(1)]
+               : direction === 'down-up'   ? [...desc, ...asc.slice(1)]
                : asc;
     seq.forEach(([name, pitch], i) => {
       const octave = Math.floor(pitch / 12) - 1;
@@ -209,7 +209,8 @@ export function ScalePositions() {
           <div className="flex gap-1">
             <button onClick={() => handlePlay('ascending')}  className="text-xs px-3 py-1.5 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 transition-colors">▲ Up</button>
             <button onClick={() => handlePlay('descending')} className="text-xs px-3 py-1.5 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 transition-colors">▼ Down</button>
-            <button onClick={() => handlePlay('arpeggio')}   className="text-xs px-3 py-1.5 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 transition-colors">↕ Up &amp; Down</button>
+            <button onClick={() => handlePlay('up-down')}    className="text-xs px-3 py-1.5 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 transition-colors">▲▼ Up–Down</button>
+            <button onClick={() => handlePlay('down-up')}    className="text-xs px-3 py-1.5 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 transition-colors">▼▲ Down–Up</button>
           </div>
         </div>
         <div className="overflow-x-auto">
