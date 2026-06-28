@@ -23,6 +23,29 @@ function getDiatonicRoots(key: Note): Set<string> {
   return new Set(MAJOR_INTERVALS.map(i => ALL_NOTES[(rootIdx + i) % 12]));
 }
 
+function isChordDiatonic(chord: ChordShape, key: Note): boolean {
+  const keyIdx = ALL_NOTES.indexOf(key);
+  if (keyIdx === -1) return false;
+  const chordRoot = chord.name.split(' ')[0] as Note;
+  const chordRootIdx = ALL_NOTES.indexOf(chordRoot);
+  if (chordRootIdx === -1) return false;
+  const degree = (chordRootIdx - keyIdx + 12) % 12;
+  const qualStr = chord.name.slice(chordRoot.length + 1);
+  const isMajor = qualStr.startsWith('Major');
+  const isMinor = qualStr.startsWith('Minor');
+  const isDom7 = qualStr.startsWith('7 ') || qualStr === '7';
+  const isMaj7 = qualStr.startsWith('Maj7');
+  const isM7 = qualStr.startsWith('m7') && !qualStr.startsWith('m7b5');
+  const isDim7 = qualStr.startsWith('dim7');
+  const isDim = !isDim7 && qualStr.startsWith('dim');
+  const isM7b5 = qualStr.startsWith('m7b5');
+  if (degree === 0 || degree === 5) return isMajor || isMaj7;
+  if (degree === 2 || degree === 4 || degree === 9) return isMinor || isM7;
+  if (degree === 7) return isMajor || isDom7;
+  if (degree === 11) return isDim || isDim7 || isM7b5;
+  return false;
+}
+
 const PRESET_KEYS: Record<string, string> = {
   'I-V-vi-IV (C Major)': 'C',
   'ii-V-I (Jazz, C Major)': 'C',
@@ -1350,15 +1373,23 @@ export function Progressions() {
                     let chords = COMMON_CHORDS[chordPaletteKey] ?? [];
                     if (palettePositionFilter !== 'all') chords = chords.filter(c => chordPositionBucket(c) === palettePositionFilter);
                     if (paletteSortOrder) chords = [...chords].sort((a, b) => paletteSortOrder === 'asc' ? avgChordPitch(a) - avgChordPitch(b) : avgChordPitch(b) - avgChordPitch(a));
-                    return chords.map((chord, i) => (
-                      <button
-                        key={i}
-                        onClick={() => addChordToProgression(chord)}
-                        className="px-3 py-1.5 border border-brand-line bg-brand-surface rounded-md text-sm text-brand-ink hover:bg-brand-bg hover:border-brand-primary transition-colors"
-                      >
-                        {chord.name}
-                      </button>
-                    ));
+                    return chords.map((chord, i) => {
+                      const diatonic = circleKey ? isChordDiatonic(chord, circleKey) : false;
+                      return (
+                        <button
+                          key={i}
+                          onClick={() => addChordToProgression(chord)}
+                          className={cn(
+                            'px-3 py-1.5 border rounded-md text-sm transition-colors',
+                            diatonic
+                              ? 'bg-brand-active/10 border-brand-active text-brand-active font-medium hover:bg-brand-active hover:text-white'
+                              : 'border-brand-line bg-brand-surface text-brand-ink hover:bg-brand-bg hover:border-brand-primary'
+                          )}
+                        >
+                          {chord.name}
+                        </button>
+                      );
+                    });
                   })()}
                 </div>
               </div>
