@@ -210,6 +210,15 @@ export function Circle() {
                   >
                     + Progression
                   </button>
+                  <button
+                    onClick={() =>
+                      navigate(`/dictionary?mode=identify&frets=${activeChord.frets.join(',')}`)
+                    }
+                    className="text-xs px-2 py-1 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink transition-colors"
+                    title="Load into Identifier to experiment"
+                  >
+                    Explore →
+                  </button>
                 </div>
               </div>
               <Fretboard chord={activeChord} fretsNum={12} showNoteNames={false} />

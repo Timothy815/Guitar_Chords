@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Chord as TonalChord } from '@tonaljs/tonal';
 import { Fretboard } from '../components/Fretboard';
 import { IntervalFretboard } from '../components/IntervalFretboard';
@@ -10,6 +10,49 @@ import { Volume2, ListMusic, Printer } from 'lucide-react';
 import { ChordShape, Note, TUNINGS, Tuning, Finger } from '../types';
 import { handlePrint, cn, avgChordPitch, chordPositionBucket, PositionBucket, POSITION_LABELS } from '../lib/utils';
 import { addChordToActiveProgression } from '@/src/lib/progressionUtils';
+
+function getNavigationChords(tonalName: string): ChordShape[] {
+  const base = tonalName.split('/')[0];
+  const m = base.match(/^([A-G][#b])(.*)/) ?? base.match(/^([A-G])(.*)/);
+  if (!m) return [];
+  const flatToSharp: Record<string, string> = {
+    Db: 'C#', Eb: 'D#', Fb: 'E', Gb: 'F#', Ab: 'G#', Bb: 'A#', Cb: 'B',
+  };
+  const root = (flatToSharp[m[1]] ?? m[1]) as Note;
+  const qual = m[2];
+  const pool = COMMON_CHORDS[root] ?? [];
+  const q = (c: ChordShape) => c.name.slice(root.length + 1);
+  let shapes: ChordShape[];
+  switch (qual) {
+    case 'M': case '': case 'maj': case 'major':
+      shapes = pool.filter(c => q(c).startsWith('Major')); break;
+    case 'm': case 'min': case 'minor':
+      shapes = pool.filter(c => q(c).startsWith('Minor')); break;
+    case '7':
+      shapes = pool.filter(c => { const s = q(c); return s.startsWith('7 ') || s === '7' || s.startsWith('7('); }); break;
+    case 'M7': case 'maj7': case 'Maj7':
+      shapes = pool.filter(c => q(c).startsWith('Maj7')); break;
+    case 'm7': case 'min7':
+      shapes = pool.filter(c => { const s = q(c); return s.startsWith('m7') && !s.startsWith('m7b5'); }); break;
+    case 'dim7': case 'o7':
+      shapes = pool.filter(c => q(c).startsWith('dim7')); break;
+    case 'dim': case 'o':
+      shapes = pool.filter(c => { const s = q(c); return s.startsWith('dim ') && !s.startsWith('dim7'); }); break;
+    case 'm7b5': case 'ø': case 'ø7': case 'half-dim':
+      shapes = pool.filter(c => q(c).startsWith('m7b5')); break;
+    case 'sus2':
+      shapes = pool.filter(c => q(c).startsWith('sus2')); break;
+    case 'sus4': case 'sus':
+      shapes = pool.filter(c => q(c).startsWith('sus4')); break;
+    case 'aug': case '+':
+      shapes = pool.filter(c => q(c).startsWith('aug')); break;
+    default: return [];
+  }
+  return shapes.sort((a, b) => {
+    const lo = (frets: number[]) => Math.min(...frets.filter(f => f > 0).concat([999]));
+    return lo(a.frets) - lo(b.frets);
+  });
+}
 
 const INTERVALS = [
   { name: 'Unison',      short: 'P1',  semitones: 0 },
@@ -29,6 +72,7 @@ const INTERVALS = [
 
 export function Dictionary() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [mode, setMode] = useState<'chords' | 'scales' | 'identify' | 'intervals'>('chords');
   const [currentTuning, setCurrentTuning] = useState<Tuning>(TUNINGS['Standard']);
   const [selectedKey, setSelectedKey] = useState<Note>('C');
@@ -38,6 +82,18 @@ export function Dictionary() {
   const [playingNotes, setPlayingNotes] = useState<Set<string>>(new Set());
   const [identifiedFrets, setIdentifiedFrets] = useState<number[]>([-1,-1,-1,-1,-1,-1]);
   const [addedToast, setAddedToast] = useState<string | null>(null);
+
+  // Seed the Identify tab from URL params when navigating here from another page (e.g. Circle → Explore →).
+  useEffect(() => {
+    const fretsParam = searchParams.get('frets');
+    if (searchParams.get('mode') === 'identify' && fretsParam) {
+      const parsed = fretsParam.split(',').map(Number);
+      if (parsed.length === 6 && parsed.every(f => Number.isFinite(f))) {
+        setMode('identify');
+        setIdentifiedFrets(parsed);
+      }
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [scaffoldLevel, setScaffoldLevel] = useState<0 | 1 | 2>(0);
   const [chordSortOrder, setChordSortOrder] = useState<'asc' | 'desc' | null>(null);
   const [positionFilter, setPositionFilter] = useState<PositionBucket>('all');
@@ -167,6 +223,14 @@ export function Dictionary() {
   const identifiedNotesRaw = identifiedFrets.map((f, strIdx) => f !== -1 ? getFretNote(strIdx, f).replace(/[0-9]/g, '') : null).filter((n): n is string => n !== null);
   const uniqueNotes: string[] = Array.from(new Set(identifiedNotesRaw));
   const identifiedChordNames = uniqueNotes.length > 0 ? TonalChord.detect(uniqueNotes) as string[] : [];
+
+  const navChords: ChordShape[] =
+    mode === 'identify' && identifiedChordNames.length > 0
+      ? getNavigationChords(identifiedChordNames[0])
+      : [];
+  const navIdx = navChords.findIndex(c =>
+    c.frets.every((f, i) => f === identifiedFrets[i])
+  );
 
   const activeChordNotes: string[] = mode === 'chords' && activeChord
     ? activeChord.frets
@@ -700,6 +764,34 @@ export function Dictionary() {
                        >
                          Clear Fretboard
                        </button>
+                       {navChords.length > 1 && (
+                         <div className="mt-3 space-y-1">
+                           <p className="text-xs font-medium text-brand-secondary">Other positions</p>
+                           <div className="flex items-center gap-2">
+                             <button
+                               onClick={() => {
+                                 const prev = navIdx <= 0 ? navChords.length - 1 : navIdx - 1;
+                                 setIdentifiedFrets([...navChords[prev].frets]);
+                               }}
+                               className="flex-1 py-1.5 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink text-xs font-medium transition-colors"
+                             >
+                               ◀ Prev
+                             </button>
+                             <span className="text-xs tabular-nums text-brand-secondary min-w-[36px] text-center">
+                               {navIdx >= 0 ? `${navIdx + 1}/${navChords.length}` : `—/${navChords.length}`}
+                             </span>
+                             <button
+                               onClick={() => {
+                                 const next = navIdx < 0 || navIdx >= navChords.length - 1 ? 0 : navIdx + 1;
+                                 setIdentifiedFrets([...navChords[next].frets]);
+                               }}
+                               className="flex-1 py-1.5 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink text-xs font-medium transition-colors"
+                             >
+                               Next ▶
+                             </button>
+                           </div>
+                         </div>
+                       )}
                     </div>
                  </>
               )}
@@ -889,6 +981,16 @@ export function Dictionary() {
                              title="Practice chord identification in Ear Training"
                            >
                              Ear Train →
+                           </button>
+                           <button
+                             onClick={() => {
+                               setMode('identify');
+                               setIdentifiedFrets([...activeChord.frets]);
+                             }}
+                             className="text-xs px-2 py-1 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink transition-colors"
+                             title="Load into Identifier to experiment"
+                           >
+                             Explore →
                            </button>
                          </>
                        )}
