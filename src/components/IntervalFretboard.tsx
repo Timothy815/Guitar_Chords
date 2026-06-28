@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Play, Square } from 'lucide-react';
 import { Note } from '../types';
 import { ALL_NOTES } from '../data/guitarData';
 import { initAudio, playNote, getFretNote } from '../lib/audio';
@@ -12,7 +13,7 @@ interface Pair {
 }
 
 type Direction = 'forward' | 'reverse';
-type ViewMode  = 'all' | 'adjacent' | 'nearest';
+type ViewMode  = 'all' | 'adjacent' | 'inposition';
 
 interface Props {
   rootNote: Note;
@@ -23,7 +24,7 @@ interface Props {
 // ─── Mini 2-string shape diagram ─────────────────────────────────────────────
 
 interface ShapeCardProps {
-  offset: number;       // semitones - stringGap
+  offset: number;
   bString: boolean;
   direction: Direction;
   rootNote: string;
@@ -32,33 +33,29 @@ interface ShapeCardProps {
 }
 
 function ShapeCard({ offset, bString, direction, rootNote, targetNote, stringLabel }: ShapeCardProps) {
-  // In forward mode: anchor root at fret 3, target at 3+offset (both shown on 2 strings)
-  // In reverse mode: anchor target at fret 3, root at 3-offset
-  // Root always on the bottom (thicker) string, target on top (thinner).
-  const rootFret  = direction === 'forward' ? 3 : 3 - offset;
+  const rootFret   = direction === 'forward' ? 3 : 3 - offset;
   const targetFret = direction === 'forward' ? 3 + offset : 3;
 
   const leftFret  = Math.min(rootFret, targetFret) - 1;
   const rightFret = Math.max(rootFret, targetFret) + 1;
   const numFrets  = rightFret - leftFret;
 
-  const fretPx   = 28;
-  const pX       = 22;
-  const pY       = 14;
+  const fretPx    = 28;
+  const pX        = 22;
+  const pY        = 14;
   const stringSep = 38;
-  const cardW    = numFrets * fretPx + pX * 2;
-  const cardH    = pY * 2 + stringSep;
+  const cardW     = numFrets * fretPx + pX * 2;
+  const cardH     = pY * 2 + stringSep;
 
   function nx(fret: number) {
     return pX + (fret - leftFret - 0.5) * fretPx;
   }
 
   const lineColor = bString ? '#f59e0b' : '#818cf8';
-  const rootY    = pY + stringSep; // bottom / thicker string
-  const targetY  = pY;             // top    / thinner string
+  const rootY     = pY + stringSep;
+  const targetY   = pY;
 
-  // Direction arrow: small triangle at the destination end of the line
-  const fromX = nx(direction === 'forward' ? rootFret  : targetFret);
+  const fromX = nx(direction === 'forward' ? rootFret   : targetFret);
   const fromY = direction === 'forward' ? rootY   : targetY;
   const toX   = nx(direction === 'forward' ? targetFret : rootFret);
   const toY   = direction === 'forward' ? targetY : rootY;
@@ -68,7 +65,6 @@ function ShapeCard({ offset, bString, direction, rootNote, targetNote, stringLab
     <div className="flex flex-col items-center gap-1">
       <span className="text-[11px] font-medium text-brand-secondary">{stringLabel}</span>
       <svg viewBox={`0 0 ${cardW} ${cardH}`} width={cardW} height={cardH}>
-        {/* Fret lines */}
         {Array.from({ length: numFrets + 1 }).map((_, i) => (
           <line key={i}
             x1={pX + i * fretPx} y1={targetY}
@@ -76,29 +72,21 @@ function ShapeCard({ offset, bString, direction, rootNote, targetNote, stringLab
             stroke="#555" strokeWidth={1.5}
           />
         ))}
-        {/* Strings — thinner on top, thicker on bottom */}
         <line x1={pX} y1={targetY} x2={pX + numFrets * fretPx} y2={targetY} stroke="#aaa" strokeWidth={1} />
         <line x1={pX} y1={rootY}   x2={pX + numFrets * fretPx} y2={rootY}   stroke="#aaa" strokeWidth={2.5} />
-
-        {/* Connecting line */}
         <line
           x1={fromX} y1={fromY} x2={toX} y2={toY}
           stroke={lineColor} strokeWidth={2}
           strokeDasharray={bString ? '4 2' : undefined}
           opacity={0.85}
         />
-        {/* Arrowhead at destination */}
         <polygon
           points="-5,-3 5,0 -5,3"
           fill={lineColor} opacity={0.85}
           transform={`translate(${toX},${toY}) rotate(${angle})`}
         />
-
-        {/* Root dot (teal, bottom) */}
         <circle cx={nx(rootFret)}   cy={rootY}   r={11} fill="var(--color-brand-active)" stroke="white" strokeWidth={1.5} />
         <text   x={nx(rootFret)}    y={rootY + 4}   textAnchor="middle" fontSize={9}  fontWeight="bold" fill="white">{rootNote}</text>
-
-        {/* Target dot (orange, top) */}
         <circle cx={nx(targetFret)} cy={targetY} r={11} fill="#f97316" stroke="white" strokeWidth={1.5} />
         <text   x={nx(targetFret)}  y={targetY + 4} textAnchor="middle" fontSize={9}  fontWeight="bold" fill="white">{targetNote}</text>
       </svg>
@@ -112,11 +100,26 @@ function ShapeCard({ offset, bString, direction, rootNote, targetNote, stringLab
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function IntervalFretboard({ rootNote, intervalSemitones, fretsNum = 15 }: Props) {
-  const [selected, setSelected]   = useState<{ string: number; fret: number } | null>(null);
-  const [direction, setDirection] = useState<Direction>('forward');
-  const [viewMode,  setViewMode]  = useState<ViewMode>('adjacent');
+  const [selected,    setSelected]    = useState<{ string: number; fret: number } | null>(null);
+  const [direction,   setDirection]   = useState<Direction>('forward');
+  const [viewMode,    setViewMode]    = useState<ViewMode>('adjacent');
+  const [isLooping,   setIsLooping]   = useState(false);
+  const [loopPairIdx, setLoopPairIdx] = useState<number | null>(null);
+  const loopTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  useEffect(() => { setSelected(null); }, [rootNote, intervalSemitones]);
+  function clearLoopTimers() {
+    loopTimers.current.forEach(clearTimeout);
+    loopTimers.current = [];
+  }
+
+  useEffect(() => {
+    clearLoopTimers();
+    setIsLooping(false);
+    setLoopPairIdx(null);
+    setSelected(null);
+  }, [rootNote, intervalSemitones]);
+
+  useEffect(() => { return () => clearLoopTimers(); }, []);
 
   const stringsNum    = 6;
   const paddingX      = 40;
@@ -125,16 +128,15 @@ export function IntervalFretboard({ rootNote, intervalSemitones, fretsNum = 15 }
   const totalWidth    = 800;
   const fretSpacing   = (totalWidth - paddingX * 2) / fretsNum;
   const totalHeight   = paddingY * 2 + stringSpacing * (stringsNum - 1);
-  const markerFrets   = [3, 5, 7, 9, 15];
+  const markerFrets      = [3, 5, 7, 9, 15];
   const doubleMarkerFrets = [12];
 
   const rootPitchClass   = ALL_NOTES.indexOf(rootNote);
   const targetPitchClass = (rootPitchClass + intervalSemitones) % 12;
   const targetNote       = ALL_NOTES[targetPitchClass];
 
-  // Adjacent-string offsets (how many frets to shift on the next string up)
-  const standardOffset = intervalSemitones - 5; // normal string gap = P4
-  const bStringOffset  = intervalSemitones - 4; // G→B gap = M3
+  const standardOffset = intervalSemitones - 5;
+  const bStringOffset  = intervalSemitones - 4;
 
   function noteX(fret: number) {
     return fret === 0 ? paddingX / 2 : paddingX + (fret - 0.5) * fretSpacing;
@@ -143,14 +145,12 @@ export function IntervalFretboard({ rootNote, intervalSemitones, fretsNum = 15 }
     return paddingY + (5 - stringIdx) * stringSpacing;
   }
 
-  // All root positions
   const roots: Array<{ string: number; fret: number }> = [];
   for (let s = 0; s < 6; s++)
     for (let f = 0; f <= fretsNum; f++)
       if ((OPEN_PITCHES[s] + f) % 12 === rootPitchClass)
         roots.push({ string: s, fret: f });
 
-  // All root→target pairs and unique target positions
   const pairs: Pair[] = [];
   const targetMap = new Map<string, { string: number; fret: number }>();
   for (const root of roots) {
@@ -171,14 +171,47 @@ export function IntervalFretboard({ rootNote, intervalSemitones, fretsNum = 15 }
     ({ string, fret }) => (OPEN_PITCHES[string] + fret) % 12 !== rootPitchClass
   );
 
-  // Euclidean distance in SVG pixels between root and target dots
-  function pairDistance(p: Pair): number {
-    const dx = noteX(p.target.fret) - noteX(p.root.fret);
-    const dy = noteY(p.target.string) - noteY(p.root.string);
-    return Math.sqrt(dx * dx + dy * dy);
+  // Adjacent pairs sorted low-E → high-E for the loop (covers all root positions)
+  const loopPairs = pairs
+    .filter(p => Math.abs(p.root.string - p.target.string) === 1)
+    .sort((a, b) => a.root.string !== b.root.string
+      ? a.root.string - b.root.string
+      : a.root.fret - b.root.fret);
+
+  async function toggleLoop() {
+    if (isLooping) {
+      clearLoopTimers();
+      setIsLooping(false);
+      setLoopPairIdx(null);
+      return;
+    }
+    if (loopPairs.length === 0) return;
+    await initAudio();
+    setIsLooping(true);
+    setSelected(null);
+
+    const pairDuration = 1000;
+    const noteGap      = 450;
+
+    for (let idx = 0; idx < loopPairs.length; idx++) {
+      const pair = loopPairs[idx];
+      const t1 = setTimeout(() => {
+        setLoopPairIdx(idx);
+        playNote(getFretNote(pair.root.string, pair.root.fret), 1.5);
+      }, idx * pairDuration);
+      const t2 = setTimeout(() => {
+        playNote(getFretNote(pair.target.string, pair.target.fret), 1.5);
+      }, idx * pairDuration + noteGap);
+      loopTimers.current.push(t1, t2);
+    }
+
+    const endTimer = setTimeout(() => {
+      setIsLooping(false);
+      setLoopPairIdx(null);
+    }, loopPairs.length * pairDuration);
+    loopTimers.current.push(endTimer);
   }
 
-  // Lines from the selected dot, filtered by direction then by viewMode
   const candidateLines = selected
     ? pairs.filter(p =>
         direction === 'forward'
@@ -192,22 +225,30 @@ export function IntervalFretboard({ rootNote, intervalSemitones, fretsNum = 15 }
     if (viewMode === 'all') return candidateLines;
     if (viewMode === 'adjacent')
       return candidateLines.filter(p => Math.abs(p.root.string - p.target.string) === 1);
-    // nearest: single shortest hypotenuse
-    let nearest = candidateLines[0];
-    let minDist = pairDistance(nearest);
-    for (const p of candidateLines.slice(1)) {
-      const d = pairDistance(p);
-      if (d < minDist) { minDist = d; nearest = p; }
-    }
-    return [nearest];
+    // inposition: reachable without shifting — target within 4-fret hand span
+    return candidateLines.filter(p => Math.abs(p.target.fret - p.root.fret) <= 4);
   })();
 
+  // During loop, override which lines/dots are highlighted
+  const displayLines = isLooping && loopPairIdx !== null
+    ? (loopPairs[loopPairIdx] ? [loopPairs[loopPairIdx]] : [])
+    : activeLines;
+
+  const isDimmed = selected !== null || (isLooping && loopPairIdx !== null);
   const connectedKeys = new Set<string>();
-  if (selected) {
-    connectedKeys.add(`${selected.string}-${selected.fret}`);
-    for (const p of activeLines) {
-      connectedKeys.add(`${p.root.string}-${p.root.fret}`);
-      connectedKeys.add(`${p.target.string}-${p.target.fret}`);
+  if (isDimmed) {
+    if (isLooping && loopPairIdx !== null) {
+      const p = loopPairs[loopPairIdx];
+      if (p) {
+        connectedKeys.add(`${p.root.string}-${p.root.fret}`);
+        connectedKeys.add(`${p.target.string}-${p.target.fret}`);
+      }
+    } else if (selected) {
+      connectedKeys.add(`${selected.string}-${selected.fret}`);
+      for (const p of activeLines) {
+        connectedKeys.add(`${p.root.string}-${p.root.fret}`);
+        connectedKeys.add(`${p.target.string}-${p.target.fret}`);
+      }
     }
   }
 
@@ -215,34 +256,66 @@ export function IntervalFretboard({ rootNote, intervalSemitones, fretsNum = 15 }
     return selected?.string === s && selected?.fret === f;
   }
   function dotOpacity(s: number, f: number) {
-    if (!selected) return 1;
+    if (!isDimmed) return 1;
     return connectedKeys.has(`${s}-${f}`) ? 1 : 0.18;
+  }
+
+  // Find the best adjacent-string partner for playing the interval sound on click
+  function getPrimaryPair(clickedString: number, clickedFret: number): Pair | null {
+    const cands = pairs.filter(p =>
+      direction === 'forward'
+        ? p.root.string === clickedString && p.root.fret === clickedFret
+        : p.target.string === clickedString && p.target.fret === clickedFret
+    );
+    // Prefer the next thinner string (string+1), then next thicker (string-1)
+    return (
+      cands.find(p => (direction === 'forward' ? p.target : p.root).string === clickedString + 1) ??
+      cands.find(p => (direction === 'forward' ? p.target : p.root).string === clickedString - 1) ??
+      null
+    );
   }
 
   async function handleDotClick(s: number, f: number, isRoot: boolean, e: React.MouseEvent) {
     e.stopPropagation();
+    if (isLooping) {
+      clearLoopTimers();
+      setIsLooping(false);
+      setLoopPairIdx(null);
+    }
     const clickable = direction === 'forward' ? isRoot : !isRoot;
-    if (clickable) setSelected(isSelected(s, f) ? null : { string: s, fret: f });
+    const nowSelected = clickable ? (isSelected(s, f) ? null : { string: s, fret: f }) : null;
+    if (clickable) setSelected(nowSelected);
     await initAudio();
     playNote(getFretNote(s, f), 1.5);
+    // Play the interval as a two-note phrase so the user hears it, not just sees it
+    if (nowSelected) {
+      const primary = getPrimaryPair(s, f);
+      if (primary) {
+        const partner = direction === 'forward' ? primary.target : primary.root;
+        setTimeout(() => playNote(getFretNote(partner.string, partner.fret), 1.2), 420);
+      }
+    }
   }
 
   const activeNote  = direction === 'forward' ? rootNote   : targetNote;
   const partnerNote = direction === 'forward' ? targetNote : rootNote;
 
-  // Nearest-mode annotation: fret/string deltas for the single active line
-  const nearestLabel = (() => {
-    if (viewMode !== 'nearest' || activeLines.length !== 1) return null;
-    const p  = activeLines[0];
-    const df = p.target.fret   - p.root.fret;
-    const ds = p.target.string - p.root.string;
-    return `Nearest: ${df === 0 ? 'same fret' : `${df > 0 ? '+' : ''}${df} frets`}, ${Math.abs(ds)} string${Math.abs(ds) !== 1 ? 's' : ''} ${ds > 0 ? '↑' : '↓'}`;
+  const hint = (() => {
+    if (isLooping) return loopPairIdx !== null
+      ? `Shape ${loopPairIdx + 1} of ${loopPairs.length} — click Stop or any dot to cancel`
+      : 'Starting…';
+    if (selected) return 'Click the same dot or the fretboard background to clear';
+    return `Click a ${activeNote} dot to hear and reveal its ${partnerNote} partners`;
   })();
 
-  const hint = nearestLabel
-    ?? (selected
-      ? 'Click the same dot or the fretboard background to clear'
-      : `Click a ${activeNote} dot to reveal its ${partnerNote} partners`);
+  function lineLabel(pair: Pair) {
+    const df = pair.target.fret - pair.root.fret;
+    const ds = Math.abs(pair.target.string - pair.root.string);
+    return `${df === 0 ? '±0' : df > 0 ? `+${df}` : `${df}`}f · ${ds}s`;
+  }
+
+  // Show fret offset labels in inposition mode (key teaching info) and during loop
+  const showLineLabels = viewMode === 'inposition' || isLooping;
 
   return (
     <div className="w-full space-y-5">
@@ -269,7 +342,7 @@ export function IntervalFretboard({ rootNote, intervalSemitones, fretsNum = 15 }
 
       {/* ── Controls ── */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        {/* Direction */}
+        {/* Direction toggle */}
         <div className="flex rounded-lg overflow-hidden border border-brand-line text-sm font-medium">
           <button
             onClick={() => { setDirection('forward'); setSelected(null); }}
@@ -285,21 +358,36 @@ export function IntervalFretboard({ rootNote, intervalSemitones, fretsNum = 15 }
           </button>
         </div>
 
-        {/* View mode */}
-        <div className="flex rounded-lg overflow-hidden border border-brand-line text-sm font-medium">
-          {(['all', 'adjacent', 'nearest'] as ViewMode[]).map(m => (
-            <button
-              key={m}
-              onClick={() => { setViewMode(m); setSelected(null); }}
-              className={`px-3 py-1.5 capitalize transition-colors ${viewMode === m ? 'bg-brand-active text-white' : 'bg-brand-surface text-brand-secondary hover:bg-brand-line'}`}
-            >
-              {m}
-            </button>
-          ))}
+        <div className="flex items-center gap-2">
+          {/* View mode */}
+          <div className="flex rounded-lg overflow-hidden border border-brand-line text-sm font-medium">
+            {([['all', 'All'], ['adjacent', 'Adjacent'], ['inposition', 'In Position']] as [ViewMode, string][]).map(([m, label]) => (
+              <button
+                key={m}
+                onClick={() => { setViewMode(m); setSelected(null); }}
+                className={`px-3 py-1.5 transition-colors ${viewMode === m ? 'bg-brand-active text-white' : 'bg-brand-surface text-brand-secondary hover:bg-brand-line'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Loop button */}
+          <button
+            onClick={toggleLoop}
+            disabled={loopPairs.length === 0}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors
+              ${isLooping
+                ? 'bg-orange-500 border-orange-500 text-white hover:bg-orange-600'
+                : 'bg-brand-surface border-brand-line text-brand-secondary hover:bg-brand-line disabled:opacity-40'}`}
+          >
+            {isLooping ? <Square size={13} /> : <Play size={13} />}
+            {isLooping ? 'Stop' : 'Loop shapes'}
+          </button>
         </div>
       </div>
 
-      {/* Hint / nearest annotation */}
+      {/* Hint */}
       <p className="text-sm text-brand-secondary -mt-2">{hint}</p>
 
       {/* ── Interactive fretboard ── */}
@@ -307,7 +395,7 @@ export function IntervalFretboard({ rootNote, intervalSemitones, fretsNum = 15 }
         <svg
           viewBox={`0 0 ${totalWidth} ${totalHeight}`}
           className="w-full h-auto drop-shadow-sm border-8 border-brand-fretborder rounded-xl min-w-[600px]"
-          onClick={() => setSelected(null)}
+          onClick={() => { if (!isLooping) setSelected(null); }}
         >
           {/* Background */}
           <rect x={paddingX} y={paddingY} width={totalWidth - paddingX * 2} height={totalHeight - paddingY * 2} fill="var(--color-brand-fretboard)" />
@@ -330,7 +418,7 @@ export function IntervalFretboard({ rootNote, intervalSemitones, fretsNum = 15 }
             />
           ))}
 
-          {/* Fret position markers */}
+          {/* Position markers */}
           {Array.from({ length: fretsNum }).map((_, idx) => {
             const f   = idx + 1;
             const x   = paddingX + (idx + 0.5) * fretSpacing;
@@ -353,13 +441,11 @@ export function IntervalFretboard({ rootNote, intervalSemitones, fretsNum = 15 }
           ))}
 
           {/* Active connecting lines */}
-          {activeLines.map((pair, i) => {
+          {displayLines.map((pair, i) => {
             const x1 = noteX(pair.root.fret);   const y1 = noteY(pair.root.string);
             const x2 = noteX(pair.target.fret); const y2 = noteY(pair.target.string);
             const mx = (x1 + x2) / 2;           const my = (y1 + y2) / 2;
-            const df = pair.target.fret   - pair.root.fret;
-            const ds = Math.abs(pair.target.string - pair.root.string);
-            const label = `${df === 0 ? '±0' : df > 0 ? `+${df}` : `${df}`}f · ${ds}s`;
+            const label = lineLabel(pair);
             return (
               <g key={`line-${i}`}>
                 <line x1={x1} y1={y1} x2={x2} y2={y2}
@@ -368,7 +454,7 @@ export function IntervalFretboard({ rootNote, intervalSemitones, fretsNum = 15 }
                   opacity={pair.bString ? 0.9 : 0.8}
                   strokeDasharray={pair.bString ? '5 3' : undefined}
                 />
-                {viewMode === 'nearest' && (
+                {showLineLabels && (
                   <g>
                     <rect x={mx - 18} y={my - 8} width={36} height={14} rx={3} fill="var(--color-brand-surface)" opacity={0.92} />
                     <text x={mx} y={my + 4} textAnchor="middle" fontSize={9} fill="var(--color-brand-ink)" fontWeight="600">{label}</text>
