@@ -12,6 +12,7 @@ import { handlePrint, cn, avgChordPitch, chordPositionBucket, PositionBucket, PO
 import { addChordToActiveProgression } from '@/src/lib/progressionUtils';
 
 const INTERVALS = [
+  { name: 'Unison',      short: 'P1',  semitones: 0 },
   { name: 'Minor 2nd',   short: 'm2',  semitones: 1 },
   { name: 'Major 2nd',   short: 'M2',  semitones: 2 },
   { name: 'Minor 3rd',   short: 'm3',  semitones: 3 },

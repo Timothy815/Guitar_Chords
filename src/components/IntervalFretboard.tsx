@@ -30,9 +30,10 @@ interface ShapeCardProps {
   rootNote: string;
   targetNote: string;
   stringLabel: string;
+  rootOnTop?: boolean;
 }
 
-function ShapeCard({ offset, bString, direction, rootNote, targetNote, stringLabel }: ShapeCardProps) {
+function ShapeCard({ offset, bString, direction, rootNote, targetNote, stringLabel, rootOnTop = false }: ShapeCardProps) {
   const rootFret   = direction === 'forward' ? 3 : 3 - offset;
   const targetFret = direction === 'forward' ? 3 + offset : 3;
 
@@ -52,8 +53,9 @@ function ShapeCard({ offset, bString, direction, rootNote, targetNote, stringLab
   }
 
   const lineColor = bString ? '#f59e0b' : '#818cf8';
-  const rootY     = pY + stringSep;
-  const targetY   = pY;
+  // rootOnTop: root is on the thinner (top) string, target on the thicker (bottom) string
+  const rootY   = rootOnTop ? pY           : pY + stringSep;
+  const targetY = rootOnTop ? pY + stringSep : pY;
 
   const fromX = nx(direction === 'forward' ? rootFret   : targetFret);
   const fromY = direction === 'forward' ? rootY   : targetY;
@@ -135,8 +137,11 @@ export function IntervalFretboard({ rootNote, intervalSemitones, fretsNum = 15 }
   const targetPitchClass = (rootPitchClass + intervalSemitones) % 12;
   const targetNote       = ALL_NOTES[targetPitchClass];
 
-  const standardOffset = intervalSemitones - 5;
-  const bStringOffset  = intervalSemitones - 4;
+  const isUnison = intervalSemitones === 0;
+  // For unison, show the shape going DOWN to the next thicker string (+5 frets) — the classic
+  // guitar tuning relationship (fret 5 on string X = open on string X-1).
+  const standardOffset = isUnison ? 5 : intervalSemitones - 5;
+  const bStringOffset  = isUnison ? 4 : intervalSemitones - 4;
 
   function noteX(fret: number) {
     return fret === 0 ? paddingX / 2 : paddingX + (fret - 0.5) * fretSpacing;
@@ -305,6 +310,7 @@ export function IntervalFretboard({ rootNote, intervalSemitones, fretsNum = 15 }
       ? `Shape ${loopPairIdx + 1} of ${loopPairs.length} — click Stop or any dot to cancel`
       : 'Starting…';
     if (selected) return 'Click the same dot or the fretboard background to clear';
+    if (isUnison) return `Click any ${rootNote} dot to find same-pitch positions on other strings`;
     return `Click a ${activeNote} dot to hear and reveal its ${partnerNote} partners`;
   })();
 
@@ -327,36 +333,40 @@ export function IntervalFretboard({ rootNote, intervalSemitones, fretsNum = 15 }
           bString={false}
           direction={direction}
           rootNote={rootNote}
-          targetNote={targetNote}
+          targetNote={isUnison ? rootNote : targetNote}
           stringLabel="E/A · A/D · D/G · B/E"
+          rootOnTop={isUnison}
         />
         <ShapeCard
           offset={bStringOffset}
           bString={true}
           direction={direction}
           rootNote={rootNote}
-          targetNote={targetNote}
+          targetNote={isUnison ? rootNote : targetNote}
           stringLabel="G → B"
+          rootOnTop={isUnison}
         />
       </div>
 
       {/* ── Controls ── */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        {/* Direction toggle */}
-        <div className="flex rounded-lg overflow-hidden border border-brand-line text-sm font-medium">
-          <button
-            onClick={() => { setDirection('forward'); setSelected(null); }}
-            className={`px-4 py-1.5 transition-colors ${direction === 'forward' ? 'bg-brand-active text-white' : 'bg-brand-surface text-brand-secondary hover:bg-brand-line'}`}
-          >
-            {rootNote} → {targetNote}
-          </button>
-          <button
-            onClick={() => { setDirection('reverse'); setSelected(null); }}
-            className={`px-4 py-1.5 transition-colors ${direction === 'reverse' ? 'bg-brand-active text-white' : 'bg-brand-surface text-brand-secondary hover:bg-brand-line'}`}
-          >
-            {targetNote} → {rootNote}
-          </button>
-        </div>
+        {/* Direction toggle — hidden for unison since both notes are the same */}
+        {!isUnison && (
+          <div className="flex rounded-lg overflow-hidden border border-brand-line text-sm font-medium">
+            <button
+              onClick={() => { setDirection('forward'); setSelected(null); }}
+              className={`px-4 py-1.5 transition-colors ${direction === 'forward' ? 'bg-brand-active text-white' : 'bg-brand-surface text-brand-secondary hover:bg-brand-line'}`}
+            >
+              {rootNote} → {targetNote}
+            </button>
+            <button
+              onClick={() => { setDirection('reverse'); setSelected(null); }}
+              className={`px-4 py-1.5 transition-colors ${direction === 'reverse' ? 'bg-brand-active text-white' : 'bg-brand-surface text-brand-secondary hover:bg-brand-line'}`}
+            >
+              {targetNote} → {rootNote}
+            </button>
+          </div>
+        )}
 
         <div className="flex items-center gap-2">
           {/* View mode */}
