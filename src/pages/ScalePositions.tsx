@@ -64,27 +64,36 @@ export function ScalePositions() {
 
   const pattern = generateScalePattern(root, scaleDef);
 
-  // Play only the notes visible in the current box, sorted low to high pitch.
-  const handlePlayAscending = useCallback(async () => {
-    await initAudio();
+  // Collect unique pitches in the box window, sorted low→high.
+  const getBoxNotes = useCallback((): Array<[string, number]> => {
     const seen = new Set<number>();
-    const toPlay: Array<[string, number]> = [];
+    const notes: Array<[string, number]> = [];
     for (let s = 0; s < 6; s++) {
       const openIdx = ALL_NOTES.indexOf(STANDARD_TUNING.notes[s] as Note);
       for (let f = startFret; f <= endFret; f++) {
         const name = ALL_NOTES[(openIdx + f) % 12];
         if (pattern.notes.includes(name as Note)) {
           const pitch = OPEN_STRING_MIDI[s] + f;
-          if (!seen.has(pitch)) { seen.add(pitch); toPlay.push([name, pitch]); }
+          if (!seen.has(pitch)) { seen.add(pitch); notes.push([name, pitch]); }
         }
       }
     }
-    toPlay.sort((a, b) => a[1] - b[1]);
-    toPlay.forEach(([name, pitch], i) => {
-      const octave = Math.floor(pitch / 12) - 1;
-      setTimeout(() => playNote(`${name}${octave}`, '8n'), i * 250);
-    });
+    return notes.sort((a, b) => a[1] - b[1]);
   }, [pattern, startFret, endFret]);
+
+  const handlePlay = useCallback(async (direction: 'ascending' | 'descending' | 'arpeggio') => {
+    await initAudio();
+    const asc = getBoxNotes();
+    const desc = [...asc].reverse();
+    // arpeggio = up then back down, skipping the repeated top note
+    const seq = direction === 'descending' ? desc
+               : direction === 'arpeggio'  ? [...asc, ...desc.slice(1)]
+               : asc;
+    seq.forEach(([name, pitch], i) => {
+      const octave = Math.floor(pitch / 12) - 1;
+      setTimeout(() => playNote(`${name}${octave}`, '8n'), i * 220);
+    });
+  }, [getBoxNotes]);
 
   function startDrill() {
     const newIdx = Math.floor(Math.random() * 5);
@@ -197,12 +206,11 @@ export function ScalePositions() {
               <span className="text-brand-secondary ml-2 text-xs">(frets {fretRange[0]}–{fretRange[1]})</span>
             )}
           </p>
-          <button
-            onClick={handlePlayAscending}
-            className="text-xs px-3 py-1.5 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 transition-colors"
-          >
-            ▶ Play ascending
-          </button>
+          <div className="flex gap-1">
+            <button onClick={() => handlePlay('ascending')}  className="text-xs px-3 py-1.5 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 transition-colors">▲ Up</button>
+            <button onClick={() => handlePlay('descending')} className="text-xs px-3 py-1.5 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 transition-colors">▼ Down</button>
+            <button onClick={() => handlePlay('arpeggio')}   className="text-xs px-3 py-1.5 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 transition-colors">↕ Up &amp; Down</button>
+          </div>
         </div>
         <div className="overflow-x-auto">
           <Fretboard
