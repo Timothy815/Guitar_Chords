@@ -8,7 +8,7 @@ const OPEN_PITCHES = [40, 45, 50, 55, 59, 64]; // E2 A2 D3 G3 B3 E4
 interface Pair {
   root: { string: number; fret: number };
   target: { string: number; fret: number };
-  bString: boolean; // crosses the G(3)→B(4) boundary
+  bString: boolean;
 }
 
 interface Props {
@@ -18,9 +18,9 @@ interface Props {
 }
 
 export function IntervalFretboard({ rootNote, intervalSemitones, fretsNum = 15 }: Props) {
-  const [focusedRoot, setFocusedRoot] = useState<{ string: number; fret: number } | null>(null);
+  const [selected, setSelected] = useState<{ string: number; fret: number } | null>(null);
 
-  useEffect(() => { setFocusedRoot(null); }, [rootNote, intervalSemitones]);
+  useEffect(() => { setSelected(null); }, [rootNote, intervalSemitones]);
 
   const stringsNum = 6;
   const paddingX = 40;
@@ -35,42 +35,34 @@ export function IntervalFretboard({ rootNote, intervalSemitones, fretsNum = 15 }
 
   const rootPitchClass = ALL_NOTES.indexOf(rootNote);
   const targetPitchClass = (rootPitchClass + intervalSemitones) % 12;
+  const targetNote = ALL_NOTES[targetPitchClass];
 
   function noteX(fret: number): number {
     return fret === 0 ? paddingX / 2 : paddingX + (fret - 0.5) * fretSpacing;
   }
 
   function noteY(stringIdx: number): number {
-    // high E (string 5) drawn at top → visual index = 5 - stringIdx
     return paddingY + (5 - stringIdx) * stringSpacing;
   }
 
-  // All positions where the root pitch class appears
   const roots: Array<{ string: number; fret: number }> = [];
   for (let s = 0; s < 6; s++) {
     for (let f = 0; f <= fretsNum; f++) {
-      if ((OPEN_PITCHES[s] + f) % 12 === rootPitchClass) {
-        roots.push({ string: s, fret: f });
-      }
+      if ((OPEN_PITCHES[s] + f) % 12 === rootPitchClass) roots.push({ string: s, fret: f });
     }
   }
 
-  // For each root, compute the exact target on every string using absolute pitch
   const pairs: Pair[] = [];
   const targetMap = new Map<string, { string: number; fret: number }>();
 
   for (const root of roots) {
     const rootAbsPitch = OPEN_PITCHES[root.string] + root.fret;
     const targetAbsPitch = rootAbsPitch + intervalSemitones;
-
     for (let s2 = 0; s2 < 6; s2++) {
       const f2 = targetAbsPitch - OPEN_PITCHES[s2];
       if (f2 < 0 || f2 > fretsNum) continue;
-      if (s2 === root.string && f2 === root.fret) continue; // skip unison
-
+      if (s2 === root.string && f2 === root.fret) continue;
       targetMap.set(`${s2}-${f2}`, { string: s2, fret: f2 });
-
-      // B-string crossing: line spans the G(3)→B(4) string pair
       const sMin = Math.min(root.string, s2);
       const sMax = Math.max(root.string, s2);
       pairs.push({ root, target: { string: s2, fret: f2 }, bString: sMin === 3 && sMax === 4 });
@@ -81,151 +73,122 @@ export function IntervalFretboard({ rootNote, intervalSemitones, fretsNum = 15 }
     ({ string, fret }) => (OPEN_PITCHES[string] + fret) % 12 !== rootPitchClass
   );
 
-  // Keys of targets reachable from the focused root
-  const focusedTargetKeys = new Set<string>();
-  if (focusedRoot) {
-    for (const p of pairs) {
-      if (p.root.string === focusedRoot.string && p.root.fret === focusedRoot.fret) {
-        focusedTargetKeys.add(`${p.target.string}-${p.target.fret}`);
-      }
+  // Lines shown only when a dot is selected
+  const activeLines = selected
+    ? pairs.filter(p =>
+        (p.root.string === selected.string && p.root.fret === selected.fret) ||
+        (p.target.string === selected.string && p.target.fret === selected.fret)
+      )
+    : [];
+
+  // All keys touched by active lines (including the selected dot itself)
+  const connectedKeys = new Set<string>();
+  if (selected) {
+    for (const p of activeLines) {
+      connectedKeys.add(`${p.root.string}-${p.root.fret}`);
+      connectedKeys.add(`${p.target.string}-${p.target.fret}`);
     }
+    connectedKeys.add(`${selected.string}-${selected.fret}`);
   }
 
-  const focused = focusedRoot !== null;
-
-  function pairOpacity(pair: Pair): number {
-    if (!focused) return 1;
-    return pair.root.string === focusedRoot!.string && pair.root.fret === focusedRoot!.fret ? 1 : 0.08;
+  function isSelected(s: number, f: number) {
+    return selected?.string === s && selected?.fret === f;
   }
 
-  function rootOpacity(string: number, fret: number): number {
-    if (!focused) return 1;
-    return string === focusedRoot!.string && fret === focusedRoot!.fret ? 1 : 0.15;
+  function dotOpacity(s: number, f: number): number {
+    if (!selected) return 1;
+    return connectedKeys.has(`${s}-${f}`) ? 1 : 0.18;
   }
 
-  function targetOpacity(string: number, fret: number): number {
-    if (!focused) return 0.92;
-    return focusedTargetKeys.has(`${string}-${fret}`) ? 0.92 : 0.08;
-  }
-
-  async function handleRootClick(stringIdx: number, fret: number) {
-    if (focusedRoot?.string === stringIdx && focusedRoot?.fret === fret) {
-      setFocusedRoot(null);
-    } else {
-      setFocusedRoot({ string: stringIdx, fret: fret });
-    }
+  async function handleDotClick(s: number, f: number, e: React.MouseEvent) {
+    e.stopPropagation();
+    setSelected(isSelected(s, f) ? null : { string: s, fret: f });
     await initAudio();
-    playNote(getFretNote(stringIdx, fret), 1.5);
-  }
-
-  async function handleTargetClick(stringIdx: number, fret: number) {
-    await initAudio();
-    playNote(getFretNote(stringIdx, fret), 1.5);
+    playNote(getFretNote(s, f), 1.5);
   }
 
   return (
     <div className="w-full overflow-x-auto pb-4">
+      <p className="text-center text-sm text-brand-secondary mb-3">
+        {selected
+          ? `Showing ${rootNote}→${targetNote} relationships — click again or click the fretboard to reset`
+          : `Click any note to reveal its ${targetNote} interval partners`}
+      </p>
       <svg
         viewBox={`0 0 ${totalWidth} ${totalHeight}`}
         className="w-full h-auto drop-shadow-sm border-8 border-brand-fretborder rounded-xl min-w-[600px]"
-        onClick={() => setFocusedRoot(null)}
+        onClick={() => setSelected(null)}
       >
         {/* Fretboard background */}
-        <rect
-          x={paddingX} y={paddingY}
-          width={totalWidth - paddingX * 2}
-          height={totalHeight - paddingY * 2}
-          fill="var(--color-brand-fretboard)"
-        />
+        <rect x={paddingX} y={paddingY} width={totalWidth - paddingX * 2} height={totalHeight - paddingY * 2} fill="var(--color-brand-fretboard)" />
 
-        {/* Fret lines — fret 0 is the nut (thicker) */}
+        {/* Fret lines */}
         {Array.from({ length: fretsNum + 1 }).map((_, i) => (
-          <line
-            key={`fret-${i}`}
-            x1={paddingX + i * fretSpacing} y1={paddingY}
-            x2={paddingX + i * fretSpacing} y2={totalHeight - paddingY}
-            stroke="var(--color-brand-fret)"
-            strokeWidth={i === 0 ? 6 : 3}
-          />
+          <line key={`fret-${i}`} x1={paddingX + i * fretSpacing} y1={paddingY} x2={paddingX + i * fretSpacing} y2={totalHeight - paddingY} stroke="var(--color-brand-fret)" strokeWidth={i === 0 ? 6 : 3} />
         ))}
 
         {/* String lines */}
         {Array.from({ length: stringsNum }).map((_, i) => (
-          <line
-            key={`string-${i}`}
-            x1={paddingX} y1={paddingY + i * stringSpacing}
-            x2={totalWidth - paddingX} y2={paddingY + i * stringSpacing}
-            stroke="#AAAAAA"
-            strokeWidth={1 + (5 - i) * 0.4}
-          />
+          <line key={`string-${i}`} x1={paddingX} y1={paddingY + i * stringSpacing} x2={totalWidth - paddingX} y2={paddingY + i * stringSpacing} stroke="#AAAAAA" strokeWidth={1 + (5 - i) * 0.4} />
         ))}
 
-        {/* Fret position markers */}
+        {/* Fret markers */}
         {Array.from({ length: fretsNum }).map((_, idx) => {
           const f = idx + 1;
           const x = paddingX + (idx + 0.5) * fretSpacing;
           const midY = paddingY + ((stringsNum - 1) * stringSpacing) / 2;
-          if (markerFrets.includes(f)) {
-            return <circle key={`m-${f}`} cx={x} cy={midY} r={6} fill="var(--color-brand-fretborder)" opacity={0.6} />;
-          }
-          if (doubleMarkerFrets.includes(f)) {
-            return (
-              <g key={`m-${f}`}>
-                <circle cx={x} cy={paddingY + stringSpacing * 1.5} r={6} fill="var(--color-brand-fretborder)" opacity={0.6} />
-                <circle cx={x} cy={paddingY + stringSpacing * 3.5} r={6} fill="var(--color-brand-fretborder)" opacity={0.6} />
-              </g>
-            );
-          }
+          if (markerFrets.includes(f)) return <circle key={`m-${f}`} cx={x} cy={midY} r={6} fill="var(--color-brand-fretborder)" opacity={0.6} />;
+          if (doubleMarkerFrets.includes(f)) return (
+            <g key={`m-${f}`}>
+              <circle cx={x} cy={paddingY + stringSpacing * 1.5} r={6} fill="var(--color-brand-fretborder)" opacity={0.6} />
+              <circle cx={x} cy={paddingY + stringSpacing * 3.5} r={6} fill="var(--color-brand-fretborder)" opacity={0.6} />
+            </g>
+          );
           return null;
         })}
 
-        {/* Fret numbers at bottom */}
+        {/* Fret numbers */}
         {[3, 5, 7, 9, 12, 15].filter(f => f <= fretsNum).map(f => (
-          <text
-            key={`fn-${f}`}
-            x={paddingX + (f - 0.5) * fretSpacing}
-            y={totalHeight - 6}
-            textAnchor="middle"
-            fontSize={10}
-            fill="#888"
-          >{f}</text>
+          <text key={`fn-${f}`} x={paddingX + (f - 0.5) * fretSpacing} y={totalHeight - 6} textAnchor="middle" fontSize={10} fill="#888">{f}</text>
         ))}
 
-        {/* Connecting lines (drawn under dots) */}
-        {pairs.map((pair, i) => (
+        {/* Connecting lines — only visible after a dot is clicked */}
+        {activeLines.map((pair, i) => (
           <line
             key={`line-${i}`}
             x1={noteX(pair.root.fret)} y1={noteY(pair.root.string)}
             x2={noteX(pair.target.fret)} y2={noteY(pair.target.string)}
             stroke={pair.bString ? '#f59e0b' : '#818cf8'}
-            strokeWidth={pair.bString ? 2 : 1.5}
-            opacity={(pair.bString ? 0.75 : 0.5) * pairOpacity(pair)}
+            strokeWidth={pair.bString ? 2.5 : 2}
+            opacity={pair.bString ? 0.9 : 0.8}
             strokeDasharray={pair.bString ? '5 3' : undefined}
           />
         ))}
 
-        {/* Target dots (orange) — only when pitch class differs from root */}
+        {/* Target dots (orange) */}
         {targetPositions.map(({ string, fret }, i) => {
           const x = noteX(fret);
           const y = noteY(string);
-          const label = ALL_NOTES[targetPitchClass];
+          const op = dotOpacity(string, fret);
+          const sel = isSelected(string, fret);
           return (
-            <g key={`t-${i}`} onClick={e => { e.stopPropagation(); handleTargetClick(string, fret); }} style={{ cursor: 'pointer' }}>
-              <circle cx={x} cy={y} r={fret === 0 ? 10 : 14} fill="#f97316" stroke="white" strokeWidth={1.5} opacity={targetOpacity(string, fret)} />
-              <text x={x} y={y + 5} textAnchor="middle" fontSize={11} fontWeight="bold" fill="white" opacity={targetOpacity(string, fret)} style={{ pointerEvents: 'none' }}>{label}</text>
+            <g key={`t-${i}`} onClick={e => handleDotClick(string, fret, e)} style={{ cursor: 'pointer' }}>
+              <circle cx={x} cy={y} r={fret === 0 ? 10 : 14} fill="#f97316" stroke="white" strokeWidth={sel ? 3 : 1.5} opacity={op} />
+              <text x={x} y={y + 5} textAnchor="middle" fontSize={11} fontWeight="bold" fill="white" opacity={op} style={{ pointerEvents: 'none' }}>{targetNote}</text>
             </g>
           );
         })}
 
-        {/* Root dots (teal) — click to focus that shape */}
+        {/* Root dots (teal) */}
         {roots.map(({ string, fret }, i) => {
           const x = noteX(fret);
           const y = noteY(string);
-          const isFocused = focusedRoot?.string === string && focusedRoot?.fret === fret;
+          const op = dotOpacity(string, fret);
+          const sel = isSelected(string, fret);
           return (
-            <g key={`r-${i}`} onClick={e => { e.stopPropagation(); handleRootClick(string, fret); }} style={{ cursor: 'pointer' }}>
-              <circle cx={x} cy={y} r={fret === 0 ? 10 : 14} fill="var(--color-brand-active)" stroke="white" strokeWidth={isFocused ? 3 : 1.5} opacity={rootOpacity(string, fret)} />
-              <text x={x} y={y + 5} textAnchor="middle" fontSize={11} fontWeight="bold" fill="white" opacity={rootOpacity(string, fret)} style={{ pointerEvents: 'none' }}>{rootNote}</text>
+            <g key={`r-${i}`} onClick={e => handleDotClick(string, fret, e)} style={{ cursor: 'pointer' }}>
+              <circle cx={x} cy={y} r={fret === 0 ? 10 : 14} fill="var(--color-brand-active)" stroke="white" strokeWidth={sel ? 3 : 1.5} opacity={op} />
+              <text x={x} y={y + 5} textAnchor="middle" fontSize={11} fontWeight="bold" fill="white" opacity={op} style={{ pointerEvents: 'none' }}>{rootNote}</text>
             </g>
           );
         })}
