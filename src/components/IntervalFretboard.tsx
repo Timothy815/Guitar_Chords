@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Note } from '../types';
 import { ALL_NOTES } from '../data/guitarData';
 import { initAudio, playNote, getFretNote } from '../lib/audio';
@@ -18,6 +18,10 @@ interface Props {
 }
 
 export function IntervalFretboard({ rootNote, intervalSemitones, fretsNum = 15 }: Props) {
+  const [focusedRoot, setFocusedRoot] = useState<{ string: number; fret: number } | null>(null);
+
+  useEffect(() => { setFocusedRoot(null); }, [rootNote, intervalSemitones]);
+
   const stringsNum = 6;
   const paddingX = 40;
   const paddingY = 30;
@@ -77,7 +81,44 @@ export function IntervalFretboard({ rootNote, intervalSemitones, fretsNum = 15 }
     ({ string, fret }) => (OPEN_PITCHES[string] + fret) % 12 !== rootPitchClass
   );
 
-  async function handleClick(stringIdx: number, fret: number) {
+  // Keys of targets reachable from the focused root
+  const focusedTargetKeys = new Set<string>();
+  if (focusedRoot) {
+    for (const p of pairs) {
+      if (p.root.string === focusedRoot.string && p.root.fret === focusedRoot.fret) {
+        focusedTargetKeys.add(`${p.target.string}-${p.target.fret}`);
+      }
+    }
+  }
+
+  const focused = focusedRoot !== null;
+
+  function pairOpacity(pair: Pair): number {
+    if (!focused) return 1;
+    return pair.root.string === focusedRoot!.string && pair.root.fret === focusedRoot!.fret ? 1 : 0.08;
+  }
+
+  function rootOpacity(string: number, fret: number): number {
+    if (!focused) return 1;
+    return string === focusedRoot!.string && fret === focusedRoot!.fret ? 1 : 0.15;
+  }
+
+  function targetOpacity(string: number, fret: number): number {
+    if (!focused) return 0.92;
+    return focusedTargetKeys.has(`${string}-${fret}`) ? 0.92 : 0.08;
+  }
+
+  async function handleRootClick(stringIdx: number, fret: number) {
+    if (focusedRoot?.string === stringIdx && focusedRoot?.fret === fret) {
+      setFocusedRoot(null);
+    } else {
+      setFocusedRoot({ string: stringIdx, fret: fret });
+    }
+    await initAudio();
+    playNote(getFretNote(stringIdx, fret), 1.5);
+  }
+
+  async function handleTargetClick(stringIdx: number, fret: number) {
     await initAudio();
     playNote(getFretNote(stringIdx, fret), 1.5);
   }
@@ -87,6 +128,7 @@ export function IntervalFretboard({ rootNote, intervalSemitones, fretsNum = 15 }
       <svg
         viewBox={`0 0 ${totalWidth} ${totalHeight}`}
         className="w-full h-auto drop-shadow-sm border-8 border-brand-fretborder rounded-xl min-w-[600px]"
+        onClick={() => setFocusedRoot(null)}
       >
         {/* Fretboard background */}
         <rect
@@ -157,7 +199,7 @@ export function IntervalFretboard({ rootNote, intervalSemitones, fretsNum = 15 }
             x2={noteX(pair.target.fret)} y2={noteY(pair.target.string)}
             stroke={pair.bString ? '#f59e0b' : '#818cf8'}
             strokeWidth={pair.bString ? 2 : 1.5}
-            opacity={pair.bString ? 0.75 : 0.5}
+            opacity={(pair.bString ? 0.75 : 0.5) * pairOpacity(pair)}
             strokeDasharray={pair.bString ? '5 3' : undefined}
           />
         ))}
@@ -168,21 +210,22 @@ export function IntervalFretboard({ rootNote, intervalSemitones, fretsNum = 15 }
           const y = noteY(string);
           const label = ALL_NOTES[targetPitchClass];
           return (
-            <g key={`t-${i}`} onClick={() => handleClick(string, fret)} style={{ cursor: 'pointer' }}>
-              <circle cx={x} cy={y} r={fret === 0 ? 10 : 14} fill="#f97316" stroke="white" strokeWidth={1.5} opacity={0.92} />
-              <text x={x} y={y + 5} textAnchor="middle" fontSize={11} fontWeight="bold" fill="white" style={{ pointerEvents: 'none' }}>{label}</text>
+            <g key={`t-${i}`} onClick={e => { e.stopPropagation(); handleTargetClick(string, fret); }} style={{ cursor: 'pointer' }}>
+              <circle cx={x} cy={y} r={fret === 0 ? 10 : 14} fill="#f97316" stroke="white" strokeWidth={1.5} opacity={targetOpacity(string, fret)} />
+              <text x={x} y={y + 5} textAnchor="middle" fontSize={11} fontWeight="bold" fill="white" opacity={targetOpacity(string, fret)} style={{ pointerEvents: 'none' }}>{label}</text>
             </g>
           );
         })}
 
-        {/* Root dots (teal) */}
+        {/* Root dots (teal) — click to focus that shape */}
         {roots.map(({ string, fret }, i) => {
           const x = noteX(fret);
           const y = noteY(string);
+          const isFocused = focusedRoot?.string === string && focusedRoot?.fret === fret;
           return (
-            <g key={`r-${i}`} onClick={() => handleClick(string, fret)} style={{ cursor: 'pointer' }}>
-              <circle cx={x} cy={y} r={fret === 0 ? 10 : 14} fill="var(--color-brand-active)" stroke="white" strokeWidth={1.5} />
-              <text x={x} y={y + 5} textAnchor="middle" fontSize={11} fontWeight="bold" fill="white" style={{ pointerEvents: 'none' }}>{rootNote}</text>
+            <g key={`r-${i}`} onClick={e => { e.stopPropagation(); handleRootClick(string, fret); }} style={{ cursor: 'pointer' }}>
+              <circle cx={x} cy={y} r={fret === 0 ? 10 : 14} fill="var(--color-brand-active)" stroke="white" strokeWidth={isFocused ? 3 : 1.5} opacity={rootOpacity(string, fret)} />
+              <text x={x} y={y + 5} textAnchor="middle" fontSize={11} fontWeight="bold" fill="white" opacity={rootOpacity(string, fret)} style={{ pointerEvents: 'none' }}>{rootNote}</text>
             </g>
           );
         })}
