@@ -12,6 +12,7 @@ interface Pair {
 }
 
 type Direction = 'forward' | 'reverse';
+type ViewMode  = 'all' | 'adjacent' | 'nearest';
 
 interface Props {
   rootNote: Note;
@@ -113,6 +114,7 @@ function ShapeCard({ offset, bString, direction, rootNote, targetNote, stringLab
 export function IntervalFretboard({ rootNote, intervalSemitones, fretsNum = 15 }: Props) {
   const [selected, setSelected]   = useState<{ string: number; fret: number } | null>(null);
   const [direction, setDirection] = useState<Direction>('forward');
+  const [viewMode,  setViewMode]  = useState<ViewMode>('adjacent');
 
   useEffect(() => { setSelected(null); }, [rootNote, intervalSemitones]);
 
@@ -169,14 +171,36 @@ export function IntervalFretboard({ rootNote, intervalSemitones, fretsNum = 15 }
     ({ string, fret }) => (OPEN_PITCHES[string] + fret) % 12 !== rootPitchClass
   );
 
-  // Lines shown only from the selected dot, filtered by direction
-  const activeLines = selected
+  // Euclidean distance in SVG pixels between root and target dots
+  function pairDistance(p: Pair): number {
+    const dx = noteX(p.target.fret) - noteX(p.root.fret);
+    const dy = noteY(p.target.string) - noteY(p.root.string);
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  // Lines from the selected dot, filtered by direction then by viewMode
+  const candidateLines = selected
     ? pairs.filter(p =>
         direction === 'forward'
           ? p.root.string   === selected.string && p.root.fret   === selected.fret
           : p.target.string === selected.string && p.target.fret === selected.fret
       )
     : [];
+
+  const activeLines = (() => {
+    if (!selected || candidateLines.length === 0) return [];
+    if (viewMode === 'all') return candidateLines;
+    if (viewMode === 'adjacent')
+      return candidateLines.filter(p => Math.abs(p.root.string - p.target.string) === 1);
+    // nearest: single shortest hypotenuse
+    let nearest = candidateLines[0];
+    let minDist = pairDistance(nearest);
+    for (const p of candidateLines.slice(1)) {
+      const d = pairDistance(p);
+      if (d < minDist) { minDist = d; nearest = p; }
+    }
+    return [nearest];
+  })();
 
   const connectedKeys = new Set<string>();
   if (selected) {
@@ -203,11 +227,22 @@ export function IntervalFretboard({ rootNote, intervalSemitones, fretsNum = 15 }
     playNote(getFretNote(s, f), 1.5);
   }
 
-  const activeNote = direction === 'forward' ? rootNote : targetNote;
+  const activeNote  = direction === 'forward' ? rootNote   : targetNote;
   const partnerNote = direction === 'forward' ? targetNote : rootNote;
-  const hint = selected
-    ? 'Click the same dot or the fretboard background to clear'
-    : `Click a ${activeNote} dot to reveal its ${partnerNote} partners`;
+
+  // Nearest-mode annotation: fret/string deltas for the single active line
+  const nearestLabel = (() => {
+    if (viewMode !== 'nearest' || activeLines.length !== 1) return null;
+    const p  = activeLines[0];
+    const df = p.target.fret   - p.root.fret;
+    const ds = p.target.string - p.root.string;
+    return `Nearest: ${df === 0 ? 'same fret' : `${df > 0 ? '+' : ''}${df} frets`}, ${Math.abs(ds)} string${Math.abs(ds) !== 1 ? 's' : ''} ${ds > 0 ? '↑' : '↓'}`;
+  })();
+
+  const hint = nearestLabel
+    ?? (selected
+      ? 'Click the same dot or the fretboard background to clear'
+      : `Click a ${activeNote} dot to reveal its ${partnerNote} partners`);
 
   return (
     <div className="w-full space-y-5">
@@ -232,8 +267,9 @@ export function IntervalFretboard({ rootNote, intervalSemitones, fretsNum = 15 }
         />
       </div>
 
-      {/* ── Direction toggle + hint ── */}
+      {/* ── Controls ── */}
       <div className="flex flex-wrap items-center justify-between gap-3">
+        {/* Direction */}
         <div className="flex rounded-lg overflow-hidden border border-brand-line text-sm font-medium">
           <button
             onClick={() => { setDirection('forward'); setSelected(null); }}
@@ -248,8 +284,23 @@ export function IntervalFretboard({ rootNote, intervalSemitones, fretsNum = 15 }
             {targetNote} → {rootNote}
           </button>
         </div>
-        <p className="text-sm text-brand-secondary">{hint}</p>
+
+        {/* View mode */}
+        <div className="flex rounded-lg overflow-hidden border border-brand-line text-sm font-medium">
+          {(['all', 'adjacent', 'nearest'] as ViewMode[]).map(m => (
+            <button
+              key={m}
+              onClick={() => { setViewMode(m); setSelected(null); }}
+              className={`px-3 py-1.5 capitalize transition-colors ${viewMode === m ? 'bg-brand-active text-white' : 'bg-brand-surface text-brand-secondary hover:bg-brand-line'}`}
+            >
+              {m}
+            </button>
+          ))}
+        </div>
       </div>
+
+      {/* Hint / nearest annotation */}
+      <p className="text-sm text-brand-secondary -mt-2">{hint}</p>
 
       {/* ── Interactive fretboard ── */}
       <div className="overflow-x-auto pb-2">
@@ -302,16 +353,30 @@ export function IntervalFretboard({ rootNote, intervalSemitones, fretsNum = 15 }
           ))}
 
           {/* Active connecting lines */}
-          {activeLines.map((pair, i) => (
-            <line key={`line-${i}`}
-              x1={noteX(pair.root.fret)}   y1={noteY(pair.root.string)}
-              x2={noteX(pair.target.fret)} y2={noteY(pair.target.string)}
-              stroke={pair.bString ? '#f59e0b' : '#818cf8'}
-              strokeWidth={pair.bString ? 2.5 : 2}
-              opacity={pair.bString ? 0.9 : 0.8}
-              strokeDasharray={pair.bString ? '5 3' : undefined}
-            />
-          ))}
+          {activeLines.map((pair, i) => {
+            const x1 = noteX(pair.root.fret);   const y1 = noteY(pair.root.string);
+            const x2 = noteX(pair.target.fret); const y2 = noteY(pair.target.string);
+            const mx = (x1 + x2) / 2;           const my = (y1 + y2) / 2;
+            const df = pair.target.fret   - pair.root.fret;
+            const ds = Math.abs(pair.target.string - pair.root.string);
+            const label = `${df === 0 ? '±0' : df > 0 ? `+${df}` : `${df}`}f · ${ds}s`;
+            return (
+              <g key={`line-${i}`}>
+                <line x1={x1} y1={y1} x2={x2} y2={y2}
+                  stroke={pair.bString ? '#f59e0b' : '#818cf8'}
+                  strokeWidth={pair.bString ? 2.5 : 2}
+                  opacity={pair.bString ? 0.9 : 0.8}
+                  strokeDasharray={pair.bString ? '5 3' : undefined}
+                />
+                {viewMode === 'nearest' && (
+                  <g>
+                    <rect x={mx - 18} y={my - 8} width={36} height={14} rx={3} fill="var(--color-brand-surface)" opacity={0.92} />
+                    <text x={mx} y={my + 4} textAnchor="middle" fontSize={9} fill="var(--color-brand-ink)" fontWeight="600">{label}</text>
+                  </g>
+                )}
+              </g>
+            );
+          })}
 
           {/* Target dots (orange) — clickable in reverse mode */}
           {targetPositions.map(({ string, fret }, i) => {
