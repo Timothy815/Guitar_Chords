@@ -137,7 +137,7 @@ export function ScalePositions() {
         </div>
 
         <div className="space-y-2">
-          <label className="text-xs font-medium text-brand-secondary">Scale</label>
+          <label className="block text-xs font-medium text-brand-secondary">Scale</label>
           <select
             value={scaleIdx}
             onChange={e => setScaleIdx(Number(e.target.value))}
