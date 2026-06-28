@@ -138,22 +138,15 @@ export function ScalePositions() {
 
         <div className="space-y-1">
           <label className="text-xs font-medium text-brand-secondary">Scale</label>
-          <div className="flex gap-1 flex-wrap">
+          <select
+            value={scaleIdx}
+            onChange={e => setScaleIdx(Number(e.target.value))}
+            className="h-8 px-2 rounded border border-brand-line bg-brand-surface text-brand-ink text-xs font-medium focus:outline-none focus:border-brand-primary transition-colors"
+          >
             {COMMON_SCALES.map((s, i) => (
-              <button
-                key={s.name}
-                onClick={() => setScaleIdx(i)}
-                className={cn(
-                  'px-3 h-8 rounded text-xs font-medium border transition-colors',
-                  scaleIdx === i
-                    ? 'bg-brand-primary text-white border-brand-primary'
-                    : 'border-brand-line text-brand-ink hover:border-brand-primary/60',
-                )}
-              >
-                {s.name.split(' ')[0]}
-              </button>
+              <option key={s.name} value={i}>{s.name}</option>
             ))}
-          </div>
+          </select>
         </div>
       </div>
 
