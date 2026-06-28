@@ -939,35 +939,11 @@ export function Dictionary() {
               )}
 
               {mode === 'intervals' ? (
-                <div className="w-full space-y-6">
-                  <IntervalFretboard
-                    rootNote={selectedKey}
-                    intervalSemitones={selectedInterval}
-                    fretsNum={15}
-                  />
-                  <div className="flex flex-wrap items-center gap-6 justify-center">
-                    <div className="flex items-center gap-2 text-sm">
-                      <div className="w-4 h-4 rounded-full" style={{ background: 'var(--color-brand-active)' }} />
-                      <span className="text-brand-secondary">Root ({selectedKey})</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <div className="w-4 h-4 rounded-full bg-orange-500" />
-                      <span className="text-brand-secondary">Interval ({ALL_NOTES[(ALL_NOTES.indexOf(selectedKey) + selectedInterval) % 12]})</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <svg width="28" height="10"><line x1="0" y1="5" x2="28" y2="5" stroke="#818cf8" strokeWidth="2" opacity="0.8" /></svg>
-                      <span className="text-brand-secondary">Standard shape</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <svg width="28" height="10"><line x1="0" y1="5" x2="28" y2="5" stroke="#f59e0b" strokeWidth="2" strokeDasharray="5 3" /></svg>
-                      <span className="text-brand-secondary">B-string shape</span>
-                    </div>
-                  </div>
-                  <div className="bg-brand-bg border border-brand-line rounded-xl p-4 text-sm max-w-2xl mx-auto">
-                    <p className="font-semibold text-brand-ink mb-1">The B-string exception</p>
-                    <p className="text-brand-secondary">Adjacent string pairs are tuned a Perfect 4th apart — except G→B, which is a Major 3rd (4 semitones). Every interval shape shifts by 1 fret when the higher note lands on the B string. Amber dashed lines highlight these pairs.</p>
-                  </div>
-                </div>
+                <IntervalFretboard
+                  rootNote={selectedKey}
+                  intervalSemitones={selectedInterval}
+                  fretsNum={15}
+                />
               ) : ((mode === 'chords' && activeChord) || (mode === 'scales' && activeScale) || mode === 'identify') ? (
                 <>
                   <div className="w-full" onMouseEnter={initAudio}>
