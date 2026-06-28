@@ -83,7 +83,7 @@ export function Dictionary() {
   const [identifiedFrets, setIdentifiedFrets] = useState<number[]>([-1,-1,-1,-1,-1,-1]);
   const [addedToast, setAddedToast] = useState<string | null>(null);
 
-  // Seed the Identify tab from URL params when navigating here from another page (e.g. Circle → Explore →).
+  // Seed the Identify tab on mount: URL params take priority, then localStorage.
   useEffect(() => {
     const fretsParam = searchParams.get('frets');
     if (searchParams.get('mode') === 'identify' && fretsParam) {
@@ -91,9 +91,24 @@ export function Dictionary() {
       if (parsed.length === 6 && parsed.every(f => Number.isFinite(f))) {
         setMode('identify');
         setIdentifiedFrets(parsed);
+        return;
       }
     }
+    const saved = localStorage.getItem('guitarmaster_identifiedFrets');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length === 6 && parsed.every((f: unknown) => typeof f === 'number')) {
+          setIdentifiedFrets(parsed as number[]);
+        }
+      } catch {}
+    }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Persist identified frets so they survive navigation away and back.
+  useEffect(() => {
+    localStorage.setItem('guitarmaster_identifiedFrets', JSON.stringify(identifiedFrets));
+  }, [identifiedFrets]);
   const [scaffoldLevel, setScaffoldLevel] = useState<0 | 1 | 2>(0);
   const [chordSortOrder, setChordSortOrder] = useState<'asc' | 'desc' | null>(null);
   const [positionFilter, setPositionFilter] = useState<PositionBucket>('all');
@@ -995,17 +1010,38 @@ export function Dictionary() {
                          </>
                        )}
                        {mode === 'identify' && identifiedChordNames.length > 0 && (
-                         <button
-                           onClick={() => handleAddToProgression({
-                             name: identifiedChordNames[0],
-                             frets: identifiedFrets,
-                             fingers: identifiedFrets.map(f => (f === -1 ? -1 : 0)) as Finger[],
-                           })}
-                           className="text-xs px-2 py-1 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink transition-colors"
-                           title="Add identified chord to progression"
-                         >
-                           + Progression
-                         </button>
+                         <>
+                           <button
+                             onClick={() => handleAddToProgression({
+                               name: identifiedChordNames[0],
+                               frets: identifiedFrets,
+                               fingers: identifiedFrets.map(f => (f === -1 ? -1 : 0)) as Finger[],
+                             })}
+                             className="text-xs px-2 py-1 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink transition-colors"
+                             title="Add identified chord to progression"
+                           >
+                             + Progression
+                           </button>
+                           {navChords.length > 0 && (() => {
+                             const target = navIdx >= 0 ? navChords[navIdx] : navChords[0];
+                             const base = identifiedChordNames[0].split('/')[0];
+                             const m = base.match(/^([A-G][#b])(.*)/) ?? base.match(/^([A-G])(.*)/);
+                             if (!m) return null;
+                             const flatToSharp: Record<string, string> = { Db:'C#', Eb:'D#', Fb:'E', Gb:'F#', Ab:'G#', Bb:'A#', Cb:'B' };
+                             const root = (flatToSharp[m[1]] ?? m[1]) as Note;
+                             const origIdx = (COMMON_CHORDS[root] ?? []).findIndex(c => c.name === target.name);
+                             if (origIdx < 0) return null;
+                             return (
+                               <button
+                                 onClick={() => { setSelectedKey(root); setSelectedChordIdx(origIdx); setMode('chords'); }}
+                                 className="text-xs px-2 py-1 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink transition-colors"
+                                 title="Find this chord in the Dictionary"
+                               >
+                                 View in Chords →
+                               </button>
+                             );
+                           })()}
+                         </>
                        )}
                     </div>
                  )}
