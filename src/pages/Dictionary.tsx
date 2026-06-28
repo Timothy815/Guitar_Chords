@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Chord as TonalChord } from '@tonaljs/tonal';
 import { Fretboard } from '../components/Fretboard';
+import { IntervalFretboard } from '../components/IntervalFretboard';
 import { PianoKeyboard } from '../components/PianoKeyboard';
 import { COMMON_CHORDS, COMMON_SCALES, generateScalePattern, ALL_NOTES, ScaleCategory } from '../data/guitarData';
 import { playStrum, playArpeggio, getFretNote, initAudio, playNote, setEffects } from '../lib/audio';
@@ -10,9 +11,24 @@ import { ChordShape, Note, TUNINGS, Tuning, Finger } from '../types';
 import { handlePrint, cn, avgChordPitch, chordPositionBucket, PositionBucket, POSITION_LABELS } from '../lib/utils';
 import { addChordToActiveProgression } from '@/src/lib/progressionUtils';
 
+const INTERVALS = [
+  { name: 'Minor 2nd',   short: 'm2',  semitones: 1 },
+  { name: 'Major 2nd',   short: 'M2',  semitones: 2 },
+  { name: 'Minor 3rd',   short: 'm3',  semitones: 3 },
+  { name: 'Major 3rd',   short: 'M3',  semitones: 4 },
+  { name: 'Perfect 4th', short: 'P4',  semitones: 5 },
+  { name: 'Tritone',     short: 'TT',  semitones: 6 },
+  { name: 'Perfect 5th', short: 'P5',  semitones: 7 },
+  { name: 'Minor 6th',   short: 'm6',  semitones: 8 },
+  { name: 'Major 6th',   short: 'M6',  semitones: 9 },
+  { name: 'Minor 7th',   short: 'm7',  semitones: 10 },
+  { name: 'Major 7th',   short: 'M7',  semitones: 11 },
+  { name: 'Octave',      short: '8ve', semitones: 12 },
+];
+
 export function Dictionary() {
   const navigate = useNavigate();
-  const [mode, setMode] = useState<'chords' | 'scales' | 'identify'>('chords');
+  const [mode, setMode] = useState<'chords' | 'scales' | 'identify' | 'intervals'>('chords');
   const [currentTuning, setCurrentTuning] = useState<Tuning>(TUNINGS['Standard']);
   const [selectedKey, setSelectedKey] = useState<Note>('C');
   const [selectedChordIdx, setSelectedChordIdx] = useState<number>(0);
@@ -25,6 +41,7 @@ export function Dictionary() {
   const [chordSortOrder, setChordSortOrder] = useState<'asc' | 'desc' | null>(null);
   const [positionFilter, setPositionFilter] = useState<PositionBucket>('all');
   const [scaleCategory, setScaleCategory] = useState<ScaleCategory | 'All'>('All');
+  const [selectedInterval, setSelectedInterval] = useState<number>(7); // Perfect 5th
 
   function handleAddToProgression(chord: ChordShape) {
     const ok = addChordToActiveProgression(chord);
@@ -510,11 +527,17 @@ export function Dictionary() {
            >
              Scales
            </button>
-           <button 
+           <button
              onClick={() => setMode('identify')}
              className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${mode === 'identify' ? 'bg-brand-surface text-brand-ink shadow-sm' : 'text-brand-secondary hover:text-brand-ink'}`}
            >
              Identify
+           </button>
+           <button
+             onClick={() => setMode('intervals')}
+             className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${mode === 'intervals' ? 'bg-brand-surface text-brand-ink shadow-sm' : 'text-brand-secondary hover:text-brand-ink'}`}
+           >
+             Intervals
            </button>
         </div>
       </div>
@@ -670,7 +693,7 @@ export function Dictionary() {
                     <div>
                        <h3 className="text-sm font-bold text-brand-secondary uppercase tracking-wider mb-2">Chord Identifier</h3>
                        <p className="text-xs text-brand-secondary mb-4">Click on the fretboard dots to select notes. We will identify the chord being formed.</p>
-                       <button 
+                       <button
                          onClick={() => setIdentifiedFrets([-1,-1,-1,-1,-1,-1])}
                          className="w-full py-2 bg-brand-surface border border-brand-line text-brand-ink rounded-md hover:border-brand-primary text-sm font-medium transition-colors"
                        >
@@ -678,6 +701,28 @@ export function Dictionary() {
                        </button>
                     </div>
                  </>
+              )}
+
+              {mode === 'intervals' && (
+                <>
+                  <h3 className="text-sm font-bold text-brand-secondary uppercase tracking-wider pt-4">Interval</h3>
+                  <div className="flex flex-wrap gap-1.5">
+                    {INTERVALS.map(({ name, short, semitones }) => (
+                      <button
+                        key={semitones}
+                        onClick={() => setSelectedInterval(semitones)}
+                        title={name}
+                        className={cn('px-2.5 py-1 rounded text-xs font-bold transition-colors',
+                          selectedInterval === semitones
+                            ? 'bg-brand-primary text-white'
+                            : 'bg-brand-bg border border-brand-line text-brand-secondary hover:text-brand-ink'
+                        )}
+                      >
+                        {short}
+                      </button>
+                    ))}
+                  </div>
+                </>
               )}
 
               <div className="w-full h-px bg-brand-line my-4" />
@@ -811,9 +856,10 @@ export function Dictionary() {
               
               <div className="w-full flex justify-between items-center mb-10 print:mb-4">
                  <h2 className="text-3xl font-serif text-brand-ink">
-                    {mode === 'chords' ? activeChord?.name : mode === 'scales' ? activeScale?.name : (
-                      identifiedChordNames.length > 0 ? identifiedChordNames.join(' or ') : 'Select notes to identify chord'
-                    )}
+                    {mode === 'chords' ? activeChord?.name
+                      : mode === 'scales' ? activeScale?.name
+                      : mode === 'intervals' ? `${selectedKey} — ${INTERVALS.find(i => i.semitones === selectedInterval)?.name ?? ''}`
+                      : identifiedChordNames.length > 0 ? identifiedChordNames.join(' or ') : 'Select notes to identify chord'}
                  </h2>
                  
                  {((mode === 'chords' && activeChord) || mode === 'identify') && (
@@ -892,7 +938,37 @@ export function Dictionary() {
                 </div>
               )}
 
-              {((mode === 'chords' && activeChord) || (mode === 'scales' && activeScale) || mode === 'identify') ? (
+              {mode === 'intervals' ? (
+                <div className="w-full space-y-6">
+                  <IntervalFretboard
+                    rootNote={selectedKey}
+                    intervalSemitones={selectedInterval}
+                    fretsNum={15}
+                  />
+                  <div className="flex flex-wrap items-center gap-6 justify-center">
+                    <div className="flex items-center gap-2 text-sm">
+                      <div className="w-4 h-4 rounded-full" style={{ background: 'var(--color-brand-active)' }} />
+                      <span className="text-brand-secondary">Root ({selectedKey})</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <div className="w-4 h-4 rounded-full bg-orange-500" />
+                      <span className="text-brand-secondary">Interval ({ALL_NOTES[(ALL_NOTES.indexOf(selectedKey) + selectedInterval) % 12]})</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <svg width="28" height="10"><line x1="0" y1="5" x2="28" y2="5" stroke="#818cf8" strokeWidth="2" opacity="0.8" /></svg>
+                      <span className="text-brand-secondary">Standard shape</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <svg width="28" height="10"><line x1="0" y1="5" x2="28" y2="5" stroke="#f59e0b" strokeWidth="2" strokeDasharray="5 3" /></svg>
+                      <span className="text-brand-secondary">B-string shape</span>
+                    </div>
+                  </div>
+                  <div className="bg-brand-bg border border-brand-line rounded-xl p-4 text-sm max-w-2xl mx-auto">
+                    <p className="font-semibold text-brand-ink mb-1">The B-string exception</p>
+                    <p className="text-brand-secondary">Adjacent string pairs are tuned a Perfect 4th apart — except G→B, which is a Major 3rd (4 semitones). Every interval shape shifts by 1 fret when the higher note lands on the B string. Amber dashed lines highlight these pairs.</p>
+                  </div>
+                </div>
+              ) : ((mode === 'chords' && activeChord) || (mode === 'scales' && activeScale) || mode === 'identify') ? (
                 <>
                   <div className="w-full" onMouseEnter={initAudio}>
                      <Fretboard
