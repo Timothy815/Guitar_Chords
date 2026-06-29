@@ -9,7 +9,6 @@ import {
   generateChordRound, generateIntervalRound, generateStudyDeck, generateFretboardRound,
   buildFretboardNotePool, makeFretboardRound, buildKeyboardNotePool,
   chordToNotes, playOptionAudio, playStudyCard,
-  generateScaleDrillRound, ScaleDrillRound,
   generateIntervalFretboardRound, IntervalFretboardRound,
 } from '../lib/earTraining';
 import { loadSRSData, saveSRSData, updateSRS, getSRSCardId, defaultSRSState, buildSRSDeck } from '@/src/lib/srs';
@@ -105,7 +104,6 @@ export function EarTraining() {
   const [huntSessionRounds, setHuntSessionRounds] = useState<Array<{ firstTapSemitones: number; tapCount: number }>>([]);
   const practiceImportRef = useRef<HTMLInputElement>(null);
   const [practiceImportMsg, setPracticeImportMsg] = useState<string | null>(null);
-  const [scaleDrillRound, setScaleDrillRound] = useState<ScaleDrillRound>(() => generateScaleDrillRound());
   const [intervalFretboardRound, setIntervalFretboardRound] = useState<IntervalFretboardRound>(() => generateIntervalFretboardRound());
 
   const FRETS_FOR: Record<DifficultyLevel, number> = { Beginner: 6, Intermediate: 10, Advanced: 13 };
@@ -335,7 +333,6 @@ export function EarTraining() {
   function handleScaleDrillMode() {
     const next = { ...settings, mode: 'scaleDrill' as const };
     setSettings(next);
-    setScaleDrillRound(generateScaleDrillRound());
   }
 
   function handleScaleDrillComplete(wasCorrect: boolean) {
@@ -345,7 +342,6 @@ export function EarTraining() {
       total: s.total + 1,
       streak: wasCorrect ? s.streak + 1 : 0,
     }));
-    setScaleDrillRound(generateScaleDrillRound());
   }
 
   function handleIntervalFretboardMode() {
@@ -812,64 +808,66 @@ export function EarTraining() {
         {settings.settingsPanelOpen && (
           <div className="px-4 pb-4 space-y-4 border-t border-brand-line">
             {/* Difficulty presets */}
-            <div className="pt-3">
-              <p className="text-xs font-semibold uppercase tracking-widest text-brand-secondary mb-2">Difficulty</p>
-              <div className="flex gap-2 flex-wrap">
-                {(['Beginner', 'Intermediate', 'Advanced'] as DifficultyLevel[]).map(level => (
-                  <button
-                    key={level}
-                    onClick={() => settings.mode === 'fretboard' ? handleFretboardDifficulty(level) : handleDifficulty(level)}
-                    className={cn(
-                      'px-3 py-1.5 rounded-md text-xs font-medium border transition-colors',
-                      settings.mode === 'fretboard' && (fretboardSubMode === 'guess' || fretboardSubMode === 'sing') && difficulty === level && fretboardSubMode !== 'singhunt'
-                        ? 'border-brand-primary text-brand-primary bg-brand-primary/10'
-                        : 'border-brand-line text-brand-secondary hover:border-brand-primary hover:text-brand-primary'
-                    )}
-                  >
-                    {level}
-                  </button>
-                ))}
-                {settings.mode === 'fretboard' && (
-                  <button
-                    onClick={() => handleFretboardDifficulty('Hunt')}
-                    className={cn(
-                      'px-3 py-1.5 rounded-md text-xs font-medium border transition-colors',
-                      fretboardSubMode === 'hunt'
-                        ? 'border-brand-primary text-brand-primary bg-brand-primary/10'
-                        : 'border-brand-line text-brand-secondary hover:border-brand-primary hover:text-brand-primary'
-                    )}
-                  >
-                    Hunt
-                  </button>
-                )}
-                {settings.mode === 'fretboard' && (
-                  <button
-                    onClick={() => { setFretboardSubMode('sing'); setHuntSessionRounds([]); advanceRound(); }}
-                    className={cn(
-                      'px-3 py-1.5 rounded-md text-xs font-medium border transition-colors',
-                      fretboardSubMode === 'sing'
-                        ? 'border-brand-primary text-brand-primary bg-brand-primary/10'
-                        : 'border-brand-line text-brand-secondary hover:border-brand-primary hover:text-brand-primary'
-                    )}
-                  >
-                    Sing
-                  </button>
-                )}
-                {settings.mode === 'fretboard' && (
-                  <button
-                    onClick={() => handleFretboardDifficulty('SingHunt')}
-                    className={cn(
-                      'px-3 py-1.5 rounded-md text-xs font-medium border transition-colors',
-                      fretboardSubMode === 'singhunt'
-                        ? 'border-brand-primary text-brand-primary bg-brand-primary/10'
-                        : 'border-brand-line text-brand-secondary hover:border-brand-primary hover:text-brand-primary'
-                    )}
-                  >
-                    Sing+Hunt
-                  </button>
-                )}
+            {settings.mode !== 'scaleDrill' && (
+              <div className="pt-3">
+                <p className="text-xs font-semibold uppercase tracking-widest text-brand-secondary mb-2">Difficulty</p>
+                <div className="flex gap-2 flex-wrap">
+                  {(['Beginner', 'Intermediate', 'Advanced'] as DifficultyLevel[]).map(level => (
+                    <button
+                      key={level}
+                      onClick={() => settings.mode === 'fretboard' ? handleFretboardDifficulty(level) : handleDifficulty(level)}
+                      className={cn(
+                        'px-3 py-1.5 rounded-md text-xs font-medium border transition-colors',
+                        settings.mode === 'fretboard' && (fretboardSubMode === 'guess' || fretboardSubMode === 'sing') && difficulty === level && fretboardSubMode !== 'singhunt'
+                          ? 'border-brand-primary text-brand-primary bg-brand-primary/10'
+                          : 'border-brand-line text-brand-secondary hover:border-brand-primary hover:text-brand-primary'
+                      )}
+                    >
+                      {level}
+                    </button>
+                  ))}
+                  {settings.mode === 'fretboard' && (
+                    <button
+                      onClick={() => handleFretboardDifficulty('Hunt')}
+                      className={cn(
+                        'px-3 py-1.5 rounded-md text-xs font-medium border transition-colors',
+                        fretboardSubMode === 'hunt'
+                          ? 'border-brand-primary text-brand-primary bg-brand-primary/10'
+                          : 'border-brand-line text-brand-secondary hover:border-brand-primary hover:text-brand-primary'
+                      )}
+                    >
+                      Hunt
+                    </button>
+                  )}
+                  {settings.mode === 'fretboard' && (
+                    <button
+                      onClick={() => { setFretboardSubMode('sing'); setHuntSessionRounds([]); advanceRound(); }}
+                      className={cn(
+                        'px-3 py-1.5 rounded-md text-xs font-medium border transition-colors',
+                        fretboardSubMode === 'sing'
+                          ? 'border-brand-primary text-brand-primary bg-brand-primary/10'
+                          : 'border-brand-line text-brand-secondary hover:border-brand-primary hover:text-brand-primary'
+                      )}
+                    >
+                      Sing
+                    </button>
+                  )}
+                  {settings.mode === 'fretboard' && (
+                    <button
+                      onClick={() => handleFretboardDifficulty('SingHunt')}
+                      className={cn(
+                        'px-3 py-1.5 rounded-md text-xs font-medium border transition-colors',
+                        fretboardSubMode === 'singhunt'
+                          ? 'border-brand-primary text-brand-primary bg-brand-primary/10'
+                          : 'border-brand-line text-brand-secondary hover:border-brand-primary hover:text-brand-primary'
+                      )}
+                    >
+                      Sing+Hunt
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Drone controls — fretboard mode only */}
             {settings.mode === 'fretboard' && (

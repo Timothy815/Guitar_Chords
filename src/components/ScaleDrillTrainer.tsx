@@ -63,7 +63,7 @@ export function ScaleDrillTrainer({ score, onComplete }: ScaleDrillTrainerProps)
     await initAudio();
     // Collect all fretted positions of scale notes sorted by pitch (ascending)
     const notes: { note: string; midi: number }[] = [];
-    STANDARD_TUNING.notes.forEach((openNote, stringIdx) => {
+    STANDARD_TUNING.notes.forEach((_openNote, stringIdx) => {
       for (let fret = 0; fret <= 12; fret++) {
         const noteStr = getFretNote(stringIdx, fret);
         const noteName = noteStr.replace(/[0-9]/g, '');
