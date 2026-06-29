@@ -11,6 +11,7 @@ import { ChordShape, Note, TUNINGS, Tuning, Finger } from '../types';
 import { handlePrint, cn, avgChordPitch, chordPositionBucket, PositionBucket, POSITION_LABELS } from '../lib/utils';
 import { addChordToActiveProgression } from '@/src/lib/progressionUtils';
 import { TheoryReference } from '../components/TheoryReference';
+import { STANDARD_TUNING } from '../types';
 
 function getNavigationChords(tonalName: string): ChordShape[] {
   const base = tonalName.split('/')[0];
@@ -71,6 +72,15 @@ const INTERVALS = [
   { name: 'Octave',      short: '8ve', semitones: 12 },
 ];
 
+const SCALE_POSITION_BOXES = [
+  { id: 'pos1', label: 'Position 1 (E-shape)', startOff: -1 },
+  { id: 'pos2', label: 'Position 2 (D-shape)', startOff: 2 },
+  { id: 'pos3', label: 'Position 3 (C-shape)', startOff: 4 },
+  { id: 'pos4', label: 'Position 4 (A-shape)', startOff: 7 },
+  { id: 'pos5', label: 'Position 5 (G-shape)', startOff: 9 },
+] as const;
+const SCALE_BOX_SPAN = 4;
+
 export function Dictionary() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -80,7 +90,7 @@ export function Dictionary() {
   const [selectedKey, setSelectedKey] = useState<Note>('C');
   const [selectedChordIdx, setSelectedChordIdx] = useState<number>(0);
   const [selectedScaleIdx, setSelectedScaleIdx] = useState<number>(0);
-  const [scaleFretRange, setScaleFretRange] = useState<number[]>([]);
+  const [scalePositionSelection, setScalePositionSelection] = useState<string>('all');
   const [playingNotes, setPlayingNotes] = useState<Set<string>>(new Set());
   const [identifiedFrets, setIdentifiedFrets] = useState<number[]>([-1,-1,-1,-1,-1,-1]);
   const [addedToast, setAddedToast] = useState<string | null>(null);
@@ -214,6 +224,29 @@ export function Dictionary() {
     () => activeScaleBase ? generateScalePattern(selectedKey, activeScaleBase) : null,
     [selectedKey, selectedScaleIdx] // eslint-disable-line react-hooks/exhaustive-deps
   );
+
+  const scalePositionOptions = useMemo(() => {
+    const lowENoteIdx = ALL_NOTES.indexOf(STANDARD_TUNING.notes[0] as Note);
+    const rootNoteIdx = ALL_NOTES.indexOf(selectedKey);
+    const rootFret = (rootNoteIdx - lowENoteIdx + 12) % 12;
+    return SCALE_POSITION_BOXES.map(box => {
+      let startFret = rootFret + box.startOff;
+      if (startFret < 0) startFret = 0;
+      if (startFret > 11) startFret = startFret % 12;
+      const endFret = startFret + SCALE_BOX_SPAN;
+      return {
+        id: box.id,
+        label: `${box.label} (${startFret}-${endFret})`,
+        range: [startFret, endFret] as [number, number],
+      };
+    });
+  }, [selectedKey]);
+
+  const scaleFretRange = useMemo<number[]>(() => {
+    if (scalePositionSelection === 'all') return [];
+    const match = scalePositionOptions.find(option => option.id === scalePositionSelection);
+    return match ? [match.range[0], match.range[1]] : [];
+  }, [scalePositionOptions, scalePositionSelection]);
 
   useEffect(() => {
     if (!isStandardTuning && mode === 'chords') {
@@ -781,28 +814,23 @@ export function Dictionary() {
 
               {mode === 'scales' && (
                   <>
-                    <h3 className="text-sm font-bold text-brand-secondary uppercase tracking-wider pt-4">Isolate Position</h3>
+                    <h3 className="text-sm font-bold text-brand-secondary uppercase tracking-wider pt-4">Scale Position</h3>
                     <div className="space-y-2">
                        <select
-                         value={scaleFretRange.join(',')}
+                         value={scalePositionSelection}
                          onChange={(e) => {
-                            if (e.target.value === 'all') {
-                               setScaleFretRange([]);
-                            } else {
-                               const [s, t] = e.target.value.split(',').map(Number);
-                               setScaleFretRange([s, t]);
-                            }
+                            setScalePositionSelection(e.target.value);
                          }}
                          className="w-full p-2 text-sm border border-brand-line rounded-md bg-brand-surface text-brand-ink outline-none"
                        >
                          <option value="all">Full Fretboard</option>
-                         <option value="0,3">Position 1 (Frets 0-3)</option>
-                         <option value="2,5">Position 2 (Frets 2-5)</option>
-                         <option value="4,7">Position 3 (Frets 4-7)</option>
-                         <option value="7,10">Position 4 (Frets 7-10)</option>
-                         <option value="9,12">Position 5 (Frets 9-12)</option>
-                         <option value="12,15">Position 6 (Frets 12-15)</option>
+                         {scalePositionOptions.map(option => (
+                           <option key={option.id} value={option.id}>{option.label}</option>
+                         ))}
                        </select>
+                       <p className="text-[10px] text-brand-secondary/70 leading-tight">
+                         These are root-relative CAGED-style position windows, so the displayed pattern follows the selected key instead of fixed absolute frets.
+                       </p>
                     </div>
 
                     <h3 className="text-sm font-bold text-brand-secondary uppercase tracking-wider pt-4">Pattern Types</h3>
