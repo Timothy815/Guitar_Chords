@@ -1135,6 +1135,26 @@ export function Dictionary() {
                  )}
               </div>
 
+              {mode === 'scales' && activeScaleBase && (() => {
+                const gaps = activeScaleBase.intervals.map((v, i, arr) =>
+                  (i === arr.length - 1 ? 12 : arr[i + 1]) - v
+                );
+                const wh = (n: number) => n === 1 ? 'H' : n === 2 ? 'W' : `${n}`;
+                return (
+                  <div className="flex items-center gap-1 mb-6 font-mono text-xs select-none flex-wrap print:hidden">
+                    {gaps.map((gap, i) => (
+                      <React.Fragment key={i}>
+                        {i > 0 && <span className="text-brand-line mx-0.5">—</span>}
+                        <span className="inline-flex flex-col items-center w-5">
+                          <span className="font-bold text-brand-primary">{wh(gap)}</span>
+                          <span className="text-brand-secondary">{gap}</span>
+                        </span>
+                      </React.Fragment>
+                    ))}
+                  </div>
+                );
+              })()}
+
               {mode === 'chords' && activeChord && (
                 <div className="w-full flex items-center gap-2 mb-4 print:hidden">
                   <span className="text-xs text-brand-secondary font-medium mr-1">Practice:</span>
