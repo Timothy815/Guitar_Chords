@@ -127,6 +127,20 @@ export function Dictionary() {
     setMode('chords');
   }
 
+  function handleExploreFromTheory(root: Note, qualityPrefix: string) {
+    const pool = COMMON_CHORDS[root] ?? [];
+    const shape = pool.find(c => c.name.slice(root.length + 1).startsWith(qualityPrefix));
+    if (!shape) return;
+    setIdentifiedFrets([...shape.frets]);
+    setMode('identify');
+  }
+
+  function handleAddToProgressionFromTheory(root: Note, qualityPrefix: string) {
+    const pool = COMMON_CHORDS[root] ?? [];
+    const shape = pool.find(c => c.name.slice(root.length + 1).startsWith(qualityPrefix));
+    if (shape) handleAddToProgression(shape);
+  }
+
   function handleAddToProgression(chord: ChordShape) {
     const ok = addChordToActiveProgression(chord);
     setAddedToast(ok ? `Added ${chord.name}` : 'No progression saved yet — create one first');
@@ -641,7 +655,11 @@ export function Dictionary() {
       </div>
 
       {mode === 'theory' && (
-        <TheoryReference onOpenInChords={handleOpenInChords} />
+        <TheoryReference
+          onOpenInChords={handleOpenInChords}
+          onExploreInIdentify={handleExploreFromTheory}
+          onAddToProgression={handleAddToProgressionFromTheory}
+        />
       )}
 
       {mode !== 'theory' && <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">

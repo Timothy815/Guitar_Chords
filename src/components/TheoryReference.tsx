@@ -160,9 +160,11 @@ function getDiatonicTriads(root: Note, steps: number[]): Array<{ degree: string;
 
 interface Props {
   onOpenInChords: (root: Note, qualityPrefix: string) => void;
+  onExploreInIdentify: (root: Note, qualityPrefix: string) => void;
+  onAddToProgression: (root: Note, qualityPrefix: string) => void;
 }
 
-export function TheoryReference({ onOpenInChords }: Props) {
+export function TheoryReference({ onOpenInChords, onExploreInIdentify, onAddToProgression }: Props) {
   const [localRoot, setLocalRoot] = useState<Note>('C');
   const [octave, setOctave] = useState(4);
   const [view, setView] = useState<'chords' | 'scales' | 'modes'>('chords');
@@ -244,6 +246,8 @@ export function TheoryReference({ onOpenInChords }: Props) {
                     root={localRoot}
                     octave={octave}
                     onOpenInChords={() => onOpenInChords(localRoot, ct.qualityPrefix)}
+                    onExploreInIdentify={() => onExploreInIdentify(localRoot, ct.qualityPrefix)}
+                    onAddToProgression={() => onAddToProgression(localRoot, ct.qualityPrefix)}
                     onPlay={() => playChord(localRoot, ct.intervals, octave)}
                   />
                 ))}
@@ -368,10 +372,12 @@ interface ChordCardProps {
   root: Note;
   octave: number;
   onOpenInChords: () => void;
+  onExploreInIdentify: () => void;
+  onAddToProgression: () => void;
   onPlay: () => void;
 }
 
-const ChordCard: React.FC<ChordCardProps> = ({ type, root, onOpenInChords, onPlay }) => {
+const ChordCard: React.FC<ChordCardProps> = ({ type, root, onOpenInChords, onExploreInIdentify, onAddToProgression, onPlay }) => {
   const { name, abbr, intervals, context } = type;
 
   // Alternating label / delta items: Root +4 Maj 3rd +3 Perf 5th
@@ -396,12 +402,26 @@ const ChordCard: React.FC<ChordCardProps> = ({ type, root, onOpenInChords, onPla
           <p className="font-semibold text-brand-ink text-sm">{name}</p>
           <p className="text-[11px] font-mono text-brand-secondary">{root}{abbr}</p>
         </div>
-        <button
-          onClick={e => { e.stopPropagation(); onOpenInChords(); }}
-          className="text-[10px] px-2 py-1 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink transition-colors whitespace-nowrap flex-shrink-0"
-        >
-          Chords →
-        </button>
+        <div className="flex flex-col gap-1 flex-shrink-0">
+          <button
+            onClick={e => { e.stopPropagation(); onOpenInChords(); }}
+            className="text-[10px] px-2 py-1 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink transition-colors whitespace-nowrap"
+          >
+            Chords →
+          </button>
+          <button
+            onClick={e => { e.stopPropagation(); onExploreInIdentify(); }}
+            className="text-[10px] px-2 py-1 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink transition-colors whitespace-nowrap"
+          >
+            Explore →
+          </button>
+          <button
+            onClick={e => { e.stopPropagation(); onAddToProgression(); }}
+            className="text-[10px] px-2 py-1 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink transition-colors whitespace-nowrap"
+          >
+            + Prog
+          </button>
+        </div>
       </div>
 
       {/* Interval recipe */}
