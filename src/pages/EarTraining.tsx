@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Volume2, ChevronDown, ChevronUp, Headphones, Check } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { cn } from '../lib/utils';
@@ -34,15 +35,16 @@ import {
   exportIntervalToCsv,
   parseIntervalFromCsv,
 } from '../lib/intervalHistory';
-import { ALL_NOTES } from '../data/guitarData';
+import { ALL_NOTES, COMMON_SCALES } from '../data/guitarData';
 import { RhythmRound, RhythmSettings, RhythmDuration, generateRhythmRound } from '../lib/rhythmTraining';
 import { RhythmTrainer } from '../components/RhythmTrainer';
 import { MelodyRound, MelodySettings, generateMelodyRound } from '../lib/melodyTraining';
 import { MelodyTrainer } from '../components/MelodyTrainer';
 import { CountItTrainer } from '../components/CountItTrainer';
-import { ScaleDrillTrainer } from '../components/ScaleDrillTrainer';
+import { ScaleDrillPosition, ScaleDrillTrainer } from '../components/ScaleDrillTrainer';
 import { IntervalDrillTrainer } from '../components/IntervalDrillTrainer';
 import { IntervalFretboardTrainer } from '../components/IntervalFretboardTrainer';
+import type { Note } from '../types';
 
 function RhythmRoundLoader({ onLoad }: { onLoad: () => void }) {
   useEffect(() => { onLoad(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -69,6 +71,7 @@ function huntCellColor(avg: number): string {
 }
 
 export function EarTraining() {
+  const [searchParams] = useSearchParams();
   const [settings, setSettings] = useState<EarTrainingSettings>(loadSettings);
   const [difficulty, setDifficulty] = useState<DifficultyLevel>('Beginner');
   const [fretboardSubMode, setFretboardSubMode] = useState<'guess' | 'hunt' | 'sing' | 'singhunt'>('guess');
@@ -107,6 +110,24 @@ export function EarTraining() {
   const [practiceImportMsg, setPracticeImportMsg] = useState<string | null>(null);
   const [intervalFretboardRound, setIntervalFretboardRound] = useState<IntervalFretboardRound>(() => generateIntervalFretboardRound());
   const [scaleDrillTab, setScaleDrillTab] = useState<'noteName' | 'interval'>('noteName');
+  const appliedScaleDrillParamsRef = useRef(false);
+
+  const initialScaleDrillConfig = useMemo(() => {
+    if (searchParams.get('mode') !== 'scaleDrill') return null;
+    const root = searchParams.get('root');
+    const scaleName = searchParams.get('scale');
+    const position = searchParams.get('position') ?? 'full';
+    if (!root || !scaleName) return null;
+    if (!ALL_NOTES.includes(root as Note)) return null;
+    if (!COMMON_SCALES.some(scale => scale.name === scaleName)) return null;
+    if (!(['full', 'open', 'mid', 'upper'] as const).includes(position as ScaleDrillPosition)) return null;
+    return {
+      root: root as Note,
+      scaleName,
+      position: position as ScaleDrillPosition,
+      tab: searchParams.get('tab') === 'interval' ? 'interval' as const : 'noteName' as const,
+    };
+  }, [searchParams]);
 
   const FRETS_FOR: Record<DifficultyLevel, number> = { Beginner: 6, Intermediate: 10, Advanced: 13 };
 
@@ -139,6 +160,13 @@ export function EarTraining() {
       setScaleDrillTab('noteName');
     }
   }, [settings.mode]);
+
+  useEffect(() => {
+    if (appliedScaleDrillParamsRef.current || !initialScaleDrillConfig) return;
+    appliedScaleDrillParamsRef.current = true;
+    setSettings(s => ({ ...s, mode: 'scaleDrill' }));
+    setScaleDrillTab(initialScaleDrillConfig.tab);
+  }, [initialScaleDrillConfig]);
 
   useEffect(() => {
     if (settings.mode === 'study') {
@@ -1699,6 +1727,11 @@ export function EarTraining() {
                 <ScaleDrillTrainer
                   score={score}
                   onComplete={handleScaleDrillComplete}
+                  initialConfig={initialScaleDrillConfig ? {
+                    root: initialScaleDrillConfig.root,
+                    scaleName: initialScaleDrillConfig.scaleName,
+                    position: initialScaleDrillConfig.position,
+                  } : undefined}
                 />
               ) : (
                 <IntervalDrillTrainer

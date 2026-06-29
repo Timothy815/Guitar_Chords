@@ -4,7 +4,7 @@ import { Fretboard } from '../components/Fretboard';
 import { Finger, Note } from '../types';
 import { ALL_NOTES } from '../data/guitarData';
 import { playStrum, playNote, initAudio, getFretNote, playArpeggio } from '../lib/audio';
-import { Volume2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Volume2, X } from 'lucide-react';
 import { addChordToActiveProgression } from '@/src/lib/progressionUtils';
 
 type CagedShapeDef = { id: string; baseRoot: string; name: string; relFrets: number[]; description: string };
@@ -132,6 +132,7 @@ const PRACTICE_SCENARIOS: { label: string; mode: 'byKey' | 'byShape'; key?: Note
 const SEQ_DUR_MULT: Record<string, number> = { '16n': 0.25, '8n': 0.5, '4n': 1, '2n': 2, '1n': 4 };
 const DURATION_LABELS: Record<string, string> = { '16n': '16', '8n': '8', '4n': '4', '2n': '2', '1n': '1' };
 const DURATION_CYCLE = ['16n', '8n', '4n', '2n', '1n'];
+const CAGED_GUIDE_STORAGE_KEY = 'guitarmaster_caged_guide_dismissed';
 
 function getDistance(from: Note, to: Note) {
   const fromIdx = ALL_NOTES.indexOf(from);
@@ -148,6 +149,20 @@ export function Caged() {
   const [selectedShapeId, setSelectedShapeId] = useState<string>('C');
   const [shapeShift, setShapeShift] = useState<number>(0);
   const [addedToast, setAddedToast] = useState<string | null>(null);
+  const [showGuide, setShowGuide] = useState(() => {
+    try {
+      return localStorage.getItem(CAGED_GUIDE_STORAGE_KEY) !== '1';
+    } catch {
+      return true;
+    }
+  });
+  const [guideExpanded, setGuideExpanded] = useState(() => {
+    try {
+      return localStorage.getItem(CAGED_GUIDE_STORAGE_KEY) !== '1';
+    } catch {
+      return true;
+    }
+  });
 
   function handleAddToProgression(chord: { name: string; frets: number[]; fingers: Finger[] }) {
     const ok = addChordToActiveProgression(chord);
@@ -312,6 +327,52 @@ export function Caged() {
           {PRACTICE_SCENARIOS.map(s => <option key={s.label}>{s.label}</option>)}
         </select>
       </div>
+
+      {showGuide ? (
+        <div className="bg-brand-surface border border-brand-line rounded-xl shadow-sm">
+          <div className="flex items-center justify-between gap-4 px-5 py-4">
+            <button
+              onClick={() => setGuideExpanded(prev => !prev)}
+              className="flex items-center gap-2 text-left text-brand-ink hover:text-brand-primary transition-colors"
+            >
+              {guideExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+              <span className="text-sm font-bold uppercase tracking-wider">How to Use CAGED</span>
+            </button>
+            <button
+              onClick={() => {
+                setShowGuide(false);
+                setGuideExpanded(false);
+                try { localStorage.setItem(CAGED_GUIDE_STORAGE_KEY, '1'); } catch {}
+              }}
+              className="p-1 text-brand-secondary hover:text-brand-ink transition-colors"
+              title="Dismiss guide"
+              aria-label="Dismiss guide"
+            >
+              <X size={16} />
+            </button>
+          </div>
+          {guideExpanded && (
+            <div className="px-5 pb-5">
+              <p className="text-sm leading-6 text-brand-secondary">
+                Learn the 5 movable chord shapes that map the neck. Start with one familiar shape, play it at a single root, then move it and listen for how the job stays the same while the location changes. Common trap: memorizing the box before noticing where the root lives inside it. Next: open Scale Positions and find the scale pattern that sits around the same area of the neck.
+              </p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div>
+          <button
+            onClick={() => {
+              setShowGuide(true);
+              setGuideExpanded(true);
+              try { localStorage.removeItem(CAGED_GUIDE_STORAGE_KEY); } catch {}
+            }}
+            className="text-xs px-3 py-1.5 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink transition-colors"
+          >
+            Show CAGED Guide
+          </button>
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-4 mb-8">
         <div className="flex bg-brand-surface rounded-lg p-1 border border-brand-line shadow-sm">

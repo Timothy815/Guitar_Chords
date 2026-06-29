@@ -1146,6 +1146,13 @@ export function Dictionary() {
                        <button onClick={() => handlePrint('print-area')} className="flex items-center gap-2 px-4 py-2 bg-transparent border border-brand-line text-brand-ink rounded-md hover:border-brand-primary hover:text-brand-primary transition-colors font-semibold text-sm">
                           <Printer size={16} /> Print Diagram
                        </button>
+                       <button
+                         onClick={() => navigate(`/ear-training?mode=scaleDrill&root=${encodeURIComponent(selectedKey)}&scale=${encodeURIComponent(activeScaleBase.name)}&position=full&tab=noteName`)}
+                         className="px-4 py-2 bg-transparent border border-brand-line text-brand-ink rounded-md hover:border-brand-primary hover:text-brand-primary transition-colors font-semibold text-sm"
+                         title="Open Ear Training with this scale ready to drill"
+                       >
+                         Drill This in Ear Training
+                       </button>
                     </div>
                  )}
               </div>

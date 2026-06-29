@@ -8,9 +8,9 @@ import { STANDARD_TUNING } from '@/src/types';
 import type { Note } from '@/src/types';
 
 type Difficulty = 'Beginner' | 'Intermediate' | 'Advanced';
-type Position = 'full' | 'open' | 'mid' | 'upper';
+export type ScaleDrillPosition = 'full' | 'open' | 'mid' | 'upper';
 
-const POSITION_LABELS: Record<Position, string> = {
+const POSITION_LABELS: Record<ScaleDrillPosition, string> = {
   full:  'Full neck',
   open:  'Open (0–4)',
   mid:   'Mid (5–9)',
@@ -23,17 +23,25 @@ const SCALE_CATEGORIES = Array.from(new Set(COMMON_SCALES.map(s => s.category)))
 interface ScaleDrillTrainerProps {
   score: SessionScore;
   onComplete: (wasCorrect: boolean) => void;
+  initialConfig?: {
+    scaleName: string;
+    root: Note;
+    position: ScaleDrillPosition;
+  };
 }
 
-export function ScaleDrillTrainer({ score, onComplete }: ScaleDrillTrainerProps) {
+export function ScaleDrillTrainer({ score, onComplete, initialConfig }: ScaleDrillTrainerProps) {
+  const initialScaleName = initialConfig?.scaleName ?? COMMON_SCALES[0].name;
+  const initialRoot = initialConfig?.root ?? 'A';
+  const initialPosition = initialConfig?.position ?? 'full';
   const [difficulty, setDifficulty] = useState<Difficulty>('Beginner');
-  const [scaleName, setScaleName] = useState<string>(COMMON_SCALES[0].name);
-  const [root, setRoot] = useState<Note>('A');
-  const [position, setPosition] = useState<Position>('full');
+  const [scaleName, setScaleName] = useState<string>(initialScaleName);
+  const [root, setRoot] = useState<Note>(initialRoot);
+  const [position, setPosition] = useState<ScaleDrillPosition>(initialPosition);
 
   const [studyMode, setStudyMode] = useState(true);
   const [round, setRound] = useState<ScaleDrillRound>(() =>
-    generateScaleDrillRound({ scaleName: COMMON_SCALES[0].name, root: 'A', fretRange: SCALE_DRILL_POSITIONS.full })
+    generateScaleDrillRound({ scaleName: initialScaleName, root: initialRoot, fretRange: SCALE_DRILL_POSITIONS[initialPosition] })
   );
   const [selected, setSelected] = useState<Note | null>(null);
   const [flashCorrect, setFlashCorrect] = useState(false);
@@ -45,11 +53,11 @@ export function ScaleDrillTrainer({ score, onComplete }: ScaleDrillTrainerProps)
   const scaleDef = COMMON_SCALES.find(s => s.name === scaleName) ?? COMMON_SCALES[0];
   const scalePattern = generateScalePattern(root, scaleDef);
 
-  function makeRound(sName: string, r: Note, pos: Position): ScaleDrillRound {
+  function makeRound(sName: string, r: Note, pos: ScaleDrillPosition): ScaleDrillRound {
     return generateScaleDrillRound({ scaleName: sName, root: r, fretRange: SCALE_DRILL_POSITIONS[pos] });
   }
 
-  function handlePickerChange(newScale: string, newRoot: Note, newPos: Position) {
+  function handlePickerChange(newScale: string, newRoot: Note, newPos: ScaleDrillPosition) {
     setScaleName(newScale);
     setRoot(newRoot);
     setPosition(newPos);
@@ -164,10 +172,10 @@ export function ScaleDrillTrainer({ score, onComplete }: ScaleDrillTrainerProps)
             <label className="text-[10px] font-semibold uppercase tracking-wider text-brand-secondary">Position</label>
             <select
               value={position}
-              onChange={e => handlePickerChange(scaleName, root, e.target.value as Position)}
+              onChange={e => handlePickerChange(scaleName, root, e.target.value as ScaleDrillPosition)}
               className="text-sm border border-brand-line rounded px-2 py-1 bg-brand-surface text-brand-ink focus:outline-none focus:border-brand-primary"
             >
-              {(Object.keys(POSITION_LABELS) as Position[]).map(p => (
+              {(Object.keys(POSITION_LABELS) as ScaleDrillPosition[]).map(p => (
                 <option key={p} value={p}>{POSITION_LABELS[p]}</option>
               ))}
             </select>
