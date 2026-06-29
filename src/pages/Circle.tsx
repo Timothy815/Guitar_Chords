@@ -15,7 +15,7 @@ function noteAt(root: Note, semitones: number): Note {
 }
 
 // The seven diatonic degrees of a major key.
-const DIATONIC = [
+const DIATONIC_MAJOR = [
   { roman: 'I',    interval: 0,  quality: 'Major' as const },
   { roman: 'ii',   interval: 2,  quality: 'Minor' as const },
   { roman: 'iii',  interval: 4,  quality: 'Minor' as const },
@@ -24,6 +24,36 @@ const DIATONIC = [
   { roman: 'vi',   interval: 9,  quality: 'Minor' as const },
   { roman: 'vii°', interval: 11, quality: 'dim'   as const },
 ] as const;
+
+// Natural minor diatonic degrees.
+const DIATONIC_MINOR = [
+  { roman: 'i',    interval: 0,  quality: 'Minor' as const },
+  { roman: 'ii°',  interval: 2,  quality: 'dim'   as const },
+  { roman: 'III',  interval: 3,  quality: 'Major' as const },
+  { roman: 'iv',   interval: 5,  quality: 'Minor' as const },
+  { roman: 'v',    interval: 7,  quality: 'Minor' as const },
+  { roman: 'VI',   interval: 8,  quality: 'Major' as const },
+  { roman: 'VII',  interval: 10, quality: 'Major' as const },
+] as const;
+
+// Keep the old name as an alias so nothing else breaks.
+const DIATONIC = DIATONIC_MAJOR;
+
+// Common preset progressions (indices into DIATONIC_MAJOR or DIATONIC_MINOR).
+const PRESET_PROGRESSIONS_MAJOR: Array<{ label: string; degrees: number[] }> = [
+  { label: 'I–IV–V',    degrees: [0, 3, 4] },
+  { label: 'I–V–vi–IV', degrees: [0, 4, 5, 3] },
+  { label: 'ii–V–I',    degrees: [1, 4, 0] },
+  { label: 'I–vi–IV–V', degrees: [0, 5, 3, 4] },
+  { label: 'vi–IV–I–V', degrees: [5, 3, 0, 4] },
+];
+
+const PRESET_PROGRESSIONS_MINOR: Array<{ label: string; degrees: number[] }> = [
+  { label: 'i–iv–v',    degrees: [0, 3, 4] },
+  { label: 'i–VI–III–VII', degrees: [0, 5, 2, 6] },
+  { label: 'i–VII–VI',  degrees: [0, 6, 5] },
+  { label: 'i–iv–VII–III', degrees: [0, 3, 6, 2] },
+];
 
 // Return all chord shapes matching the degree root + quality.
 function getDiatonicChords(
@@ -52,10 +82,15 @@ export function Circle() {
   const [selectedDegree, setSelectedDegree] = useState<number | null>(null);
   const [voicingIdx, setVoicingIdx] = useState(0);
   const [addedToast, setAddedToast] = useState<string | null>(null);
+  const [mode, setMode] = useState<'major' | 'minor'>('major');
   const navigate = useNavigate();
 
-  // Reset voicing when key or degree changes.
+  const activeDiatonic = mode === 'major' ? DIATONIC_MAJOR : DIATONIC_MINOR;
+  const presetProgressions = mode === 'major' ? PRESET_PROGRESSIONS_MAJOR : PRESET_PROGRESSIONS_MINOR;
+
+  // Reset voicing and degree when key or mode changes.
   useEffect(() => { setVoicingIdx(0); }, [selectedKey, selectedDegree]);
+  useEffect(() => { setSelectedDegree(null); setVoicingIdx(0); }, [mode]);
 
   const handleKeySelect = (key: Note) => {
     setSelectedKey(key);
@@ -64,7 +99,7 @@ export function Circle() {
 
   const allVoicings: ChordShape[] =
     selectedDegree !== null
-      ? getDiatonicChords(selectedKey, DIATONIC[selectedDegree].interval, DIATONIC[selectedDegree].quality)
+      ? getDiatonicChords(selectedKey, activeDiatonic[selectedDegree].interval, activeDiatonic[selectedDegree].quality)
       : [];
 
   const activeChord = allVoicings[voicingIdx] ?? null;
@@ -82,10 +117,26 @@ export function Circle() {
     const nextVoicingIdx = resetVoicing ? 0 : voicingIdx;
     setSelectedDegree(degIdx);
     if (resetVoicing) setVoicingIdx(0);
-    const chords = getDiatonicChords(selectedKey, DIATONIC[degIdx].interval, DIATONIC[degIdx].quality);
+    const chords = getDiatonicChords(selectedKey, activeDiatonic[degIdx].interval, activeDiatonic[degIdx].quality);
     const chord = chords[nextVoicingIdx] ?? null;
     if (chord) playChord(chord);
   };
+
+  function handleAddPresetProgression(degrees: number[]) {
+    let addedCount = 0;
+    for (const degIdx of degrees) {
+      const deg = activeDiatonic[degIdx];
+      const chords = getDiatonicChords(selectedKey, deg.interval, deg.quality);
+      const chord = chords[0] ?? null;
+      if (chord && addChordToActiveProgression(chord)) addedCount++;
+    }
+    if (addedCount > 0) {
+      setAddedToast(`Added ${addedCount} chords to progression`);
+    } else {
+      setAddedToast('No progression saved yet — create one first');
+    }
+    setTimeout(() => setAddedToast(null), 2500);
+  }
 
   const handleVoicingChange = (delta: number) => {
     const next = voicingIdx + delta;
@@ -100,7 +151,7 @@ export function Circle() {
     setTimeout(() => setAddedToast(null), 2000);
   }
 
-  const keyDisplay = displayNote(selectedKey);
+  const keyDisplay = `${displayNote(selectedKey)} ${mode === 'major' ? 'Major' : 'Minor'}`;
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500 pb-16">
@@ -128,7 +179,7 @@ export function Circle() {
         {/* Chord panel */}
         <div className="bg-brand-surface border border-brand-line rounded-xl p-6 shadow-sm space-y-5">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-brand-ink">{keyDisplay} Major</h2>
+            <h2 className="text-2xl font-bold text-brand-ink">{keyDisplay}</h2>
             <button
               onClick={() => navigate('/dictionary')}
               className="flex items-center gap-1.5 text-sm text-brand-secondary hover:text-brand-primary transition-colors"
@@ -137,13 +188,31 @@ export function Circle() {
             </button>
           </div>
 
+          {/* Major / Minor mode toggle */}
+          <div className="flex gap-1">
+            {(['major', 'minor'] as const).map(m => (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                className={cn(
+                  'px-3 py-1.5 rounded-md text-xs font-semibold border transition-colors',
+                  mode === m
+                    ? 'bg-brand-primary text-white border-brand-primary'
+                    : 'border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink',
+                )}
+              >
+                {m === 'major' ? 'Major' : 'Minor'}
+              </button>
+            ))}
+          </div>
+
           <p className="text-xs font-bold uppercase tracking-wider text-brand-secondary">
             Diatonic Chords
           </p>
 
           {/* Roman numeral buttons */}
           <div className="flex flex-wrap gap-2">
-            {DIATONIC.map((deg, i) => {
+            {activeDiatonic.map((deg, i) => {
               const isDim = deg.quality === 'dim';
               const isMajor = deg.quality === 'Major';
               const isSelected = selectedDegree === i;
@@ -172,6 +241,23 @@ export function Circle() {
                 </button>
               );
             })}
+          </div>
+
+          {/* Preset progressions quick-insert */}
+          <div className="space-y-1.5">
+            <p className="text-xs font-bold uppercase tracking-wider text-brand-secondary">Quick Add Progression</p>
+            <div className="flex flex-wrap gap-1.5">
+              {presetProgressions.map(preset => (
+                <button
+                  key={preset.label}
+                  onClick={() => handleAddPresetProgression(preset.degrees)}
+                  className="text-xs px-2.5 py-1 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink transition-colors"
+                  title={`Add ${preset.label} in ${keyDisplay} to active progression`}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Fretboard diagram for selected degree */}

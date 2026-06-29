@@ -1238,6 +1238,16 @@ export function Progressions() {
                       ♭ = borrowed chord
                     </span>
                   )}
+                  <button
+                    onClick={() => {
+                      setCircleKey(topKeys[0].key);
+                      setShowCircle(true);
+                    }}
+                    className="text-xs px-2 py-0.5 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink transition-colors shrink-0"
+                    title="Highlight this key on the Circle of Fifths"
+                  >
+                    Use on circle
+                  </button>
                 </div>
               )}
 
@@ -1295,7 +1305,7 @@ export function Progressions() {
                   <div className="mb-5 p-4 bg-brand-bg rounded-xl border border-brand-line">
                     <div className="flex items-center justify-between mb-3">
                       <p className="text-xs text-brand-secondary">
-                        {circleKey ? `Showing diatonic chords for ${circleKey} Major` : 'Click a key to highlight its diatonic chords'}
+                        {circleKey ? `Showing diatonic chords for ${circleKey}` : 'Click a key to highlight its diatonic chords'}
                       </p>
                       {circleKey && (
                         <button onClick={() => setCircleKey(null)} className="text-xs text-brand-secondary hover:text-brand-ink underline">Clear</button>
