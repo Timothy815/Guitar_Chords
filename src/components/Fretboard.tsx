@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChordShape, ScalePattern, STANDARD_TUNING } from '../types';
+import { ChordShape, ScalePattern, STANDARD_TUNING, Tuning } from '../types';
 import { getFretNote, playNote } from '../lib/audio';
 import { cn } from '../lib/utils';
 import { ALL_NOTES } from '../data/guitarData';
@@ -47,9 +47,10 @@ interface FretboardProps {
   highlightNote?: { stringIdx: number; fret: number };
   labeledDots?: { stringIdx: number; fret: number }[];
   flashHighlight?: boolean;
+  tuning?: Tuning;
 }
 
-export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClick, onFretMouseDown, showNoteNames = true, className, fretRange, playingNotes = new Set(), compact = false, correctPositions = new Set(), wrongPosition = null, previewPosition = null, focusZone, highlightNote, labeledDots, flashHighlight }: FretboardProps) {
+export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClick, onFretMouseDown, showNoteNames = true, className, fretRange, playingNotes = new Set(), compact = false, correctPositions = new Set(), wrongPosition = null, previewPosition = null, focusZone, highlightNote, labeledDots, flashHighlight, tuning = STANDARD_TUNING }: FretboardProps) {
   const [labelMode, setLabelMode] = useState<LabelMode>('none');
 
   const stringsNum = 6;
@@ -82,7 +83,7 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
   };
 
   const handleDotClick = (stringIdx: number, fretIdx: number) => {
-    const noteStr = getFretNote(stringIdx, fretIdx);
+    const noteStr = getFretNote(stringIdx, fretIdx, tuning);
     if (onFretClick) onFretClick(stringIdx, fretIdx);
     else if (onNoteClick) onNoteClick(noteStr);
     else playNote(noteStr);
@@ -97,7 +98,7 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
     let textColor = "fill-white";
     let show = false;
 
-    const noteStr = getFretNote(stringIdx, fretIdx);
+    const noteStr = getFretNote(stringIdx, fretIdx, tuning);
     const noteJustName = noteStr.replace(/[0-9]/g, '');
     const isPlaying = playingNotes.has(noteStr);
 
@@ -111,7 +112,7 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
         if (fretIdx === 0) {
           bgColor = isPlaying ? "fill-orange-500" : "transparent";
           textColor = isPlaying ? "fill-white" : "fill-brand-active";
-          text = labelMode !== 'none' ? getLabelText(noteJustName) : getFretNote(stringIdx, 0).replace(/[0-9]/g, '');
+          text = labelMode !== 'none' ? getLabelText(noteJustName) : getFretNote(stringIdx, 0, tuning).replace(/[0-9]/g, '');
         } else {
           bgColor = isPlaying ? "fill-orange-500" : "fill-brand-active";
           const finger = chord.fingers[stringIdx];
@@ -155,7 +156,7 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
 
     if (!show && !isMuted) {
       if (fretIdx === 0 && (!chord && !scale)) {
-        const noteName = getFretNote(stringIdx, 0).replace(/[0-9]/g, '');
+        const noteName = getFretNote(stringIdx, 0, tuning).replace(/[0-9]/g, '');
         return (
           <g onClick={() => handleDotClick(stringIdx, fretIdx)} style={{cursor: 'pointer'}}>
             <circle cx={x} cy={y} r={12} className={cn("stroke-2 opacity-50", isPlaying ? "stroke-orange-500 fill-orange-500" : "stroke-brand-secondary fill-brand-bg")} />
@@ -294,7 +295,7 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
           const x = fIdx === 0 ? paddingX / 2 : paddingX + (fIdx - 0.5) * fretSpacing;
           const y = paddingY + visualStringIdx * stringSpacing;
           const r = fIdx === 0 ? 10 : 14;
-          const noteStr = getFretNote(sIdx, fIdx);
+          const noteStr = getFretNote(sIdx, fIdx, tuning);
           const pitchClass = noteStr ? noteStr.replace(/\d$/, '') : '';
           return (
             <g key="preview" style={{ pointerEvents: 'none' }}>
