@@ -123,7 +123,6 @@ const MAJOR_BLUES_BOX_PATTERNS: Record<string, RelativeBoxPattern> = {
   box4: [[7, 9], [6, 9], [6, 9], [6, 7, 9], [7, 9], [7, 9]],
   box5: [[9, 12], [9, 10, 11], [9, 11], [9, 11], [9, 12], [9, 12]],
 };
-const THREE_NPS_SPAN = 4;
 type ScaleViewMode = 'full' | 'position' | 'box' | 'threeNps';
 type ScaleOverlayMode = 'all' | 'roots' | 'chordTones' | 'arpeggio';
 
@@ -140,6 +139,64 @@ function getStrictBoxPattern(scaleName: string, boxId: string): RelativeBoxPatte
     default:
       return null;
   }
+}
+
+function getAbsolutePitch(note: Note, octave: number) {
+  return octave * 12 + ALL_NOTES.indexOf(note);
+}
+
+function buildThreeNpsPattern(intervals: number[], patternIndex: number) {
+  if (intervals.length !== 7) return null;
+
+  const openPitches = STANDARD_TUNING.notes.map((note, idx) =>
+    getAbsolutePitch(note as Note, STANDARD_TUNING.octaves[idx])
+  );
+  const lowENoteIdx = ALL_NOTES.indexOf(STANDARD_TUNING.notes[0] as Note);
+
+  return (root: Note) => {
+    const rootNoteIdx = ALL_NOTES.indexOf(root);
+    let startFret = (rootNoteIdx - lowENoteIdx + 12) % 12 + intervals[patternIndex];
+    const absoluteSteps: number[] = [];
+    const basePitch = openPitches[0] + startFret;
+    absoluteSteps.push(basePitch);
+
+    for (let i = 1; i < 18; i += 1) {
+      const prevDegree = intervals[(patternIndex + i - 1) % 7];
+      const nextDegree = intervals[(patternIndex + i) % 7];
+      const step = nextDegree > prevDegree ? nextDegree - prevDegree : nextDegree + 12 - prevDegree;
+      absoluteSteps.push(absoluteSteps[i - 1] + step);
+    }
+
+    let frets = absoluteSteps.map((pitch, idx) => pitch - openPitches[Math.floor(idx / 3)]);
+    let minFret = Math.min(...frets);
+    let maxFret = Math.max(...frets);
+
+    while (minFret < 0) {
+      startFret += 12;
+      frets = frets.map(fret => fret + 12);
+      minFret += 12;
+      maxFret += 12;
+    }
+    while (maxFret > 15 && minFret - 12 >= 0) {
+      startFret -= 12;
+      frets = frets.map(fret => fret - 12);
+      minFret -= 12;
+      maxFret -= 12;
+    }
+
+    const positions = new Set<string>();
+    frets.forEach((fret, idx) => {
+      const stringIdx = Math.floor(idx / 3);
+      if (fret >= 0 && fret <= 15) positions.add(`${stringIdx}-${fret}`);
+    });
+
+    return {
+      id: `p${patternIndex + 1}`,
+      label: `Pattern ${patternIndex + 1} (${minFret}-${maxFret})`,
+      range: [minFret, maxFret] as [number, number],
+      positions,
+    };
+  };
 }
 
 function describeOverlayQuality(intervals: number[]) {
@@ -468,23 +525,21 @@ export function Dictionary() {
     });
     return positions;
   }, [activeScaleBase, scaleBoxSelection, scaleViewMode, selectedKey]);
-
   const scaleThreeNpsOptions = useMemo(() => {
     if (!threeNpsSupported || !activeScaleBase) return [];
-    const lowENoteIdx = ALL_NOTES.indexOf(STANDARD_TUNING.notes[0] as Note);
-    const rootNoteIdx = ALL_NOTES.indexOf(selectedKey);
-    const rootFret = (rootNoteIdx - lowENoteIdx + 12) % 12;
-    return activeScaleBase.intervals.map((interval, idx) => {
-      let startFret = rootFret + interval;
-      if (startFret > 14) startFret -= 12;
-      const endFret = startFret + THREE_NPS_SPAN;
-      return {
-        id: `p${idx + 1}`,
-        label: `Pattern ${idx + 1} (${startFret}-${endFret})`,
-        range: [startFret, endFret] as [number, number],
-      };
-    });
+    return activeScaleBase.intervals
+      .map((_, idx) => buildThreeNpsPattern(activeScaleBase.intervals, idx)?.(selectedKey) ?? null)
+      .filter((pattern): pattern is { id: string; label: string; range: [number, number]; positions: Set<string> } => pattern !== null);
   }, [activeScaleBase, selectedKey, threeNpsSupported]);
+  const strictScaleThreeNpsPositions = useMemo(() => {
+    if (scaleViewMode !== 'threeNps') return undefined;
+    return scaleThreeNpsOptions.find(option => option.id === scaleThreeNpsSelection)?.positions;
+  }, [scaleThreeNpsOptions, scaleThreeNpsSelection, scaleViewMode]);
+  const activeStrictScalePositions = useMemo(() => {
+    if (scaleViewMode === 'box') return strictScaleBoxPositions;
+    if (scaleViewMode === 'threeNps') return strictScaleThreeNpsPositions;
+    return undefined;
+  }, [scaleViewMode, strictScaleBoxPositions, strictScaleThreeNpsPositions]);
 
   const scaleFretRange = useMemo<number[]>(() => {
     if (scaleViewMode === 'full') return [];
@@ -498,11 +553,12 @@ export function Dictionary() {
       return match ? [match.range[0], match.range[1]] : [];
     }
     if (scaleViewMode === 'threeNps') {
+      if (strictScaleThreeNpsPositions) return [];
       const match = scaleThreeNpsOptions.find(option => option.id === scaleThreeNpsSelection);
       return match ? [match.range[0], match.range[1]] : [];
     }
     return [];
-  }, [scaleBoxOptions, scaleBoxSelection, scalePositionOptions, scalePositionSelection, scaleThreeNpsOptions, scaleThreeNpsSelection, scaleViewMode, strictScaleBoxPositions]);
+  }, [scaleBoxOptions, scaleBoxSelection, scalePositionOptions, scalePositionSelection, scaleThreeNpsOptions, scaleThreeNpsSelection, scaleViewMode, strictScaleBoxPositions, strictScaleThreeNpsPositions]);
 
   useEffect(() => {
     if (scaleViewMode === 'box' && !boxViewSupported) {
@@ -1157,7 +1213,7 @@ export function Dictionary() {
                             ))}
                           </select>
                           <p className="text-[10px] text-brand-secondary/70 leading-tight">
-                            3NPS view: three-notes-per-string scalar regions for supported 7-note scales, useful for more linear neck movement.
+                            3NPS view: strict three-notes-per-string patterns for supported 7-note scales, useful for more linear neck movement.
                           </p>
                         </>
                       )}
@@ -1621,7 +1677,7 @@ export function Dictionary() {
                         scale={mode === 'scales' ? displayedScale ?? undefined : undefined}
                         playingNotes={playingNotes}
                         fretRange={mode === 'scales' && scaleFretRange.length === 2 ? [scaleFretRange[0], scaleFretRange[1]] : undefined}
-                        scalePositions={mode === 'scales' ? strictScaleBoxPositions : undefined}
+                        scalePositions={mode === 'scales' ? activeStrictScalePositions : undefined}
                         onNoteClick={(str) => {
                           // Handled by onFretClick if possible, fallback
                           import('../lib/audio').then(m => m.playNote(str, sustain));
