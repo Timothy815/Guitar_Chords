@@ -77,6 +77,8 @@ export interface ScaleDrillRound {
   targetFret: number;
   targetNote: Note;
   options: Note[];           // 4 choices including correct answer
+  anchorStringIdx: number;
+  anchorFret: number;
 }
 
 export interface IntervalFretboardRound {
@@ -556,16 +558,29 @@ export function generateIntervalFretboardRound(): IntervalFretboardRound {
   };
 }
 
-export function generateScaleDrillRound(scaleIdx?: number): ScaleDrillRound {
-  const idx = scaleIdx ?? Math.floor(Math.random() * COMMON_SCALES.length);
-  const scaleDef = COMMON_SCALES[idx];
-  const root = ALL_NOTES[Math.floor(Math.random() * 12)];
-  const pattern = generateScalePattern(root, scaleDef);
+export const SCALE_DRILL_POSITIONS: Record<string, [number, number]> = {
+  full:  [0, 12],
+  open:  [0, 4],
+  mid:   [5, 9],
+  upper: [9, 12],
+};
 
-  // All fretboard positions of scale notes in frets 0-12
+export function generateScaleDrillRound(opts?: {
+  scaleName?: string;
+  root?: Note;
+  fretRange?: [number, number];
+}): ScaleDrillRound {
+  const scaleDef = opts?.scaleName
+    ? (COMMON_SCALES.find(s => s.name === opts.scaleName) ?? COMMON_SCALES[0])
+    : COMMON_SCALES[Math.floor(Math.random() * COMMON_SCALES.length)];
+
+  const root: Note = opts?.root ?? ALL_NOTES[Math.floor(Math.random() * 12)];
+  const pattern = generateScalePattern(root, scaleDef);
+  const [minFret, maxFret] = opts?.fretRange ?? [0, 12];
+
   const positions: { stringIdx: number; fret: number; note: Note }[] = [];
   STANDARD_TUNING.notes.forEach((openNote, stringIdx) => {
-    for (let fret = 0; fret <= 12; fret++) {
+    for (let fret = minFret; fret <= maxFret; fret++) {
       const note = getNoteFromFret(openNote, fret);
       if (pattern.notes.includes(note)) {
         positions.push({ stringIdx, fret, note });
@@ -573,7 +588,30 @@ export function generateScaleDrillRound(scaleIdx?: number): ScaleDrillRound {
     }
   });
 
+  // Fall back to full neck if the position window has no scale notes
+  if (positions.length === 0) {
+    STANDARD_TUNING.notes.forEach((openNote, stringIdx) => {
+      for (let fret = 0; fret <= 12; fret++) {
+        const note = getNoteFromFret(openNote, fret);
+        if (pattern.notes.includes(note)) {
+          positions.push({ stringIdx, fret, note });
+        }
+      }
+    });
+  }
+
   const target = positions[Math.floor(Math.random() * positions.length)];
+
+  // Anchor: a different position (prefer a different string) for the labeled hint in intermediate mode
+  const otherPositions = positions.filter(
+    p => !(p.stringIdx === target.stringIdx && p.fret === target.fret)
+  );
+  const anchorPool = otherPositions.filter(p => p.stringIdx !== target.stringIdx);
+  const anchorSource = anchorPool.length > 0 ? anchorPool : otherPositions;
+  const anchor = anchorSource.length > 0
+    ? anchorSource[Math.floor(Math.random() * anchorSource.length)]
+    : target; // degenerate: single-note position, anchor = target
+
   const wrong = ALL_NOTES.filter(n => n !== target.note).sort(() => Math.random() - 0.5).slice(0, 3);
   const options = [target.note, ...wrong].sort(() => Math.random() - 0.5) as Note[];
 
@@ -585,5 +623,7 @@ export function generateScaleDrillRound(scaleIdx?: number): ScaleDrillRound {
     targetFret: target.fret,
     targetNote: target.note,
     options,
+    anchorStringIdx: anchor.stringIdx,
+    anchorFret: anchor.fret,
   };
 }
