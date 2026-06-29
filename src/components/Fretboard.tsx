@@ -45,9 +45,11 @@ interface FretboardProps {
   previewPosition?: string | null;
   focusZone?: FretboardFocus;
   highlightNote?: { stringIdx: number; fret: number };
+  labeledDots?: { stringIdx: number; fret: number }[];
+  flashHighlight?: boolean;
 }
 
-export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClick, onFretMouseDown, showNoteNames = true, className, fretRange, playingNotes = new Set(), compact = false, correctPositions = new Set(), wrongPosition = null, previewPosition = null, focusZone, highlightNote }: FretboardProps) {
+export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClick, onFretMouseDown, showNoteNames = true, className, fretRange, playingNotes = new Set(), compact = false, correctPositions = new Set(), wrongPosition = null, previewPosition = null, focusZone, highlightNote, labeledDots, flashHighlight }: FretboardProps) {
   const [labelMode, setLabelMode] = useState<LabelMode>('none');
 
   const stringsNum = 6;
@@ -143,7 +145,8 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
             bgColor = "fill-brand-active";
           }
         }
-        text = labelMode !== 'none' ? getLabelText(noteJustName) : (showNoteNames ? noteJustName : "");
+        const isExplicitlyLabeled = labeledDots?.some(d => d.stringIdx === stringIdx && d.fret === fretIdx) ?? false;
+        text = labelMode !== 'none' ? getLabelText(noteJustName) : (showNoteNames || isExplicitlyLabeled ? noteJustName : "");
       }
     }
 
@@ -337,7 +340,7 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
           const y = paddingY + visualStringIdx * stringSpacing;
           const r = fret === 0 ? 10 : 14;
           return (
-            <g key="highlight-note" style={{ pointerEvents: 'none' }}>
+            <g key="highlight-note" style={{ pointerEvents: 'none' }} className={flashHighlight ? 'animate-pulse' : undefined}>
               <circle cx={x} cy={y} r={r} fill="var(--color-brand-primary)" opacity={0.9} />
               <text x={x} y={y + 5} textAnchor="middle" fill="white" fontSize={11} fontWeight="bold">★</text>
             </g>
