@@ -1669,12 +1669,10 @@ export function EarTraining() {
               <RhythmRoundLoader onLoad={() => advanceRound()} />
             )
           ) : settings.mode === 'scaleDrill' ? (
-            <React.Fragment key="scale-drill">
-              <ScaleDrillTrainer
-                score={score}
-                onComplete={handleScaleDrillComplete}
-              />
-            </React.Fragment>
+            <ScaleDrillTrainer
+              score={score}
+              onComplete={handleScaleDrillComplete}
+            />
           ) : settings.mode === 'intervalFretboard' ? (
             <React.Fragment key={`${intervalFretboardRound.rootNote}-${intervalFretboardRound.intervalLabel}-${intervalFretboardRound.rootStringIdx}-${intervalFretboardRound.rootFret}`}>
               <IntervalFretboardTrainer
