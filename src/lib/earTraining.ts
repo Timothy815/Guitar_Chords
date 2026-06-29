@@ -729,12 +729,19 @@ export function generateScaleIntervalRound(opts: {
       if (semi > 0) scaleIntervalSet.add(semi);
     }
   }
-  const distractorLabels = shuffle(
+  let distractorLabels = shuffle(
     [...scaleIntervalSet]
       .filter(s => s !== intervalSemitones)
       .map(s => INTERVAL_DEFS.find(d => d.semitones === s)?.label)
       .filter((l): l is string => l !== undefined)
   ).slice(0, 3);
+  // Pad from full chromatic set if scale doesn't yield enough distractors.
+  if (distractorLabels.length < 3) {
+    const fallbackLabels = INTERVAL_DEFS
+      .filter(d => d.semitones > 0 && d.semitones !== intervalSemitones && !distractorLabels.includes(d.label))
+      .map(d => d.label);
+    distractorLabels = [...distractorLabels, ...fallbackLabels].slice(0, 3);
+  }
   const options = shuffle([intervalLabel, ...distractorLabels]);
 
   // Valid positions: all positions of targetNote within the fret window.
