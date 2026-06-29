@@ -73,11 +73,11 @@ const INTERVALS = [
 ];
 
 const SCALE_POSITION_BOXES = [
-  { id: 'pos1', label: 'Position 1 (E-shape)', startOff: -1 },
-  { id: 'pos2', label: 'Position 2 (D-shape)', startOff: 2 },
-  { id: 'pos3', label: 'Position 3 (C-shape)', startOff: 4 },
-  { id: 'pos4', label: 'Position 4 (A-shape)', startOff: 7 },
-  { id: 'pos5', label: 'Position 5 (G-shape)', startOff: 9 },
+  { id: 'pos1', label: 'CAGED 1 (E-shape)', startOff: -1 },
+  { id: 'pos2', label: 'CAGED 2 (D-shape)', startOff: 2 },
+  { id: 'pos3', label: 'CAGED 3 (C-shape)', startOff: 4 },
+  { id: 'pos4', label: 'CAGED 4 (A-shape)', startOff: 7 },
+  { id: 'pos5', label: 'CAGED 5 (G-shape)', startOff: 9 },
 ] as const;
 const SCALE_BOX_SPAN = 4;
 const MINOR_FAMILY_BOXES = [
@@ -94,7 +94,8 @@ const MAJOR_FAMILY_BOXES = [
   { id: 'box4', label: 'Box 4', startOff: 4, span: 3 },
   { id: 'box5', label: 'Box 5', startOff: 7, span: 2 },
 ] as const;
-type ScaleViewMode = 'full' | 'position' | 'box';
+const THREE_NPS_SPAN = 4;
+type ScaleViewMode = 'full' | 'position' | 'box' | 'threeNps';
 
 export function Dictionary() {
   const navigate = useNavigate();
@@ -108,6 +109,7 @@ export function Dictionary() {
   const [scaleViewMode, setScaleViewMode] = useState<ScaleViewMode>('full');
   const [scalePositionSelection, setScalePositionSelection] = useState<string>('pos1');
   const [scaleBoxSelection, setScaleBoxSelection] = useState<string>('box1');
+  const [scaleThreeNpsSelection, setScaleThreeNpsSelection] = useState<string>('p1');
   const [playingNotes, setPlayingNotes] = useState<Set<string>>(new Set());
   const [identifiedFrets, setIdentifiedFrets] = useState<number[]>([-1,-1,-1,-1,-1,-1]);
   const [addedToast, setAddedToast] = useState<string | null>(null);
@@ -254,6 +256,7 @@ export function Dictionary() {
     }
   }, [activeScaleBase]);
   const boxViewSupported = boxFamily !== null;
+  const threeNpsSupported = (activeScaleBase?.intervals.length ?? 0) === 7;
 
   const scalePositionOptions = useMemo(() => {
     const lowENoteIdx = ALL_NOTES.indexOf(STANDARD_TUNING.notes[0] as Note);
@@ -291,6 +294,23 @@ export function Dictionary() {
     });
   }, [boxFamily, boxViewSupported, selectedKey]);
 
+  const scaleThreeNpsOptions = useMemo(() => {
+    if (!threeNpsSupported || !activeScaleBase) return [];
+    const lowENoteIdx = ALL_NOTES.indexOf(STANDARD_TUNING.notes[0] as Note);
+    const rootNoteIdx = ALL_NOTES.indexOf(selectedKey);
+    const rootFret = (rootNoteIdx - lowENoteIdx + 12) % 12;
+    return activeScaleBase.intervals.map((interval, idx) => {
+      let startFret = rootFret + interval;
+      if (startFret > 14) startFret -= 12;
+      const endFret = startFret + THREE_NPS_SPAN;
+      return {
+        id: `p${idx + 1}`,
+        label: `Pattern ${idx + 1} (${startFret}-${endFret})`,
+        range: [startFret, endFret] as [number, number],
+      };
+    });
+  }, [activeScaleBase, selectedKey, threeNpsSupported]);
+
   const scaleFretRange = useMemo<number[]>(() => {
     if (scaleViewMode === 'full') return [];
     if (scaleViewMode === 'position') {
@@ -301,14 +321,21 @@ export function Dictionary() {
       const match = scaleBoxOptions.find(option => option.id === scaleBoxSelection);
       return match ? [match.range[0], match.range[1]] : [];
     }
+    if (scaleViewMode === 'threeNps') {
+      const match = scaleThreeNpsOptions.find(option => option.id === scaleThreeNpsSelection);
+      return match ? [match.range[0], match.range[1]] : [];
+    }
     return [];
-  }, [scaleBoxOptions, scaleBoxSelection, scalePositionOptions, scalePositionSelection, scaleViewMode]);
+  }, [scaleBoxOptions, scaleBoxSelection, scalePositionOptions, scalePositionSelection, scaleThreeNpsOptions, scaleThreeNpsSelection, scaleViewMode]);
 
   useEffect(() => {
     if (scaleViewMode === 'box' && !boxViewSupported) {
       setScaleViewMode('full');
     }
-  }, [boxViewSupported, scaleViewMode]);
+    if (scaleViewMode === 'threeNps' && !threeNpsSupported) {
+      setScaleViewMode('full');
+    }
+  }, [boxViewSupported, scaleViewMode, threeNpsSupported]);
 
   useEffect(() => {
     if (!isStandardTuning && mode === 'chords') {
@@ -881,8 +908,9 @@ export function Dictionary() {
                       <div className="flex gap-1 flex-wrap">
                         {([
                           { id: 'full', label: 'Full Neck', disabled: false },
-                          { id: 'position', label: 'Position', disabled: false },
+                          { id: 'position', label: 'CAGED', disabled: false },
                           { id: 'box', label: 'Box', disabled: !boxViewSupported },
+                          { id: 'threeNps', label: '3NPS', disabled: !threeNpsSupported },
                         ] as { id: ScaleViewMode; label: string; disabled: boolean }[]).map(view => (
                           <button
                             key={view.id}
@@ -915,7 +943,7 @@ export function Dictionary() {
                             ))}
                           </select>
                           <p className="text-[10px] text-brand-secondary/70 leading-tight">
-                            Root-relative CAGED-style position windows that follow the selected key.
+                            CAGED view: root-relative neck regions organized by connected chord-shape positions.
                           </p>
                         </>
                       )}
@@ -934,20 +962,45 @@ export function Dictionary() {
                             ))}
                           </select>
                           <p className="text-[10px] text-brand-secondary/70 leading-tight">
-                            Standard guitar box regions for pentatonic and blues families. The selected scale uses its matching major- or minor-family box layout.
+                            Box view: standard compact guitar box regions for pentatonic and blues families, using the matching major- or minor-family layout.
+                          </p>
+                        </>
+                      )}
+
+                      {scaleViewMode === 'threeNps' && threeNpsSupported && (
+                        <>
+                          <select
+                            value={scaleThreeNpsSelection}
+                            onChange={(e) => {
+                              setScaleThreeNpsSelection(e.target.value);
+                            }}
+                            className="w-full p-2 text-sm border border-brand-line rounded-md bg-brand-surface text-brand-ink outline-none"
+                          >
+                            {scaleThreeNpsOptions.map(option => (
+                              <option key={option.id} value={option.id}>{option.label}</option>
+                            ))}
+                          </select>
+                          <p className="text-[10px] text-brand-secondary/70 leading-tight">
+                            3NPS view: three-notes-per-string scalar regions for supported 7-note scales, useful for more linear neck movement.
                           </p>
                         </>
                       )}
 
                       {scaleViewMode === 'full' && (
                         <p className="text-[10px] text-brand-secondary/70 leading-tight">
-                          Shows all note locations for the selected scale across the visible fretboard.
+                          Full Neck view: shows all note locations for the selected scale across the visible fretboard.
                         </p>
                       )}
 
                       {!boxViewSupported && (
                         <p className="text-[10px] text-brand-secondary/70 leading-tight">
-                          Box view is currently available for Minor Pentatonic, Major Pentatonic, Minor Blues, and Major Blues.
+                          Box view currently supports Minor Pentatonic, Major Pentatonic, Minor Blues, and Major Blues.
+                        </p>
+                      )}
+
+                      {!threeNpsSupported && (
+                        <p className="text-[10px] text-brand-secondary/70 leading-tight">
+                          3NPS view is currently available for 7-note scales such as major, natural minor, modes, harmonic minor, melodic minor, and phrygian dominant.
                         </p>
                       )}
                     </div>
