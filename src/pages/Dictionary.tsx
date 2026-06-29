@@ -1122,6 +1122,10 @@ export function Dictionary() {
                   rootNote={selectedKey}
                   intervalSemitones={selectedInterval}
                   fretsNum={15}
+                  onSendToIdentify={(frets) => {
+                    setIdentifiedFrets(frets);
+                    setMode('identify');
+                  }}
                 />
               ) : ((mode === 'chords' && activeChord) || (mode === 'scales' && activeScale) || mode === 'identify') ? (
                 <>

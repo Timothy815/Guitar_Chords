@@ -19,6 +19,7 @@ interface Props {
   rootNote: Note;
   intervalSemitones: number;
   fretsNum?: number;
+  onSendToIdentify?: (frets: number[]) => void;
 }
 
 // ─── Mini 2-string shape diagram ─────────────────────────────────────────────
@@ -101,7 +102,7 @@ function ShapeCard({ offset, bString, direction, rootNote, targetNote, stringLab
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function IntervalFretboard({ rootNote, intervalSemitones, fretsNum = 15 }: Props) {
+export function IntervalFretboard({ rootNote, intervalSemitones, fretsNum = 15, onSendToIdentify }: Props) {
   const [selected,    setSelected]    = useState<{ string: number; fret: number } | null>(null);
   const [direction,   setDirection]   = useState<Direction>('forward');
   const [viewMode,    setViewMode]    = useState<ViewMode>('adjacent');
@@ -302,6 +303,18 @@ export function IntervalFretboard({ rootNote, intervalSemitones, fretsNum = 15 }
     }
   }
 
+  function handleSendToIdentify() {
+    if (!selected || !onSendToIdentify) return;
+    const frets: number[] = [-1, -1, -1, -1, -1, -1];
+    frets[selected.string] = selected.fret;
+    const pair = getPrimaryPair(selected.string, selected.fret);
+    if (pair) {
+      const partner = direction === 'forward' ? pair.target : pair.root;
+      frets[partner.string] = partner.fret;
+    }
+    onSendToIdentify(frets);
+  }
+
   const activeNote  = direction === 'forward' ? rootNote   : targetNote;
   const partnerNote = direction === 'forward' ? targetNote : rootNote;
 
@@ -394,6 +407,17 @@ export function IntervalFretboard({ rootNote, intervalSemitones, fretsNum = 15 }
             {isLooping ? <Square size={13} /> : <Play size={13} />}
             {isLooping ? 'Stop' : 'Loop shapes'}
           </button>
+
+          {/* Send selected pair to Identify tab */}
+          {onSendToIdentify && selected && (
+            <button
+              onClick={handleSendToIdentify}
+              className="px-3 py-1.5 rounded-lg border border-brand-line bg-brand-surface text-brand-secondary text-sm font-medium hover:border-brand-primary/60 hover:text-brand-ink transition-colors"
+              title="Send these two notes to the Chord Identifier"
+            >
+              Explore →
+            </button>
+          )}
         </div>
       </div>
 
