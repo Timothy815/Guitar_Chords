@@ -76,6 +76,7 @@ export function Dictionary() {
   const [searchParams] = useSearchParams();
   const [mode, setMode] = useState<'chords' | 'scales' | 'identify' | 'intervals' | 'theory'>('chords');
   const [currentTuning, setCurrentTuning] = useState<Tuning>(TUNINGS['Standard']);
+  const isStandardTuning = currentTuning.name === 'Standard';
   const [selectedKey, setSelectedKey] = useState<Note>('C');
   const [selectedChordIdx, setSelectedChordIdx] = useState<number>(0);
   const [selectedScaleIdx, setSelectedScaleIdx] = useState<number>(0);
@@ -117,6 +118,7 @@ export function Dictionary() {
   const [selectedInterval, setSelectedInterval] = useState<number>(7); // Perfect 5th
 
   function handleOpenInChords(root: Note, qualityPrefix: string) {
+    if (!isStandardTuning) return;
     setSelectedKey(root);
     const pool = COMMON_CHORDS[root] ?? [];
     const idx = pool.findIndex(c => {
@@ -212,6 +214,13 @@ export function Dictionary() {
     () => activeScaleBase ? generateScalePattern(selectedKey, activeScaleBase) : null,
     [selectedKey, selectedScaleIdx] // eslint-disable-line react-hooks/exhaustive-deps
   );
+
+  useEffect(() => {
+    if (!isStandardTuning && mode === 'chords') {
+      if (activeChord) setIdentifiedFrets([...activeChord.frets]);
+      setMode('identify');
+    }
+  }, [activeChord, isStandardTuning, mode]);
 
   useEffect(() => { setScaffoldLevel(0); }, [selectedKey, selectedChordIdx]);
 
@@ -632,8 +641,12 @@ export function Dictionary() {
         
         <div className="flex bg-brand-sidebar p-1 rounded-lg">
            <button 
-             onClick={() => setMode('chords')}
-             className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${mode === 'chords' ? 'bg-brand-surface text-brand-ink shadow-sm' : 'text-brand-secondary hover:text-brand-ink'}`}
+             onClick={() => {
+               if (isStandardTuning) setMode('chords');
+             }}
+             disabled={!isStandardTuning}
+             title={isStandardTuning ? 'Browse standard-tuning chord shapes' : 'Chord browsing is available only in Standard tuning'}
+             className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${!isStandardTuning ? 'text-brand-secondary/40 cursor-not-allowed' : mode === 'chords' ? 'bg-brand-surface text-brand-ink shadow-sm' : 'text-brand-secondary hover:text-brand-ink'}`}
            >
              Chords (CAGED)
            </button>
@@ -701,8 +714,10 @@ export function Dictionary() {
                   <option key={tuningName} value={tuningName}>{tuningName}</option>
                 ))}
               </select>
-              {currentTuning.name !== 'Standard' && mode === 'chords' && (
-                <p className="text-[10px] text-orange-500 font-bold">Standard chord shapes may not sound correct in this tuning!</p>
+              {!isStandardTuning && (
+                <p className="text-[10px] text-orange-600 font-bold leading-tight">
+                  Chord browsing is available only in Standard tuning. Scales and Identify stay tuning-aware in {currentTuning.name}.
+                </p>
               )}
            </div>
            
@@ -1103,7 +1118,7 @@ export function Dictionary() {
                            >
                              + Progression
                            </button>
-                           {navChords.length > 0 && (() => {
+                           {isStandardTuning && navChords.length > 0 && (() => {
                              const target = navIdx >= 0 ? navChords[navIdx] : navChords[0];
                              const base = identifiedChordNames[0].split('/')[0];
                              const m = base.match(/^([A-G][#b])(.*)/) ?? base.match(/^([A-G])(.*)/);
@@ -1242,7 +1257,7 @@ export function Dictionary() {
                   )}
 
                   {/* Diatonic chords (scale mode) */}
-                  {mode === 'scales' && diatonicChords.length > 0 && (
+                  {isStandardTuning && mode === 'scales' && diatonicChords.length > 0 && (
                     <div className="w-full mt-4 print:hidden">
                       <p className="text-[10px] font-bold uppercase tracking-wider text-brand-secondary mb-2 text-center">Diatonic chords</p>
                       <div className="flex flex-wrap gap-2 justify-center">
