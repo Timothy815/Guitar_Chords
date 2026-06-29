@@ -47,6 +47,7 @@ export function IntervalDrillTrainer({ score, onComplete }: IntervalDrillTrainer
   const [flashCorrect, setFlashCorrect] = useState(false);
   const [streaks, setStreaks] = useState<Record<string, number>>({});
   const [advancedResult, setAdvancedResult] = useState<'correct' | 'wrong' | null>(null);
+  const [advancedHighlight, setAdvancedHighlight] = useState<{ stringIdx: number; fret: number } | null>(null);
 
   const streakKey = `${root}|${scaleName}`;
   const currentStreak = streaks[streakKey] ?? 0;
@@ -72,6 +73,7 @@ export function IntervalDrillTrainer({ score, onComplete }: IntervalDrillTrainer
     setSelected(null);
     setFlashCorrect(false);
     setAdvancedResult(null);
+    setAdvancedHighlight(null);
     setRound(makeRound(newScale, newRoot, newPos, difficulty));
   }
 
@@ -81,6 +83,7 @@ export function IntervalDrillTrainer({ score, onComplete }: IntervalDrillTrainer
     setSelected(null);
     setFlashCorrect(false);
     setAdvancedResult(null);
+    setAdvancedHighlight(null);
     setRound(makeRound(scaleName, root, position, d));
   }
 
@@ -114,6 +117,7 @@ export function IntervalDrillTrainer({ score, onComplete }: IntervalDrillTrainer
     setSelected(null);
     setFlashCorrect(false);
     setAdvancedResult(null);
+    setAdvancedHighlight(null);
     setRound(makeRound(scaleName, root, position, difficulty));
   }
 
@@ -149,19 +153,25 @@ export function IntervalDrillTrainer({ score, onComplete }: IntervalDrillTrainer
 
     if (isCorrect) {
       setAdvancedResult('correct');
+      setAdvancedHighlight({ stringIdx, fret: fretIdx });
+      setFlashCorrect(true);
       setStreaks(prev => ({ ...prev, [streakKey]: (prev[streakKey] ?? 0) + 1 }));
       onComplete(true);
       setTimeout(() => {
+        setFlashCorrect(false);
         setAdvancedResult(null);
+        setAdvancedHighlight(null);
         setRound(makeRound(scaleName, root, position, difficulty));
       }, 600);
     } else {
       setAdvancedResult('wrong');
+      setAdvancedHighlight(round.validPositions[0] ?? null);
       setStreaks(prev => ({ ...prev, [streakKey]: 0 }));
       setFlashCorrect(true);
       setTimeout(() => {
         setFlashCorrect(false);
         setAdvancedResult(null);
+        setAdvancedHighlight(null);
         onComplete(false);
         setRound(makeRound(scaleName, root, position, difficulty));
       }, 1500);
@@ -322,7 +332,7 @@ export function IntervalDrillTrainer({ score, onComplete }: IntervalDrillTrainer
               highlightNote={
                 difficulty !== 'Advanced'
                   ? { stringIdx: round.targetStringIdx, fret: round.targetFret }
-                  : undefined
+                  : advancedHighlight ?? undefined
               }
               showNoteNames={false}
               labeledDots={labeledDots}
@@ -389,6 +399,7 @@ export function IntervalDrillTrainer({ score, onComplete }: IntervalDrillTrainer
               setSelected(null);
               setFlashCorrect(false);
               setAdvancedResult(null);
+              setAdvancedHighlight(null);
             }}
             className="w-full py-1.5 rounded-lg border border-brand-line text-xs text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink transition-colors"
           >
