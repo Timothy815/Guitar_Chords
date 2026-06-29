@@ -80,6 +80,21 @@ const SCALE_POSITION_BOXES = [
   { id: 'pos5', label: 'Position 5 (G-shape)', startOff: 9 },
 ] as const;
 const SCALE_BOX_SPAN = 4;
+const MINOR_FAMILY_BOXES = [
+  { id: 'box1', label: 'Box 1', startOff: 0, span: 3 },
+  { id: 'box2', label: 'Box 2', startOff: 3, span: 2 },
+  { id: 'box3', label: 'Box 3', startOff: 5, span: 2 },
+  { id: 'box4', label: 'Box 4', startOff: 7, span: 3 },
+  { id: 'box5', label: 'Box 5', startOff: 10, span: 2 },
+] as const;
+const MAJOR_FAMILY_BOXES = [
+  { id: 'box1', label: 'Box 1', startOff: -3, span: 3 },
+  { id: 'box2', label: 'Box 2', startOff: 0, span: 2 },
+  { id: 'box3', label: 'Box 3', startOff: 2, span: 2 },
+  { id: 'box4', label: 'Box 4', startOff: 4, span: 3 },
+  { id: 'box5', label: 'Box 5', startOff: 7, span: 2 },
+] as const;
+type ScaleViewMode = 'full' | 'position' | 'box';
 
 export function Dictionary() {
   const navigate = useNavigate();
@@ -90,7 +105,9 @@ export function Dictionary() {
   const [selectedKey, setSelectedKey] = useState<Note>('C');
   const [selectedChordIdx, setSelectedChordIdx] = useState<number>(0);
   const [selectedScaleIdx, setSelectedScaleIdx] = useState<number>(0);
-  const [scalePositionSelection, setScalePositionSelection] = useState<string>('all');
+  const [scaleViewMode, setScaleViewMode] = useState<ScaleViewMode>('full');
+  const [scalePositionSelection, setScalePositionSelection] = useState<string>('pos1');
+  const [scaleBoxSelection, setScaleBoxSelection] = useState<string>('box1');
   const [playingNotes, setPlayingNotes] = useState<Set<string>>(new Set());
   const [identifiedFrets, setIdentifiedFrets] = useState<number[]>([-1,-1,-1,-1,-1,-1]);
   const [addedToast, setAddedToast] = useState<string | null>(null);
@@ -224,6 +241,19 @@ export function Dictionary() {
     () => activeScaleBase ? generateScalePattern(selectedKey, activeScaleBase) : null,
     [selectedKey, selectedScaleIdx] // eslint-disable-line react-hooks/exhaustive-deps
   );
+  const boxFamily = useMemo<'minorFamily' | 'majorFamily' | null>(() => {
+    switch (activeScaleBase?.name) {
+      case 'Minor Pentatonic':
+      case 'Minor Blues':
+        return 'minorFamily';
+      case 'Major Pentatonic':
+      case 'Major Blues':
+        return 'majorFamily';
+      default:
+        return null;
+    }
+  }, [activeScaleBase]);
+  const boxViewSupported = boxFamily !== null;
 
   const scalePositionOptions = useMemo(() => {
     const lowENoteIdx = ALL_NOTES.indexOf(STANDARD_TUNING.notes[0] as Note);
@@ -242,11 +272,43 @@ export function Dictionary() {
     });
   }, [selectedKey]);
 
+  const scaleBoxOptions = useMemo(() => {
+    if (!boxViewSupported) return [];
+    const lowENoteIdx = ALL_NOTES.indexOf(STANDARD_TUNING.notes[0] as Note);
+    const rootNoteIdx = ALL_NOTES.indexOf(selectedKey);
+    const rootFret = (rootNoteIdx - lowENoteIdx + 12) % 12;
+    const familyBoxes = boxFamily === 'majorFamily' ? MAJOR_FAMILY_BOXES : MINOR_FAMILY_BOXES;
+    return familyBoxes.map(box => {
+      let startFret = rootFret + box.startOff;
+      if (startFret < 0) startFret += 12;
+      if (startFret > 14) startFret -= 12;
+      const endFret = startFret + box.span;
+      return {
+        id: box.id,
+        label: `${box.label} (${startFret}-${endFret})`,
+        range: [startFret, endFret] as [number, number],
+      };
+    });
+  }, [boxFamily, boxViewSupported, selectedKey]);
+
   const scaleFretRange = useMemo<number[]>(() => {
-    if (scalePositionSelection === 'all') return [];
-    const match = scalePositionOptions.find(option => option.id === scalePositionSelection);
-    return match ? [match.range[0], match.range[1]] : [];
-  }, [scalePositionOptions, scalePositionSelection]);
+    if (scaleViewMode === 'full') return [];
+    if (scaleViewMode === 'position') {
+      const match = scalePositionOptions.find(option => option.id === scalePositionSelection);
+      return match ? [match.range[0], match.range[1]] : [];
+    }
+    if (scaleViewMode === 'box') {
+      const match = scaleBoxOptions.find(option => option.id === scaleBoxSelection);
+      return match ? [match.range[0], match.range[1]] : [];
+    }
+    return [];
+  }, [scaleBoxOptions, scaleBoxSelection, scalePositionOptions, scalePositionSelection, scaleViewMode]);
+
+  useEffect(() => {
+    if (scaleViewMode === 'box' && !boxViewSupported) {
+      setScaleViewMode('full');
+    }
+  }, [boxViewSupported, scaleViewMode]);
 
   useEffect(() => {
     if (!isStandardTuning && mode === 'chords') {
@@ -814,23 +876,80 @@ export function Dictionary() {
 
               {mode === 'scales' && (
                   <>
-                    <h3 className="text-sm font-bold text-brand-secondary uppercase tracking-wider pt-4">Scale Position</h3>
+                    <h3 className="text-sm font-bold text-brand-secondary uppercase tracking-wider pt-4">Scale View</h3>
                     <div className="space-y-2">
-                       <select
-                         value={scalePositionSelection}
-                         onChange={(e) => {
-                            setScalePositionSelection(e.target.value);
-                         }}
-                         className="w-full p-2 text-sm border border-brand-line rounded-md bg-brand-surface text-brand-ink outline-none"
-                       >
-                         <option value="all">Full Fretboard</option>
-                         {scalePositionOptions.map(option => (
-                           <option key={option.id} value={option.id}>{option.label}</option>
-                         ))}
-                       </select>
-                       <p className="text-[10px] text-brand-secondary/70 leading-tight">
-                         These are root-relative CAGED-style position windows, so the displayed pattern follows the selected key instead of fixed absolute frets.
-                       </p>
+                      <div className="flex gap-1 flex-wrap">
+                        {([
+                          { id: 'full', label: 'Full Neck', disabled: false },
+                          { id: 'position', label: 'Position', disabled: false },
+                          { id: 'box', label: 'Box', disabled: !boxViewSupported },
+                        ] as { id: ScaleViewMode; label: string; disabled: boolean }[]).map(view => (
+                          <button
+                            key={view.id}
+                            onClick={() => { if (!view.disabled) setScaleViewMode(view.id); }}
+                            disabled={view.disabled}
+                            className={cn(
+                              'px-2 py-0.5 rounded-full text-xs font-medium transition-colors border',
+                              scaleViewMode === view.id
+                                ? 'bg-brand-active text-white border-brand-active'
+                                : 'bg-brand-bg border-brand-line text-brand-secondary hover:text-brand-ink',
+                              view.disabled && 'opacity-40 cursor-not-allowed hover:text-brand-secondary'
+                            )}
+                          >
+                            {view.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      {scaleViewMode === 'position' && (
+                        <>
+                          <select
+                            value={scalePositionSelection}
+                            onChange={(e) => {
+                              setScalePositionSelection(e.target.value);
+                            }}
+                            className="w-full p-2 text-sm border border-brand-line rounded-md bg-brand-surface text-brand-ink outline-none"
+                          >
+                            {scalePositionOptions.map(option => (
+                              <option key={option.id} value={option.id}>{option.label}</option>
+                            ))}
+                          </select>
+                          <p className="text-[10px] text-brand-secondary/70 leading-tight">
+                            Root-relative CAGED-style position windows that follow the selected key.
+                          </p>
+                        </>
+                      )}
+
+                      {scaleViewMode === 'box' && boxViewSupported && (
+                        <>
+                          <select
+                            value={scaleBoxSelection}
+                            onChange={(e) => {
+                              setScaleBoxSelection(e.target.value);
+                            }}
+                            className="w-full p-2 text-sm border border-brand-line rounded-md bg-brand-surface text-brand-ink outline-none"
+                          >
+                            {scaleBoxOptions.map(option => (
+                              <option key={option.id} value={option.id}>{option.label}</option>
+                            ))}
+                          </select>
+                          <p className="text-[10px] text-brand-secondary/70 leading-tight">
+                            Standard guitar box regions for pentatonic and blues families. The selected scale uses its matching major- or minor-family box layout.
+                          </p>
+                        </>
+                      )}
+
+                      {scaleViewMode === 'full' && (
+                        <p className="text-[10px] text-brand-secondary/70 leading-tight">
+                          Shows all note locations for the selected scale across the visible fretboard.
+                        </p>
+                      )}
+
+                      {!boxViewSupported && (
+                        <p className="text-[10px] text-brand-secondary/70 leading-tight">
+                          Box view is currently available for Minor Pentatonic, Major Pentatonic, Minor Blues, and Major Blues.
+                        </p>
+                      )}
                     </div>
 
                     <h3 className="text-sm font-bold text-brand-secondary uppercase tracking-wider pt-4">Pattern Types</h3>
