@@ -96,6 +96,7 @@ const MAJOR_FAMILY_BOXES = [
 ] as const;
 const THREE_NPS_SPAN = 4;
 type ScaleViewMode = 'full' | 'position' | 'box' | 'threeNps';
+type ScaleOverlayMode = 'all' | 'roots' | 'chordTones' | 'arpeggio';
 
 export function Dictionary() {
   const navigate = useNavigate();
@@ -107,6 +108,7 @@ export function Dictionary() {
   const [selectedChordIdx, setSelectedChordIdx] = useState<number>(0);
   const [selectedScaleIdx, setSelectedScaleIdx] = useState<number>(0);
   const [scaleViewMode, setScaleViewMode] = useState<ScaleViewMode>('full');
+  const [scaleOverlayMode, setScaleOverlayMode] = useState<ScaleOverlayMode>('all');
   const [scalePositionSelection, setScalePositionSelection] = useState<string>('pos1');
   const [scaleBoxSelection, setScaleBoxSelection] = useState<string>('box1');
   const [scaleThreeNpsSelection, setScaleThreeNpsSelection] = useState<string>('p1');
@@ -257,6 +259,30 @@ export function Dictionary() {
   }, [activeScaleBase]);
   const boxViewSupported = boxFamily !== null;
   const threeNpsSupported = (activeScaleBase?.intervals.length ?? 0) === 7;
+  const scaleOverlayIntervals = useMemo<number[]>(() => {
+    const intervals = activeScaleBase?.intervals ?? [];
+    if (scaleOverlayMode === 'all') return intervals;
+    if (scaleOverlayMode === 'roots') return intervals.includes(0) ? [0] : [];
+
+    const chooseFirstPresent = (candidates: number[]) => candidates.find(interval => intervals.includes(interval));
+    const third = chooseFirstPresent([3, 4]);
+    const fifth = chooseFirstPresent([7, 6, 8]);
+    const seventh = chooseFirstPresent([10, 11, 9]);
+
+    const core = [0, third, fifth].filter((interval): interval is number => interval !== undefined);
+    if (scaleOverlayMode === 'chordTones') return core;
+    return [...core, seventh].filter((interval, idx, arr): interval is number => interval !== undefined && arr.indexOf(interval) === idx);
+  }, [activeScaleBase, scaleOverlayMode]);
+  const displayedScale = useMemo(() => {
+    if (!activeScale || !activeScaleBase) return activeScale;
+    if (scaleOverlayMode === 'all') return activeScale;
+    const allowed = new Set(scaleOverlayIntervals);
+    return {
+      ...activeScale,
+      notes: activeScale.notes.filter((_, idx) => allowed.has(activeScaleBase.intervals[idx])),
+      intervals: activeScaleBase.intervals.filter(interval => allowed.has(interval)),
+    };
+  }, [activeScale, activeScaleBase, scaleOverlayIntervals, scaleOverlayMode]);
 
   const scalePositionOptions = useMemo(() => {
     const lowENoteIdx = ALL_NOTES.indexOf(STANDARD_TUNING.notes[0] as Note);
@@ -1005,6 +1031,23 @@ export function Dictionary() {
                       )}
                     </div>
 
+                    <h3 className="text-sm font-bold text-brand-secondary uppercase tracking-wider pt-4">Tone Overlay</h3>
+                    <div className="space-y-2">
+                      <select
+                        value={scaleOverlayMode}
+                        onChange={(e) => setScaleOverlayMode(e.target.value as ScaleOverlayMode)}
+                        className="w-full p-2 text-sm border border-brand-line rounded-md bg-brand-surface text-brand-ink outline-none"
+                      >
+                        <option value="all">All Scale Tones</option>
+                        <option value="roots">Roots Only</option>
+                        <option value="chordTones">Chord Tones (1, 3/b3, 5)</option>
+                        <option value="arpeggio">Arpeggio Focus (1, 3/b3, 5, 7/b7)</option>
+                      </select>
+                      <p className="text-[10px] text-brand-secondary/70 leading-tight">
+                        Tone Overlay narrows the visible notes to the root, implied chord tones, or arpeggio tones built from the selected scale root.
+                      </p>
+                    </div>
+
                     <h3 className="text-sm font-bold text-brand-secondary uppercase tracking-wider pt-4">Pattern Types</h3>
                     {/* Category tabs */}
                     <div className="flex gap-1 flex-wrap">
@@ -1417,7 +1460,7 @@ export function Dictionary() {
                         fretsNum={15}
                         chord={mode === 'chords' ? scaffoldedChord : (mode === 'identify' ? { name: 'Identified', frets: identifiedFrets, fingers: [-1,-1,-1,-1,-1,-1] } : undefined)}
                         showNoteNames={!(mode === 'chords' && scaffoldLevel === 1)}
-                        scale={mode === 'scales' ? activeScale : undefined}
+                        scale={mode === 'scales' ? displayedScale ?? undefined : undefined}
                         playingNotes={playingNotes}
                         fretRange={mode === 'scales' && scaleFretRange.length === 2 ? [scaleFretRange[0], scaleFretRange[1]] : undefined}
                         onNoteClick={(str) => {
