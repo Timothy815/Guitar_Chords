@@ -98,6 +98,45 @@ const THREE_NPS_SPAN = 4;
 type ScaleViewMode = 'full' | 'position' | 'box' | 'threeNps';
 type ScaleOverlayMode = 'all' | 'roots' | 'chordTones' | 'arpeggio';
 
+function describeOverlayQuality(intervals: number[]) {
+  const has = (interval: number) => intervals.includes(interval);
+  const hasMinor3 = has(3);
+  const hasMajor3 = has(4);
+  const hasFlat5 = has(6);
+  const hasPerfect5 = has(7);
+  const hasSharp5 = has(8);
+  const hasMajor6 = has(9);
+  const hasMinor7 = has(10);
+  const hasMajor7 = has(11);
+
+  if (hasMinor3 && hasFlat5 && hasMinor7) return 'half-diminished 7th';
+  if (hasMinor3 && hasFlat5) return 'diminished triad';
+  if (hasMajor3 && hasSharp5) return 'augmented triad';
+  if (hasMajor3 && hasPerfect5 && hasMinor7) return 'dominant 7th';
+  if (hasMajor3 && hasPerfect5 && hasMajor7) return 'major 7th';
+  if (hasMinor3 && hasPerfect5 && hasMinor7) return 'minor 7th';
+  if (hasMinor3 && hasPerfect5 && hasMajor6) return 'minor 6';
+  if (hasMajor3 && hasPerfect5) return 'major triad';
+  if (hasMinor3 && hasPerfect5) return 'minor triad';
+  if (hasPerfect5) return 'power chord shell';
+  return 'scale-tone collection';
+}
+
+function formatOverlayDegree(interval: number) {
+  switch (interval) {
+    case 0: return '1';
+    case 3: return 'b3';
+    case 4: return '3';
+    case 6: return 'b5';
+    case 7: return '5';
+    case 8: return '#5';
+    case 9: return '6';
+    case 10: return 'b7';
+    case 11: return '7';
+    default: return `${interval}`;
+  }
+}
+
 export function Dictionary() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -283,6 +322,40 @@ export function Dictionary() {
       intervals: activeScaleBase.intervals.filter(interval => allowed.has(interval)),
     };
   }, [activeScale, activeScaleBase, scaleOverlayIntervals, scaleOverlayMode]);
+  const scaleOverlaySummary = useMemo(() => {
+    if (!activeScale || !displayedScale) return null;
+    if (scaleOverlayMode === 'all') {
+      return {
+        title: `${selectedKey} ${activeScaleBase?.name ?? 'Scale'}`,
+        detail: 'Showing the full scale note set.',
+        degrees: activeScale.intervals.map(formatOverlayDegree).join(' - '),
+        notes: activeScale.notes.join(' - '),
+      };
+    }
+    if (scaleOverlayMode === 'roots') {
+      return {
+        title: `${selectedKey} root map`,
+        detail: 'Use this to anchor your ear and locate every tonic on the neck.',
+        degrees: '1',
+        notes: selectedKey,
+      };
+    }
+
+    const quality = describeOverlayQuality(displayedScale.intervals);
+    const title = scaleOverlayMode === 'chordTones'
+      ? `${selectedKey} ${quality}`
+      : `${selectedKey} ${quality} arpeggio`;
+    const detail = scaleOverlayMode === 'chordTones'
+      ? 'This isolates the core harmony implied by the selected scale at its root.'
+      : 'This highlights the 7th-chord arpeggio tones implied by the selected scale at its root.';
+
+    return {
+      title,
+      detail,
+      degrees: displayedScale.intervals.map(formatOverlayDegree).join(' - '),
+      notes: displayedScale.notes.join(' - '),
+    };
+  }, [activeScale, activeScaleBase, displayedScale, scaleOverlayMode, selectedKey]);
 
   const scalePositionOptions = useMemo(() => {
     const lowENoteIdx = ALL_NOTES.indexOf(STANDARD_TUNING.notes[0] as Note);
@@ -1046,6 +1119,14 @@ export function Dictionary() {
                       <p className="text-[10px] text-brand-secondary/70 leading-tight">
                         Tone Overlay narrows the visible notes to the root, implied chord tones, or arpeggio tones built from the selected scale root.
                       </p>
+                      {scaleOverlaySummary && (
+                        <div className="rounded-md border border-brand-line bg-brand-surface px-3 py-2 text-[11px] leading-relaxed">
+                          <p className="font-semibold text-brand-ink">{scaleOverlaySummary.title}</p>
+                          <p className="text-brand-secondary/80">{scaleOverlaySummary.detail}</p>
+                          <p className="text-brand-secondary/80"><span className="font-medium text-brand-ink">Degrees:</span> {scaleOverlaySummary.degrees}</p>
+                          <p className="text-brand-secondary/80"><span className="font-medium text-brand-ink">Notes:</span> {scaleOverlaySummary.notes}</p>
+                        </div>
+                      )}
                     </div>
 
                     <h3 className="text-sm font-bold text-brand-secondary uppercase tracking-wider pt-4">Pattern Types</h3>
