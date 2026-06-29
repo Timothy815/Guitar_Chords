@@ -315,6 +315,23 @@ export function Dictionary() {
         return;
       }
     }
+    const rootParam = searchParams.get('root');
+    const qualityParam = searchParams.get('quality');
+    if (searchParams.get('mode') === 'chords' && rootParam && qualityParam) {
+      const normalizedRoot = rootParam.toUpperCase();
+      if (ALL_NOTES.includes(normalizedRoot as Note)) {
+        const root = normalizedRoot as Note;
+        const pool = COMMON_CHORDS[root] ?? [];
+        const idx = pool.findIndex(c => {
+          const q = c.name.slice(root.length + 1);
+          return q.startsWith(qualityParam);
+        });
+        setSelectedKey(root);
+        setSelectedChordIdx(idx >= 0 ? idx : 0);
+        setMode('chords');
+        return;
+      }
+    }
     const saved = localStorage.getItem('guitarmaster_identifiedFrets');
     if (saved) {
       try {

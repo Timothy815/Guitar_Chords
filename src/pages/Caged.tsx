@@ -91,6 +91,17 @@ const DEFAULT_SHAPE_ID: Record<ChordQuality, string> = {
   sus2: 'Esus2', sus4: 'Esus4', '6': 'E6',
 };
 
+const DICTIONARY_QUALITY_PREFIX: Record<ChordQuality, string> = {
+  major: 'Major',
+  minor: 'Minor',
+  dom7: '7',
+  maj7: 'Maj7',
+  min7: 'm7',
+  sus2: 'sus2',
+  sus4: 'sus4',
+  '6': '6',
+};
+
 function chordQualityStr(root: Note, q: ChordQuality): string {
   if (q === 'major') return `${root} Major`;
   if (q === 'minor') return `${root} minor`;
@@ -168,6 +179,14 @@ export function Caged() {
     const ok = addChordToActiveProgression(chord);
     setAddedToast(ok ? `Added ${chord.name}` : 'No progression saved yet');
     setTimeout(() => setAddedToast(null), 2000);
+  }
+
+  function handleOpenInDictionary(root: Note, chordQuality: ChordQuality) {
+    navigate(`/dictionary?mode=chords&root=${encodeURIComponent(root)}&quality=${encodeURIComponent(DICTIONARY_QUALITY_PREFIX[chordQuality])}`);
+  }
+
+  function handleOpenInIdentify(frets: number[]) {
+    navigate(`/dictionary?mode=identify&frets=${frets.join(',')}`);
   }
 
   const activeShapes = SHAPES_BY_QUALITY[quality];
@@ -494,8 +513,20 @@ export function Caged() {
                             + Progression
                           </button>
                           <button
-                            onClick={() => navigate('/ear-training')}
+                            onClick={() => handleOpenInDictionary(selectedKey, quality)}
                             className="text-xs px-3 py-1.5 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink transition-colors"
+                          >
+                            View in Dictionary →
+                          </button>
+                          <button
+                            onClick={() => handleOpenInIdentify(chordData.fretsOnly)}
+                            className="text-xs px-3 py-1.5 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink transition-colors"
+                          >
+                            Explore in Identify →
+                          </button>
+                          <button
+                             onClick={() => navigate('/ear-training')}
+                             className="text-xs px-3 py-1.5 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink transition-colors"
                           >
                             Ear Train →
                           </button>
@@ -586,6 +617,18 @@ export function Caged() {
                  className="text-xs px-3 py-1.5 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink transition-colors"
                >
                  + Progression
+               </button>
+               <button
+                 onClick={() => handleOpenInDictionary(resultingNote, quality)}
+                 className="text-xs px-3 py-1.5 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink transition-colors"
+               >
+                 View in Dictionary →
+               </button>
+               <button
+                 onClick={() => handleOpenInIdentify(fretsForShape)}
+                 className="text-xs px-3 py-1.5 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink transition-colors"
+               >
+                 Explore in Identify →
                </button>
                <button
                  onClick={() => navigate('/ear-training')}
