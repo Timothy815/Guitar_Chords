@@ -239,7 +239,7 @@ function buildDiagonalPattern(intervals: number[], startDegreeIndex: number) {
 
     return {
       id: `d${startDegreeIndex + 1}`,
-      label: `Path ${startDegreeIndex + 1} (${minFret}-${maxFret})`,
+      label: `Route from ${formatOverlayDegree(intervals[startDegreeIndex])} (${minFret}-${maxFret})`,
       range: [minFret, maxFret] as [number, number],
       positions,
     };
@@ -1211,7 +1211,7 @@ export function Dictionary() {
                           { id: 'position', label: 'CAGED', disabled: false },
                           { id: 'box', label: 'Box', disabled: !boxViewSupported },
                           { id: 'threeNps', label: '3NPS', disabled: !threeNpsSupported },
-                          { id: 'diagonal', label: 'Diagonal', disabled: !diagonalSupported },
+                          { id: 'diagonal', label: 'Pathway', disabled: !diagonalSupported },
                         ] as { id: ScaleViewMode; label: string; disabled: boolean }[]).map(view => (
                           <button
                             key={view.id}
@@ -1301,8 +1301,12 @@ export function Dictionary() {
                             ))}
                           </select>
                           <p className="text-[10px] text-brand-secondary/70 leading-tight">
-                            Diagonal view: ascending cross-neck pathways for supported 7-note scales, useful for escaping box-shaped movement.
+                            Pathway view: ascending cross-neck routes for supported 7-note scales. These are movement maps for escaping box-shaped playing, not strict note-by-note scale exercises.
                           </p>
+                          <div className="rounded-md border border-brand-line bg-brand-surface px-3 py-2 text-[11px] leading-relaxed">
+                            <p className="font-semibold text-brand-ink">How to use it</p>
+                            <p className="text-brand-secondary/80">Start on the lowest highlighted note and move upward in pitch through the shown route. Treat it as a suggested pathway across the neck, not a fixed published fingering.</p>
+                          </div>
                         </>
                       )}
 
@@ -1326,7 +1330,7 @@ export function Dictionary() {
 
                       {!diagonalSupported && (
                         <p className="text-[10px] text-brand-secondary/70 leading-tight">
-                          Diagonal view is currently available for 7-note scales such as major, natural minor, modes, harmonic minor, melodic minor, and phrygian dominant.
+                          Pathway view is currently available for 7-note scales such as major, natural minor, modes, harmonic minor, melodic minor, and phrygian dominant.
                         </p>
                       )}
                     </div>
