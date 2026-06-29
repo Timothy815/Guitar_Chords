@@ -1671,9 +1671,8 @@ export function EarTraining() {
               <RhythmRoundLoader onLoad={() => advanceRound()} />
             )
           ) : settings.mode === 'scaleDrill' ? (
-            <React.Fragment key={`${scaleDrillRound.root}-${scaleDrillRound.scaleName}-${scaleDrillRound.targetStringIdx}-${scaleDrillRound.targetFret}`}>
+            <React.Fragment key="scale-drill">
               <ScaleDrillTrainer
-                round={scaleDrillRound}
                 score={score}
                 onComplete={handleScaleDrillComplete}
               />
