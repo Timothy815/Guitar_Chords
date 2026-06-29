@@ -1203,6 +1203,7 @@ export function Dictionary() {
                           import('../lib/audio').then(m => m.playNote(str, sustain));
                         }}
                         onFretClick={handleFretClick}
+                        tuning={currentTuning}
                      />
                   </div>
                   <p className="text-brand-secondary/70 text-sm mt-8 pb-4 print:hidden text-center">
