@@ -94,9 +94,53 @@ const MAJOR_FAMILY_BOXES = [
   { id: 'box4', label: 'Box 4', startOff: 4, span: 3 },
   { id: 'box5', label: 'Box 5', startOff: 7, span: 2 },
 ] as const;
+type RelativeBoxPattern = readonly (readonly number[])[];
+const MINOR_PENTATONIC_BOX_PATTERNS: Record<string, RelativeBoxPattern> = {
+  box1: [[0, 3], [0, 2], [0, 2], [0, 2], [0, 3], [0, 3]],
+  box2: [[3, 5], [2, 5], [2, 5], [2, 4], [3, 5], [3, 5]],
+  box3: [[5, 7], [5, 7], [5, 7], [4, 7], [5, 8], [5, 7]],
+  box4: [[7, 10], [7, 10], [7, 9], [7, 9], [8, 10], [7, 10]],
+  box5: [[10, 12], [9, 12], [9, 12], [9, 12], [10, 12], [10, 12]],
+};
+const MINOR_BLUES_BOX_PATTERNS: Record<string, RelativeBoxPattern> = {
+  box1: [[0, 3], [0, 1, 2], [0, 2], [0, 2], [0, 3], [0, 3]],
+  box2: [[3, 5], [2, 5], [2, 3, 5], [2, 4], [3, 5], [3, 5]],
+  box3: [[5, 6, 7], [5, 7], [5, 7], [4, 5, 7], [5, 8], [5, 7]],
+  box4: [[7, 10], [7, 8, 10], [7, 9], [7, 8, 9], [8, 10], [7, 10]],
+  box5: [[10, 12], [9, 12], [9, 10, 12], [9, 12], [10, 11, 12], [10, 12]],
+};
+const MAJOR_PENTATONIC_BOX_PATTERNS: Record<string, RelativeBoxPattern> = {
+  box1: [[0, 2], [-1, 2], [-1, 2], [-1, 1], [0, 2], [0, 2]],
+  box2: [[2, 4], [2, 4], [2, 4], [1, 4], [2, 5], [2, 4]],
+  box3: [[4, 7], [4, 7], [4, 6], [4, 6], [5, 7], [4, 7]],
+  box4: [[7, 9], [6, 9], [6, 9], [6, 9], [7, 9], [7, 9]],
+  box5: [[9, 12], [9, 11], [9, 11], [9, 11], [9, 12], [9, 12]],
+};
+const MAJOR_BLUES_BOX_PATTERNS: Record<string, RelativeBoxPattern> = {
+  box1: [[0, 2], [-1, 2], [-1, 2], [-1, 0, 1], [0, 2], [0, 2]],
+  box2: [[2, 4], [2, 4], [2, 3, 4], [1, 4], [2, 5], [2, 4]],
+  box3: [[4, 7], [4, 7], [4, 6], [4, 5, 6], [5, 7], [4, 7]],
+  box4: [[7, 9], [6, 9], [6, 9], [6, 7, 9], [7, 9], [7, 9]],
+  box5: [[9, 12], [9, 10, 11], [9, 11], [9, 11], [9, 12], [9, 12]],
+};
 const THREE_NPS_SPAN = 4;
 type ScaleViewMode = 'full' | 'position' | 'box' | 'threeNps';
 type ScaleOverlayMode = 'all' | 'roots' | 'chordTones' | 'arpeggio';
+
+function getStrictBoxPattern(scaleName: string, boxId: string): RelativeBoxPattern | null {
+  switch (scaleName) {
+    case 'Minor Pentatonic':
+      return MINOR_PENTATONIC_BOX_PATTERNS[boxId] ?? null;
+    case 'Minor Blues':
+      return MINOR_BLUES_BOX_PATTERNS[boxId] ?? null;
+    case 'Major Pentatonic':
+      return MAJOR_PENTATONIC_BOX_PATTERNS[boxId] ?? null;
+    case 'Major Blues':
+      return MAJOR_BLUES_BOX_PATTERNS[boxId] ?? null;
+    default:
+      return null;
+  }
+}
 
 function describeOverlayQuality(intervals: number[]) {
   const has = (interval: number) => intervals.includes(interval);
@@ -392,6 +436,38 @@ export function Dictionary() {
       };
     });
   }, [boxFamily, boxViewSupported, selectedKey]);
+  const strictScaleBoxPositions = useMemo(() => {
+    if (scaleViewMode !== 'box' || !activeScaleBase) return undefined;
+    const pattern = getStrictBoxPattern(activeScaleBase.name, scaleBoxSelection);
+    if (!pattern) return undefined;
+
+    const lowENoteIdx = ALL_NOTES.indexOf(STANDARD_TUNING.notes[0] as Note);
+    const rootNoteIdx = ALL_NOTES.indexOf(selectedKey);
+    let anchorFret = (rootNoteIdx - lowENoteIdx + 12) % 12;
+    const allOffsets = pattern.flat();
+    let minFret = Math.min(...allOffsets.map(offset => anchorFret + offset));
+    let maxFret = Math.max(...allOffsets.map(offset => anchorFret + offset));
+
+    while (minFret < 0) {
+      anchorFret += 12;
+      minFret += 12;
+      maxFret += 12;
+    }
+    while (maxFret > 15 && minFret - 12 >= 0) {
+      anchorFret -= 12;
+      minFret -= 12;
+      maxFret -= 12;
+    }
+
+    const positions = new Set<string>();
+    pattern.forEach((stringOffsets, stringIdx) => {
+      stringOffsets.forEach(offset => {
+        const fret = anchorFret + offset;
+        if (fret >= 0 && fret <= 15) positions.add(`${stringIdx}-${fret}`);
+      });
+    });
+    return positions;
+  }, [activeScaleBase, scaleBoxSelection, scaleViewMode, selectedKey]);
 
   const scaleThreeNpsOptions = useMemo(() => {
     if (!threeNpsSupported || !activeScaleBase) return [];
@@ -417,6 +493,7 @@ export function Dictionary() {
       return match ? [match.range[0], match.range[1]] : [];
     }
     if (scaleViewMode === 'box') {
+      if (strictScaleBoxPositions) return [];
       const match = scaleBoxOptions.find(option => option.id === scaleBoxSelection);
       return match ? [match.range[0], match.range[1]] : [];
     }
@@ -425,7 +502,7 @@ export function Dictionary() {
       return match ? [match.range[0], match.range[1]] : [];
     }
     return [];
-  }, [scaleBoxOptions, scaleBoxSelection, scalePositionOptions, scalePositionSelection, scaleThreeNpsOptions, scaleThreeNpsSelection, scaleViewMode]);
+  }, [scaleBoxOptions, scaleBoxSelection, scalePositionOptions, scalePositionSelection, scaleThreeNpsOptions, scaleThreeNpsSelection, scaleViewMode, strictScaleBoxPositions]);
 
   useEffect(() => {
     if (scaleViewMode === 'box' && !boxViewSupported) {
@@ -1061,7 +1138,7 @@ export function Dictionary() {
                             ))}
                           </select>
                           <p className="text-[10px] text-brand-secondary/70 leading-tight">
-                            Box view: standard compact guitar box regions for pentatonic and blues families, using the matching major- or minor-family layout.
+                            Box view: strict per-string pentatonic and blues box shapes, using the matching major- or minor-family layout.
                           </p>
                         </>
                       )}
@@ -1544,6 +1621,7 @@ export function Dictionary() {
                         scale={mode === 'scales' ? displayedScale ?? undefined : undefined}
                         playingNotes={playingNotes}
                         fretRange={mode === 'scales' && scaleFretRange.length === 2 ? [scaleFretRange[0], scaleFretRange[1]] : undefined}
+                        scalePositions={mode === 'scales' ? strictScaleBoxPositions : undefined}
                         onNoteClick={(str) => {
                           // Handled by onFretClick if possible, fallback
                           import('../lib/audio').then(m => m.playNote(str, sustain));

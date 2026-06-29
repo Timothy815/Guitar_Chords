@@ -38,6 +38,7 @@ interface FretboardProps {
   showNoteNames?: boolean;
   className?: string; // Additional classes
   fretRange?: [number, number]; // [startFret, endFret] to isolate scales
+  scalePositions?: Set<string>; // explicit string-fret positions for strict scale shapes
   playingNotes?: Set<string>;
   compact?: boolean; // removes min-width constraint and hides label toggle (for grid contexts)
   correctPositions?: Set<string>;
@@ -50,7 +51,7 @@ interface FretboardProps {
   tuning?: Tuning;
 }
 
-export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClick, onFretMouseDown, showNoteNames = true, className, fretRange, playingNotes = new Set(), compact = false, correctPositions = new Set(), wrongPosition = null, previewPosition = null, focusZone, highlightNote, labeledDots, flashHighlight, tuning = STANDARD_TUNING }: FretboardProps) {
+export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClick, onFretMouseDown, showNoteNames = true, className, fretRange, scalePositions, playingNotes = new Set(), compact = false, correctPositions = new Set(), wrongPosition = null, previewPosition = null, focusZone, highlightNote, labeledDots, flashHighlight, tuning = STANDARD_TUNING }: FretboardProps) {
   const [labelMode, setLabelMode] = useState<LabelMode>('none');
 
   const stringsNum = 6;
@@ -131,7 +132,10 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
     // Check Scale
     if (scale && !chord) {
       if (scale.notes.includes(noteJustName as any)) {
-        if (fretRange) {
+        const inExplicitPosition = scalePositions ? scalePositions.has(`${stringIdx}-${fretIdx}`) : true;
+        if (!inExplicitPosition) {
+          show = false;
+        } else if (fretRange) {
           const [startFret, endFret] = fretRange;
           if (fretIdx >= startFret && fretIdx <= endFret) show = true;
         } else {
