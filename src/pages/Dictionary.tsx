@@ -273,6 +273,16 @@ export function Dictionary() {
     c.frets.every((f, i) => f === identifiedFrets[i])
   );
 
+  const frettedNotes = identifiedFrets.filter(f => f !== -1);
+  const minFret = frettedNotes.length > 0 ? Math.min(...frettedNotes) : -1;
+  const maxFret = frettedNotes.length > 0 ? Math.max(...frettedNotes) : -1;
+  const canShiftDown = minFret > 0;
+  const canShiftUp   = maxFret >= 0 && maxFret < 15;
+
+  function shiftFrets(delta: number) {
+    setIdentifiedFrets(prev => prev.map(f => f === -1 ? -1 : Math.max(0, f + delta)));
+  }
+
   const activeChordNotes: string[] = mode === 'chords' && activeChord
     ? activeChord.frets
         .map((fret, strIdx) => fret !== -1 ? getFretNote(strIdx, fret) : null)
@@ -845,6 +855,37 @@ export function Dictionary() {
                                Next ▶
                              </button>
                            </div>
+                         </div>
+                       )}
+
+                       {/* Shape shift — slide every fretted note up/down by one fret */}
+                       {frettedNotes.length > 0 && (
+                         <div className="mt-3 space-y-1">
+                           <p className="text-xs font-medium text-brand-secondary">Slide shape</p>
+                           <div className="flex items-center gap-2">
+                             <button
+                               onClick={() => shiftFrets(-1)}
+                               disabled={!canShiftDown}
+                               className="flex-1 py-1.5 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink text-xs font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                               title="Shift shape one fret toward the nut"
+                             >
+                               ◀ Down
+                             </button>
+                             <span className="text-xs tabular-nums text-brand-secondary min-w-[36px] text-center">
+                               {minFret > 0 ? `fret ${minFret}` : 'open'}
+                             </span>
+                             <button
+                               onClick={() => shiftFrets(1)}
+                               disabled={!canShiftUp}
+                               className="flex-1 py-1.5 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink text-xs font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                               title="Shift shape one fret toward the body"
+                             >
+                               Up ▶
+                             </button>
+                           </div>
+                           <p className="text-[10px] text-brand-secondary/60 leading-tight">
+                             Moves all fretted notes together — same shape, new chord
+                           </p>
                          </div>
                        )}
                     </div>
