@@ -95,7 +95,23 @@ export interface IntervalFretboardRound {
   distractors: { stringIdx: number; fret: number; note: Note }[];
 }
 
-export type Round = ChordRound | IntervalRound | FretboardRound | RhythmRound | MelodyRound | IntervalFretboardRound;
+export interface ScaleIntervalRound {
+  kind: 'scaleInterval';
+  scaleName: string;
+  root: Note;
+  anchorStringIdx: number;
+  anchorFret: number;
+  anchorNote: Note;
+  targetStringIdx: number;
+  targetFret: number;
+  targetNote: Note;
+  intervalSemitones: number;   // 1–11, always ascending mod 12
+  intervalLabel: string;       // e.g. "Perfect 5th"
+  options: string[];           // 4 interval label strings, includes correct answer
+  validPositions: { stringIdx: number; fret: number }[];
+}
+
+export type Round = ChordRound | IntervalRound | FretboardRound | RhythmRound | MelodyRound | IntervalFretboardRound | ScaleIntervalRound;
 
 export interface SessionScore {
   correct: number;
@@ -625,5 +641,125 @@ export function generateScaleDrillRound(opts?: {
     options,
     anchorStringIdx: anchor.stringIdx,
     anchorFret: anchor.fret,
+  };
+}
+
+export function generateScaleIntervalRound(opts: {
+  scaleName: string;
+  root: Note;
+  fretRange: [number, number];
+  difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
+}): ScaleIntervalRound {
+  const scaleDef = COMMON_SCALES.find(s => s.name === opts.scaleName) ?? COMMON_SCALES[0];
+  const pattern = generateScalePattern(opts.root, scaleDef);
+  const [minFret, maxFret] = opts.fretRange;
+
+  // Build position pool: all scale-note fret positions within the fret window.
+  let positions: { stringIdx: number; fret: number; note: Note }[] = [];
+  STANDARD_TUNING.notes.forEach((openNote, stringIdx) => {
+    for (let fret = minFret; fret <= maxFret; fret++) {
+      const note = getNoteFromFret(openNote, fret);
+      if (pattern.notes.includes(note)) {
+        positions.push({ stringIdx, fret, note });
+      }
+    }
+  });
+
+  // Fall back to full neck if position pool is too small.
+  if (positions.length < 2) {
+    positions = [];
+    STANDARD_TUNING.notes.forEach((openNote, stringIdx) => {
+      for (let fret = 0; fret <= 12; fret++) {
+        const note = getNoteFromFret(openNote, fret);
+        if (pattern.notes.includes(note)) {
+          positions.push({ stringIdx, fret, note });
+        }
+      }
+    });
+  }
+
+  // Pick anchor and target, retrying until they are different pitch classes.
+  let anchor: { stringIdx: number; fret: number; note: Note };
+  let target: { stringIdx: number; fret: number; note: Note };
+  let intervalSemitones = 0;
+  let attempts = 0;
+
+  do {
+    if (opts.difficulty === 'Beginner') {
+      const rootPositions = positions.filter(p => p.note === opts.root);
+      anchor = rootPositions.length > 0
+        ? rootPositions[Math.floor(Math.random() * rootPositions.length)]
+        : positions[Math.floor(Math.random() * positions.length)];
+    } else {
+      anchor = positions[Math.floor(Math.random() * positions.length)];
+    }
+
+    const others = positions.filter(
+      p => !(p.stringIdx === anchor.stringIdx && p.fret === anchor.fret)
+    );
+    target = others.length > 0
+      ? others[Math.floor(Math.random() * others.length)]
+      : positions[Math.floor(Math.random() * positions.length)];
+
+    intervalSemitones =
+      (ALL_NOTES.indexOf(target.note) - ALL_NOTES.indexOf(anchor.note) + 12) % 12;
+    attempts++;
+  } while (intervalSemitones === 0 && attempts < 20);
+
+  // Hard fallback: force a different pitch class if still unison after retries.
+  if (intervalSemitones === 0) {
+    const diffNote = positions.find(p => p.note !== anchor.note);
+    if (diffNote) {
+      target = diffNote;
+      intervalSemitones =
+        (ALL_NOTES.indexOf(target.note) - ALL_NOTES.indexOf(anchor.note) + 12) % 12;
+    }
+  }
+
+  const intervalLabel =
+    INTERVAL_DEFS.find(d => d.semitones === intervalSemitones)?.label ?? INTERVAL_DEFS[1].label;
+
+  // Build options pool: all unique intervals (1–11 semitones) present between scale notes.
+  const scaleNotes = pattern.notes;
+  const scaleIntervalSet = new Set<number>();
+  for (const noteA of scaleNotes) {
+    for (const noteB of scaleNotes) {
+      if (noteA === noteB) continue;
+      const semi = (ALL_NOTES.indexOf(noteB) - ALL_NOTES.indexOf(noteA) + 12) % 12;
+      if (semi > 0) scaleIntervalSet.add(semi);
+    }
+  }
+  const distractorLabels = shuffle(
+    [...scaleIntervalSet]
+      .filter(s => s !== intervalSemitones)
+      .map(s => INTERVAL_DEFS.find(d => d.semitones === s)?.label)
+      .filter((l): l is string => l !== undefined)
+  ).slice(0, 3);
+  const options = shuffle([intervalLabel, ...distractorLabels]);
+
+  // Valid positions: all positions of targetNote within the fret window.
+  const validPositions: { stringIdx: number; fret: number }[] = [];
+  STANDARD_TUNING.notes.forEach((openNote, stringIdx) => {
+    for (let fret = minFret; fret <= maxFret; fret++) {
+      if (getNoteFromFret(openNote, fret) === target.note) {
+        validPositions.push({ stringIdx, fret });
+      }
+    }
+  });
+
+  return {
+    kind: 'scaleInterval',
+    scaleName: scaleDef.name,
+    root: opts.root,
+    anchorStringIdx: anchor.stringIdx,
+    anchorFret: anchor.fret,
+    anchorNote: anchor.note,
+    targetStringIdx: target.stringIdx,
+    targetFret: target.fret,
+    targetNote: target.note,
+    intervalSemitones,
+    intervalLabel,
+    options,
+    validPositions,
   };
 }
