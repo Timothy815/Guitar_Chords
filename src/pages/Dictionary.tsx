@@ -10,6 +10,7 @@ import { Volume2, ListMusic, Printer } from 'lucide-react';
 import { ChordShape, Note, TUNINGS, Tuning, Finger } from '../types';
 import { handlePrint, cn, avgChordPitch, chordPositionBucket, PositionBucket, POSITION_LABELS } from '../lib/utils';
 import { addChordToActiveProgression } from '@/src/lib/progressionUtils';
+import { TheoryReference } from '../components/TheoryReference';
 
 function getNavigationChords(tonalName: string): ChordShape[] {
   const base = tonalName.split('/')[0];
@@ -73,7 +74,7 @@ const INTERVALS = [
 export function Dictionary() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [mode, setMode] = useState<'chords' | 'scales' | 'identify' | 'intervals'>('chords');
+  const [mode, setMode] = useState<'chords' | 'scales' | 'identify' | 'intervals' | 'theory'>('chords');
   const [currentTuning, setCurrentTuning] = useState<Tuning>(TUNINGS['Standard']);
   const [selectedKey, setSelectedKey] = useState<Note>('C');
   const [selectedChordIdx, setSelectedChordIdx] = useState<number>(0);
@@ -114,6 +115,17 @@ export function Dictionary() {
   const [positionFilter, setPositionFilter] = useState<PositionBucket>('all');
   const [scaleCategory, setScaleCategory] = useState<ScaleCategory | 'All'>('All');
   const [selectedInterval, setSelectedInterval] = useState<number>(7); // Perfect 5th
+
+  function handleOpenInChords(root: Note, qualityPrefix: string) {
+    setSelectedKey(root);
+    const pool = COMMON_CHORDS[root] ?? [];
+    const idx = pool.findIndex(c => {
+      const q = c.name.slice(root.length + 1);
+      return q.startsWith(qualityPrefix);
+    });
+    setSelectedChordIdx(idx >= 0 ? idx : 0);
+    setMode('chords');
+  }
 
   function handleAddToProgression(chord: ChordShape) {
     const ok = addChordToActiveProgression(chord);
@@ -619,10 +631,20 @@ export function Dictionary() {
            >
              Intervals
            </button>
+           <button
+             onClick={() => setMode('theory')}
+             className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${mode === 'theory' ? 'bg-brand-surface text-brand-ink shadow-sm' : 'text-brand-secondary hover:text-brand-ink'}`}
+           >
+             Theory
+           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+      {mode === 'theory' && (
+        <TheoryReference onOpenInChords={handleOpenInChords} />
+      )}
+
+      {mode !== 'theory' && <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         
         {/* Controls Sidebar */}
         <div className="lg:col-span-1 space-y-6">
@@ -1384,7 +1406,8 @@ export function Dictionary() {
            </div>
         </div>
 
-      </div>
+      </div>}
+
     </div>
   );
 }
