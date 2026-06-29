@@ -41,6 +41,7 @@ import { MelodyRound, MelodySettings, generateMelodyRound } from '../lib/melodyT
 import { MelodyTrainer } from '../components/MelodyTrainer';
 import { CountItTrainer } from '../components/CountItTrainer';
 import { ScaleDrillTrainer } from '../components/ScaleDrillTrainer';
+import { IntervalDrillTrainer } from '../components/IntervalDrillTrainer';
 import { IntervalFretboardTrainer } from '../components/IntervalFretboardTrainer';
 
 function RhythmRoundLoader({ onLoad }: { onLoad: () => void }) {
@@ -105,6 +106,7 @@ export function EarTraining() {
   const practiceImportRef = useRef<HTMLInputElement>(null);
   const [practiceImportMsg, setPracticeImportMsg] = useState<string | null>(null);
   const [intervalFretboardRound, setIntervalFretboardRound] = useState<IntervalFretboardRound>(() => generateIntervalFretboardRound());
+  const [scaleDrillTab, setScaleDrillTab] = useState<'noteName' | 'interval'>('noteName');
 
   const FRETS_FOR: Record<DifficultyLevel, number> = { Beginner: 6, Intermediate: 10, Advanced: 13 };
 
@@ -131,6 +133,12 @@ export function EarTraining() {
 
   useEffect(() => { saveSettings(settings); }, [settings]);
   useEffect(() => { savePlanProgress(planProgress); }, [planProgress]);
+
+  useEffect(() => {
+    if (settings.mode !== 'scaleDrill') {
+      setScaleDrillTab('noteName');
+    }
+  }, [settings.mode]);
 
   useEffect(() => {
     if (settings.mode === 'study') {
@@ -1669,10 +1677,36 @@ export function EarTraining() {
               <RhythmRoundLoader onLoad={() => advanceRound()} />
             )
           ) : settings.mode === 'scaleDrill' ? (
-            <ScaleDrillTrainer
-              score={score}
-              onComplete={handleScaleDrillComplete}
-            />
+            <div>
+              {/* Tab row */}
+              <div className="flex gap-1 mb-3">
+                {(['noteName', 'interval'] as const).map(tab => (
+                  <button
+                    key={tab}
+                    onClick={() => setScaleDrillTab(tab)}
+                    className={cn(
+                      'px-3 py-1.5 rounded-md text-xs font-semibold border transition-colors',
+                      scaleDrillTab === tab
+                        ? 'bg-brand-primary text-white border-brand-primary'
+                        : 'border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink',
+                    )}
+                  >
+                    {tab === 'noteName' ? 'Note Name' : 'Interval'}
+                  </button>
+                ))}
+              </div>
+              {scaleDrillTab === 'noteName' ? (
+                <ScaleDrillTrainer
+                  score={score}
+                  onComplete={handleScaleDrillComplete}
+                />
+              ) : (
+                <IntervalDrillTrainer
+                  score={score}
+                  onComplete={handleScaleDrillComplete}
+                />
+              )}
+            </div>
           ) : settings.mode === 'intervalFretboard' ? (
             <React.Fragment key={`${intervalFretboardRound.rootNote}-${intervalFretboardRound.intervalLabel}-${intervalFretboardRound.rootStringIdx}-${intervalFretboardRound.rootFret}`}>
               <IntervalFretboardTrainer
