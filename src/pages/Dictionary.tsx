@@ -123,7 +123,7 @@ const MAJOR_BLUES_BOX_PATTERNS: Record<string, RelativeBoxPattern> = {
   box4: [[7, 9], [6, 9], [6, 9], [6, 7, 9], [7, 9], [7, 9]],
   box5: [[9, 12], [9, 10, 11], [9, 11], [9, 11], [9, 12], [9, 12]],
 };
-type ScaleViewMode = 'full' | 'position' | 'box' | 'threeNps';
+type ScaleViewMode = 'full' | 'position' | 'box' | 'threeNps' | 'diagonal';
 type ScaleOverlayMode = 'all' | 'roots' | 'chordTones' | 'arpeggio';
 
 function getStrictBoxPattern(scaleName: string, boxId: string): RelativeBoxPattern | null {
@@ -199,6 +199,53 @@ function buildThreeNpsPattern(intervals: number[], patternIndex: number) {
   };
 }
 
+function buildDiagonalPattern(intervals: number[], startDegreeIndex: number) {
+  if (intervals.length !== 7) return null;
+
+  const openPitches = STANDARD_TUNING.notes.map((note, idx) =>
+    getAbsolutePitch(note as Note, STANDARD_TUNING.octaves[idx])
+  );
+
+  return (root: Note) => {
+    const rootPitchClass = ALL_NOTES.indexOf(root);
+    let minPitch = openPitches[0] + ((rootPitchClass - ALL_NOTES.indexOf(STANDARD_TUNING.notes[0] as Note) + 12) % 12) + intervals[startDegreeIndex];
+    const positions = new Set<string>();
+    let minFret = Infinity;
+    let maxFret = -Infinity;
+
+    for (let stringIdx = 0; stringIdx < 6; stringIdx += 1) {
+      const candidates = Array.from({ length: 16 }, (_, fret) => {
+        const pitch = openPitches[stringIdx] + fret;
+        const pitchClass = ((pitch % 12) + 12) % 12;
+        const rel = (pitchClass - rootPitchClass + 12) % 12;
+        return { fret, pitch, inScale: intervals.includes(rel) };
+      }).filter(candidate => candidate.inScale && candidate.pitch >= minPitch);
+
+      if (candidates.length === 0) continue;
+
+      const picked = [candidates[0]];
+      const second = candidates.find(candidate => candidate.pitch > picked[0].pitch && candidate.fret - picked[0].fret <= 5);
+      if (second) picked.push(second);
+
+      picked.forEach(({ fret, pitch }) => {
+        positions.add(`${stringIdx}-${fret}`);
+        minFret = Math.min(minFret, fret);
+        maxFret = Math.max(maxFret, fret);
+        minPitch = pitch + 1;
+      });
+    }
+
+    if (positions.size === 0) return null;
+
+    return {
+      id: `d${startDegreeIndex + 1}`,
+      label: `Path ${startDegreeIndex + 1} (${minFret}-${maxFret})`,
+      range: [minFret, maxFret] as [number, number],
+      positions,
+    };
+  };
+}
+
 function describeOverlayQuality(intervals: number[]) {
   const has = (interval: number) => intervals.includes(interval);
   const hasMinor3 = has(3);
@@ -252,6 +299,7 @@ export function Dictionary() {
   const [scalePositionSelection, setScalePositionSelection] = useState<string>('pos1');
   const [scaleBoxSelection, setScaleBoxSelection] = useState<string>('box1');
   const [scaleThreeNpsSelection, setScaleThreeNpsSelection] = useState<string>('p1');
+  const [scaleDiagonalSelection, setScaleDiagonalSelection] = useState<string>('d1');
   const [playingNotes, setPlayingNotes] = useState<Set<string>>(new Set());
   const [identifiedFrets, setIdentifiedFrets] = useState<number[]>([-1,-1,-1,-1,-1,-1]);
   const [addedToast, setAddedToast] = useState<string | null>(null);
@@ -399,6 +447,7 @@ export function Dictionary() {
   }, [activeScaleBase]);
   const boxViewSupported = boxFamily !== null;
   const threeNpsSupported = (activeScaleBase?.intervals.length ?? 0) === 7;
+  const diagonalSupported = (activeScaleBase?.intervals.length ?? 0) === 7;
   const scaleOverlayIntervals = useMemo<number[]>(() => {
     const intervals = activeScaleBase?.intervals ?? [];
     if (scaleOverlayMode === 'all') return intervals;
@@ -535,11 +584,22 @@ export function Dictionary() {
     if (scaleViewMode !== 'threeNps') return undefined;
     return scaleThreeNpsOptions.find(option => option.id === scaleThreeNpsSelection)?.positions;
   }, [scaleThreeNpsOptions, scaleThreeNpsSelection, scaleViewMode]);
+  const scaleDiagonalOptions = useMemo(() => {
+    if (!diagonalSupported || !activeScaleBase) return [];
+    return [0, 2, 4]
+      .map((startIdx) => buildDiagonalPattern(activeScaleBase.intervals, startIdx)?.(selectedKey) ?? null)
+      .filter((pattern): pattern is { id: string; label: string; range: [number, number]; positions: Set<string> } => pattern !== null);
+  }, [activeScaleBase, diagonalSupported, selectedKey]);
+  const strictScaleDiagonalPositions = useMemo(() => {
+    if (scaleViewMode !== 'diagonal') return undefined;
+    return scaleDiagonalOptions.find(option => option.id === scaleDiagonalSelection)?.positions;
+  }, [scaleDiagonalOptions, scaleDiagonalSelection, scaleViewMode]);
   const activeStrictScalePositions = useMemo(() => {
     if (scaleViewMode === 'box') return strictScaleBoxPositions;
     if (scaleViewMode === 'threeNps') return strictScaleThreeNpsPositions;
+    if (scaleViewMode === 'diagonal') return strictScaleDiagonalPositions;
     return undefined;
-  }, [scaleViewMode, strictScaleBoxPositions, strictScaleThreeNpsPositions]);
+  }, [scaleViewMode, strictScaleBoxPositions, strictScaleThreeNpsPositions, strictScaleDiagonalPositions]);
 
   const scaleFretRange = useMemo<number[]>(() => {
     if (scaleViewMode === 'full') return [];
@@ -557,8 +617,13 @@ export function Dictionary() {
       const match = scaleThreeNpsOptions.find(option => option.id === scaleThreeNpsSelection);
       return match ? [match.range[0], match.range[1]] : [];
     }
+    if (scaleViewMode === 'diagonal') {
+      if (strictScaleDiagonalPositions) return [];
+      const match = scaleDiagonalOptions.find(option => option.id === scaleDiagonalSelection);
+      return match ? [match.range[0], match.range[1]] : [];
+    }
     return [];
-  }, [scaleBoxOptions, scaleBoxSelection, scalePositionOptions, scalePositionSelection, scaleThreeNpsOptions, scaleThreeNpsSelection, scaleViewMode, strictScaleBoxPositions, strictScaleThreeNpsPositions]);
+  }, [scaleBoxOptions, scaleBoxSelection, scaleDiagonalOptions, scaleDiagonalSelection, scalePositionOptions, scalePositionSelection, scaleThreeNpsOptions, scaleThreeNpsSelection, scaleViewMode, strictScaleBoxPositions, strictScaleDiagonalPositions, strictScaleThreeNpsPositions]);
 
   useEffect(() => {
     if (scaleViewMode === 'box' && !boxViewSupported) {
@@ -567,7 +632,10 @@ export function Dictionary() {
     if (scaleViewMode === 'threeNps' && !threeNpsSupported) {
       setScaleViewMode('full');
     }
-  }, [boxViewSupported, scaleViewMode, threeNpsSupported]);
+    if (scaleViewMode === 'diagonal' && !diagonalSupported) {
+      setScaleViewMode('full');
+    }
+  }, [boxViewSupported, diagonalSupported, scaleViewMode, threeNpsSupported]);
 
   useEffect(() => {
     if (!isStandardTuning && mode === 'chords') {
@@ -1143,6 +1211,7 @@ export function Dictionary() {
                           { id: 'position', label: 'CAGED', disabled: false },
                           { id: 'box', label: 'Box', disabled: !boxViewSupported },
                           { id: 'threeNps', label: '3NPS', disabled: !threeNpsSupported },
+                          { id: 'diagonal', label: 'Diagonal', disabled: !diagonalSupported },
                         ] as { id: ScaleViewMode; label: string; disabled: boolean }[]).map(view => (
                           <button
                             key={view.id}
@@ -1218,6 +1287,25 @@ export function Dictionary() {
                         </>
                       )}
 
+                      {scaleViewMode === 'diagonal' && diagonalSupported && (
+                        <>
+                          <select
+                            value={scaleDiagonalSelection}
+                            onChange={(e) => {
+                              setScaleDiagonalSelection(e.target.value);
+                            }}
+                            className="w-full p-2 text-sm border border-brand-line rounded-md bg-brand-surface text-brand-ink outline-none"
+                          >
+                            {scaleDiagonalOptions.map(option => (
+                              <option key={option.id} value={option.id}>{option.label}</option>
+                            ))}
+                          </select>
+                          <p className="text-[10px] text-brand-secondary/70 leading-tight">
+                            Diagonal view: ascending cross-neck pathways for supported 7-note scales, useful for escaping box-shaped movement.
+                          </p>
+                        </>
+                      )}
+
                       {scaleViewMode === 'full' && (
                         <p className="text-[10px] text-brand-secondary/70 leading-tight">
                           Full Neck view: shows all note locations for the selected scale across the visible fretboard.
@@ -1233,6 +1321,12 @@ export function Dictionary() {
                       {!threeNpsSupported && (
                         <p className="text-[10px] text-brand-secondary/70 leading-tight">
                           3NPS view is currently available for 7-note scales such as major, natural minor, modes, harmonic minor, melodic minor, and phrygian dominant.
+                        </p>
+                      )}
+
+                      {!diagonalSupported && (
+                        <p className="text-[10px] text-brand-secondary/70 leading-tight">
+                          Diagonal view is currently available for 7-note scales such as major, natural minor, modes, harmonic minor, melodic minor, and phrygian dominant.
                         </p>
                       )}
                     </div>
