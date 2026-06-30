@@ -161,7 +161,7 @@ function getDiatonicTriads(root: Note, steps: number[]): Array<{ degree: string;
 interface Props {
   onOpenInChords: (root: Note, qualityPrefix: string) => void;
   onExploreInIdentify: (root: Note, qualityPrefix: string) => void;
-  onAddToProgression: (root: Note, qualityPrefix: string) => void;
+  onAddToProgression: (root: Note, qualityPrefix: string, octave: number, intervals: number[]) => void;
 }
 
 export function TheoryReference({ onOpenInChords, onExploreInIdentify, onAddToProgression }: Props) {
@@ -247,7 +247,7 @@ export function TheoryReference({ onOpenInChords, onExploreInIdentify, onAddToPr
                     octave={octave}
                     onOpenInChords={() => onOpenInChords(localRoot, ct.qualityPrefix)}
                     onExploreInIdentify={() => onExploreInIdentify(localRoot, ct.qualityPrefix)}
-                    onAddToProgression={() => onAddToProgression(localRoot, ct.qualityPrefix)}
+                    onAddToProgression={() => onAddToProgression(localRoot, ct.qualityPrefix, octave, ct.intervals)}
                     onPlay={() => playChord(localRoot, ct.intervals, octave)}
                   />
                 ))}

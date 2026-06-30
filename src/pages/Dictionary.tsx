@@ -373,9 +373,16 @@ export function Dictionary() {
     setMode('identify');
   }
 
-  function handleAddToProgressionFromTheory(root: Note, qualityPrefix: string) {
+  function handleAddToProgressionFromTheory(root: Note, qualityPrefix: string, octave: number, intervals: number[]) {
     const pool = COMMON_CHORDS[root] ?? [];
-    const shape = pool.find(c => c.name.slice(root.length + 1).startsWith(qualityPrefix));
+    const matches = pool.filter(c => c.name.slice(root.length + 1).startsWith(qualityPrefix));
+    const targetAvgPitch = intervals.reduce(
+      (sum, interval) => sum + (12 * (octave + 1) + ALL_NOTES.indexOf(root) + interval),
+      0
+    ) / Math.max(intervals.length, 1);
+    const shape = matches.sort((a, b) =>
+      Math.abs(avgChordPitch(a) - targetAvgPitch) - Math.abs(avgChordPitch(b) - targetAvgPitch)
+    )[0];
     if (shape) handleAddToProgression(shape);
   }
 
