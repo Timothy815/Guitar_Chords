@@ -72,6 +72,10 @@ const INTERVALS = [
   { name: 'Octave',      short: '8ve', semitones: 12 },
 ];
 
+function formatSemitoneLabel(semitones: number) {
+  return `${semitones} semitone${semitones === 1 ? '' : 's'}`;
+}
+
 const SCALE_POSITION_BOXES = [
   { id: 'pos1', label: 'CAGED 1 (E-shape)', startOff: -1 },
   { id: 'pos2', label: 'CAGED 2 (D-shape)', startOff: 2 },
@@ -1501,7 +1505,8 @@ export function Dictionary() {
                             : 'bg-brand-bg border border-brand-line text-brand-secondary hover:text-brand-ink'
                         )}
                       >
-                        {short}
+                        <span>{short}</span>
+                        <span className="ml-1 opacity-75">· {semitones}</span>
                       </button>
                     ))}
                   </div>
@@ -1735,6 +1740,15 @@ export function Dictionary() {
                     </div>
                  )}
               </div>
+              {mode === 'intervals' && (() => {
+                const activeInterval = INTERVALS.find(i => i.semitones === selectedInterval);
+                if (!activeInterval) return null;
+                return (
+                  <p className="w-full text-center text-sm text-brand-secondary -mt-6 mb-8 print:hidden">
+                    {activeInterval.short} = {formatSemitoneLabel(activeInterval.semitones)} from the root note
+                  </p>
+                );
+              })()}
 
               {mode === 'scales' && activeScaleBase && (() => {
                 const gaps = activeScaleBase.intervals.map((v, i, arr) =>
