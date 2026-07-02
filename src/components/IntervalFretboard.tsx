@@ -5,6 +5,7 @@ import { ALL_NOTES } from '../data/guitarData';
 import { initAudio, playNote, getFretNote } from '../lib/audio';
 
 const OPEN_PITCHES = [40, 45, 50, 55, 59, 64]; // E2 A2 D3 G3 B3 E4
+const STRING_NAMES = ['E', 'A', 'D', 'G', 'B', 'E'];
 
 interface Pair {
   root: { string: number; fret: number };
@@ -36,7 +37,7 @@ const ShapeCard: React.FC<ShapeCardProps> = ({ rootString, targetString, rootFre
   const startFret = Math.max(1, Math.min(rootFret, targetFret) - 1);
   const numFrets = Math.max(5, Math.abs(targetFret - rootFret) + 2);
   const fretPx = 18;
-  const pX = 16;
+  const pX = 24;
   const pY = 16;
   const stringSep = 16;
   const cardW = numFrets * fretPx + pX * 2;
@@ -62,15 +63,26 @@ const ShapeCard: React.FC<ShapeCardProps> = ({ rootString, targetString, rootFre
           />
         ))}
         {Array.from({ length: 6 }).map((_, stringIdx) => (
-          <line
-            key={`string-${stringIdx}`}
-            x1={pX}
-            y1={ny(stringIdx)}
-            x2={pX + numFrets * fretPx}
-            y2={ny(stringIdx)}
-            stroke="#888"
-            strokeWidth={stringIdx === 5 ? 2.5 : 1.2}
-          />
+          <g key={`string-${stringIdx}`}>
+            <text
+              x={pX - 8}
+              y={ny(stringIdx) + 3}
+              textAnchor="end"
+              fontSize={8}
+              fill="#444"
+              fontWeight="600"
+            >
+              {STRING_NAMES[stringIdx]}
+            </text>
+            <line
+              x1={pX}
+              y1={ny(stringIdx)}
+              x2={pX + numFrets * fretPx}
+              y2={ny(stringIdx)}
+              stroke="#888"
+              strokeWidth={stringIdx === 5 ? 2.5 : 1.2}
+            />
+          </g>
         ))}
         {Array.from({ length: 6 }).map((_, stringIdx) => {
           const active = stringIdx === rootString || stringIdx === targetString;
