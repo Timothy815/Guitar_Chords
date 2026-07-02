@@ -48,15 +48,17 @@ export function Technique() {
   const [selectedDrillId, setSelectedDrillId] = useState<string | null>(null);
   const [bpm, setBpm] = useState(60);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [playNotes, setPlayNotes] = useState(true);
   const [bestFlash, setBestFlash] = useState(false);
   const [showBanner, setShowBanner] = useState(true);
   const [personalBest, setPersonalBest] = useState<number | null>(null);
-  const [isDrillPlaying, setIsDrillPlaying] = useState(false);
   const [activeStep, setActiveStep] = useState<number | null>(null);
   const [chordRoot, setChordRoot] = useState<Note | null>(null);
   const [selectedChord, setSelectedChord] = useState<ChordShape | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const drillPlayRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Keep playNotes readable inside the interval without restarting it on toggle
+  const playNotesRef = useRef(playNotes);
+  useEffect(() => { playNotesRef.current = playNotes; }, [playNotes]);
 
   const showChordPicker = activeTab === 'pima' || activeTab === 'travis';
 
@@ -78,9 +80,8 @@ export function Technique() {
       })
     : [];
 
-  // Fret range: from chord when selected, otherwise from drill's startFret
   const fretRange: [number, number] | undefined = selectedChord
-    ? undefined // Fretboard uses chord's own range when chord prop is set
+    ? undefined
     : selectedDrill
       ? [selectedDrill.startFret, selectedDrill.startFret + 4]
       : undefined;
@@ -100,66 +101,49 @@ export function Technique() {
     }
   }, [selectedDrill ? selectedDrill.id : null]);
 
-  // Click track — restarts whenever isPlaying or bpm changes; cleans up on unmount
+  // Unified playback: click fires every beat; notes fire too when playNotes is enabled.
+  // playNotesRef lets the toggle take effect immediately without restarting the interval.
   useEffect(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-    if (isPlaying) {
-      const tick = () => { initAudio().then(() => playClick()); };
-      tick();
-      intervalRef.current = setInterval(tick, Math.floor(60000 / bpm));
-    }
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    };
-  }, [isPlaying, bpm]);
+    if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+    setActiveStep(null);
+    if (!isPlaying) return;
 
-  // Drill playback — steps through notes at current BPM, plays audio and highlights active dot
-  useEffect(() => {
-    if (drillPlayRef.current) {
-      clearInterval(drillPlayRef.current);
-      drillPlayRef.current = null;
-    }
-    if (!isDrillPlaying || !selectedDrill) {
-      setActiveStep(null);
-      return;
-    }
-    const steps = selectedDrill.steps.map(s => {
-      if (selectedChord) {
-        const rel = selectedChord.frets[s.stringIdx];
-        if (rel !== -1) return { ...s, fret: actualFret(rel, selectedChord.baseFret ?? 1) };
-      }
-      return s;
-    });
-    let idx = 0;
     const beatMs = Math.floor(60000 / bpm);
+    const steps = selectedDrill
+      ? selectedDrill.steps.map(s => {
+          if (selectedChord) {
+            const rel = selectedChord.frets[s.stringIdx];
+            if (rel !== -1) return { ...s, fret: actualFret(rel, selectedChord.baseFret ?? 1) };
+          }
+          return s;
+        })
+      : [];
+    let idx = 0;
+
     const fire = () => {
-      setActiveStep(idx);
-      const s = steps[idx];
-      const note = getFretNote(s.stringIdx, s.fret);
-      if (note) initAudio().then(() => playNote(note, beatMs / 1000 * 0.85));
-      idx = (idx + 1) % steps.length;
-    };
-    fire();
-    drillPlayRef.current = setInterval(fire, beatMs);
-    return () => {
-      if (drillPlayRef.current) {
-        clearInterval(drillPlayRef.current);
-        drillPlayRef.current = null;
+      initAudio().then(() => playClick());
+      if (steps.length > 0) {
+        setActiveStep(idx);
+        if (playNotesRef.current) {
+          const s = steps[idx];
+          const note = getFretNote(s.stringIdx, s.fret);
+          if (note) initAudio().then(() => playNote(note, beatMs / 1000 * 0.85));
+        }
+        idx = (idx + 1) % steps.length;
       }
     };
-  }, [isDrillPlaying, bpm, selectedDrill?.id, selectedChord]);
+
+    fire();
+    intervalRef.current = setInterval(fire, beatMs);
+    return () => { if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; } };
+  }, [isPlaying, bpm, selectedDrill?.id, selectedChord]);
+
+  function stopPlayback() { setIsPlaying(false); }
 
   function handleTabChange(tab: Category) {
     setActiveTab(tab);
     setSelectedDrillId(null);
-    setIsPlaying(false);
-    setIsDrillPlaying(false);
+    stopPlayback();
     if (tab !== 'pima' && tab !== 'travis') {
       setChordRoot(null);
       setSelectedChord(null);
@@ -167,8 +151,7 @@ export function Technique() {
   }
 
   function handleSelectDrill(drillId: string) {
-    if (isPlaying) setIsPlaying(false);
-    if (isDrillPlaying) setIsDrillPlaying(false);
+    stopPlayback();
     setSelectedDrillId(prev => (prev === drillId ? null : drillId));
     setBestFlash(false);
   }
@@ -176,12 +159,12 @@ export function Technique() {
   function handleChordRootSelect(note: Note) {
     setChordRoot(note);
     setSelectedChord(null);
-    if (isDrillPlaying) setIsDrillPlaying(false);
+    stopPlayback();
   }
 
   function handleChordSelect(chord: ChordShape) {
     setSelectedChord(prev => (prev === chord ? null : chord));
-    if (isDrillPlaying) setIsDrillPlaying(false);
+    stopPlayback();
   }
 
   function handleBpmChange(delta: number) {
@@ -236,7 +219,7 @@ export function Technique() {
         </div>
       )}
 
-      {/* Tab rows — Fretting Hand and Picking Hand */}
+      {/* Tab rows */}
       <div>
         <div className="flex items-center border-b border-brand-line">
           <span className="text-xs font-medium text-brand-secondary w-28 shrink-0 pl-1 pb-1">Fretting Hand</span>
@@ -302,7 +285,7 @@ export function Technique() {
             ))}
             {selectedChord && (
               <button
-                onClick={() => { setChordRoot(null); setSelectedChord(null); if (isDrillPlaying) setIsDrillPlaying(false); }}
+                onClick={() => { setChordRoot(null); setSelectedChord(null); stopPlayback(); }}
                 className="px-2.5 py-1 text-xs rounded-md border border-brand-line text-brand-secondary hover:text-brand-ink transition-colors"
               >
                 Clear
@@ -376,7 +359,7 @@ export function Technique() {
             )}
           </div>
 
-          {/* Picking annotation strip — rendered only for drills with pick annotations */}
+          {/* Picking annotation strip */}
           {selectedDrill.steps.some(s => s.pick) && (
             <div className="space-y-2">
               <div className="overflow-x-auto">
@@ -419,19 +402,6 @@ export function Technique() {
             />
           </div>
 
-          {/* Play drill button */}
-          <button
-            onClick={async () => { await initAudio(); setIsDrillPlaying(prev => !prev); }}
-            className={cn(
-              'w-full py-2 rounded-lg text-sm font-medium transition-colors',
-              isDrillPlaying
-                ? 'bg-amber-400 text-white hover:bg-amber-500'
-                : 'border border-brand-line text-brand-ink hover:border-amber-400 hover:text-amber-500',
-            )}
-          >
-            {isDrillPlaying ? '■ Stop drill' : '▶ Hear drill'}
-          </button>
-
           {/* BPM controls */}
           <div className="space-y-3">
             <div className="flex items-center justify-center gap-6">
@@ -463,27 +433,38 @@ export function Technique() {
               )}
             </p>
 
-            {/* Play and Got it clean buttons */}
-            <div className="flex gap-2">
+            {/* Play button + notes toggle */}
+            <div className="flex items-center gap-3">
               <button
                 onClick={handleTogglePlay}
                 className={cn(
                   'flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors',
                   isPlaying
-                    ? 'bg-brand-secondary/80 text-white hover:bg-brand-secondary'
+                    ? 'bg-brand-primary text-white hover:bg-brand-primary/90'
                     : 'border border-brand-line text-brand-ink hover:border-brand-primary/60',
                 )}
               >
-                {isPlaying ? '■ Stop' : '▶ Start Click Track'}
+                {isPlaying ? '■ Stop' : '▶ Play'}
               </button>
-              <button
-                onClick={handleGotItClean}
-                className="flex-1 py-2.5 rounded-lg text-sm font-medium bg-brand-primary text-white hover:bg-brand-primary/90 transition-colors flex items-center justify-center gap-1.5"
-              >
-                <Check size={14} />
-                Got it clean
-              </button>
+              <label className="flex items-center gap-1.5 cursor-pointer select-none text-sm text-brand-ink whitespace-nowrap">
+                <input
+                  type="checkbox"
+                  checked={playNotes}
+                  onChange={e => setPlayNotes(e.target.checked)}
+                  className="w-4 h-4 accent-brand-primary"
+                />
+                Play notes
+              </label>
             </div>
+
+            {/* Got it clean */}
+            <button
+              onClick={handleGotItClean}
+              className="w-full py-2.5 rounded-lg text-sm font-medium bg-brand-primary/10 text-brand-primary border border-brand-primary/30 hover:bg-brand-primary hover:text-white transition-colors flex items-center justify-center gap-1.5"
+            >
+              <Check size={14} />
+              Got it clean — next tempo
+            </button>
 
             {/* Personal best */}
             <div className={cn(
