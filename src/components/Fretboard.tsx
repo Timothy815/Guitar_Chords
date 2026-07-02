@@ -197,9 +197,14 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
       );
     }
 
+    // For open-string positions (fretIdx=0), fill-brand-bg is in the static class string.
+    // When a drillDot overrides bgColor, drop fill-brand-bg so it doesn't win over fill-amber-400.
+    const openStringBase = drillDot
+      ? "stroke-brand-secondary print:stroke-black print:fill-white"
+      : "stroke-brand-secondary fill-brand-bg print:stroke-black print:fill-white";
     return (
       <g onClick={() => handleDotClick(stringIdx, fretIdx)} style={{cursor: 'pointer'}}>
-        <circle cx={x} cy={y} r={fretIdx === 0 ? 10 : 14} className={cn("stroke-2 shadow-lg", fretIdx === 0 ? "stroke-brand-secondary fill-brand-bg print:stroke-black print:fill-white" : "stroke-white/20 print:stroke-black print:fill-white", bgColor)} />
+        <circle cx={x} cy={y} r={fretIdx === 0 ? 10 : 14} className={cn("stroke-2 shadow-lg", fretIdx === 0 ? openStringBase : "stroke-white/20 print:stroke-black print:fill-white", bgColor)} />
         {text && <text x={x} y={y + 5} className={cn("text-[14px] font-bold pointer-events-none", textColor, fretIdx === 0 ? "print:fill-black" : "print:fill-black")} textAnchor="middle">{text}</text>}
       </g>
     );
