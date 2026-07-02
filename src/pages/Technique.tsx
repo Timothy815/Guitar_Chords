@@ -3,6 +3,8 @@ import { X, Check, Dumbbell } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { DRILLS, getDrillBest, saveDrillBest } from '../data/drillData';
 import type { Drill } from '../data/drillData';
+import { COMMON_CHORDS } from '../data/guitarData';
+import type { Note, ChordShape } from '../types';
 import { Fretboard } from '../components/Fretboard';
 import { initAudio, playClick, playNote, getFretNote } from '../lib/audio';
 
@@ -12,6 +14,8 @@ type Category = FrettingCategory | PickingCategory;
 
 const FRETTING_CATEGORIES: FrettingCategory[] = ['chromatic', 'spider', 'legato', 'stretch'];
 const PICKING_CATEGORIES:  PickingCategory[]  = ['alternate', 'economy', 'pima', 'travis'];
+
+const NOTES: Note[] = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
 const CATEGORY_LABELS: Record<Category, string> = {
   chromatic: 'Chromatic',
@@ -35,6 +39,10 @@ const CATEGORY_DESCRIPTIONS: Record<Category, string> = {
   travis: 'Alternating thumb bass with melody fingers',
 };
 
+function actualFret(relativeFret: number, baseFret: number): number {
+  return relativeFret <= 0 ? relativeFret : relativeFret + baseFret - 1;
+}
+
 export function Technique() {
   const [activeTab, setActiveTab] = useState<Category>('chromatic');
   const [selectedDrillId, setSelectedDrillId] = useState<string | null>(null);
@@ -45,13 +53,44 @@ export function Technique() {
   const [personalBest, setPersonalBest] = useState<number | null>(null);
   const [isDrillPlaying, setIsDrillPlaying] = useState(false);
   const [activeStep, setActiveStep] = useState<number | null>(null);
+  const [chordRoot, setChordRoot] = useState<Note | null>(null);
+  const [selectedChord, setSelectedChord] = useState<ChordShape | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const drillPlayRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const showChordPicker = activeTab === 'pima' || activeTab === 'travis';
 
   const tabDrills = DRILLS.filter(d => d.category === activeTab);
   const selectedDrill: Drill | null = selectedDrillId
     ? (DRILLS.find(d => d.id === selectedDrillId) ?? null)
     : null;
+
+  // Effective steps — frets overridden by selected chord where the string isn't muted
+  const effectiveSteps = selectedDrill
+    ? selectedDrill.steps.map(s => {
+        if (selectedChord) {
+          const rel = selectedChord.frets[s.stringIdx];
+          if (rel !== -1) {
+            return { ...s, fret: actualFret(rel, selectedChord.baseFret ?? 1) };
+          }
+        }
+        return s;
+      })
+    : [];
+
+  // Fret range: from chord when selected, otherwise from drill's startFret
+  const fretRange: [number, number] | undefined = selectedChord
+    ? undefined // Fretboard uses chord's own range when chord prop is set
+    : selectedDrill
+      ? [selectedDrill.startFret, selectedDrill.startFret + 4]
+      : undefined;
+
+  const drillDots = effectiveSteps.map((s, i) => ({
+    stringIdx: s.stringIdx,
+    fret: s.fret,
+    label: s.finger ? String(s.finger) : '',
+    highlight: activeStep === i,
+  }));
 
   // Load personal best and reset BPM when selected drill changes
   useEffect(() => {
@@ -90,7 +129,13 @@ export function Technique() {
       setActiveStep(null);
       return;
     }
-    const steps = selectedDrill.steps;
+    const steps = selectedDrill.steps.map(s => {
+      if (selectedChord) {
+        const rel = selectedChord.frets[s.stringIdx];
+        if (rel !== -1) return { ...s, fret: actualFret(rel, selectedChord.baseFret ?? 1) };
+      }
+      return s;
+    });
     let idx = 0;
     const beatMs = Math.floor(60000 / bpm);
     const fire = () => {
@@ -108,13 +153,17 @@ export function Technique() {
         drillPlayRef.current = null;
       }
     };
-  }, [isDrillPlaying, bpm, selectedDrill?.id]);
+  }, [isDrillPlaying, bpm, selectedDrill?.id, selectedChord]);
 
   function handleTabChange(tab: Category) {
     setActiveTab(tab);
     setSelectedDrillId(null);
     setIsPlaying(false);
     setIsDrillPlaying(false);
+    if (tab !== 'pima' && tab !== 'travis') {
+      setChordRoot(null);
+      setSelectedChord(null);
+    }
   }
 
   function handleSelectDrill(drillId: string) {
@@ -122,6 +171,17 @@ export function Technique() {
     if (isDrillPlaying) setIsDrillPlaying(false);
     setSelectedDrillId(prev => (prev === drillId ? null : drillId));
     setBestFlash(false);
+  }
+
+  function handleChordRootSelect(note: Note) {
+    setChordRoot(note);
+    setSelectedChord(null);
+    if (isDrillPlaying) setIsDrillPlaying(false);
+  }
+
+  function handleChordSelect(chord: ChordShape) {
+    setSelectedChord(prev => (prev === chord ? null : chord));
+    if (isDrillPlaying) setIsDrillPlaying(false);
   }
 
   function handleBpmChange(delta: number) {
@@ -144,15 +204,6 @@ export function Technique() {
     }
     setBpm(prev => Math.min(200, prev + selectedDrill.bpmStep));
   }
-
-  const drillDots = selectedDrill
-    ? selectedDrill.steps.map((s, i) => ({
-        stringIdx: s.stringIdx,
-        fret: s.fret,
-        label: s.finger ? String(s.finger) : '',
-        highlight: activeStep === i,
-      }))
-    : [];
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -230,6 +281,55 @@ export function Technique() {
       {/* Category description */}
       <p className="text-xs text-brand-secondary -mt-3">{CATEGORY_DESCRIPTIONS[activeTab]}</p>
 
+      {/* Chord picker — PIMA and Travis only */}
+      {showChordPicker && (
+        <div className="rounded-lg border border-brand-line bg-brand-surface px-4 py-3 space-y-3">
+          <p className="text-xs font-semibold text-brand-ink">Chord <span className="font-normal text-brand-secondary">(optional — defaults to open strings or G)</span></p>
+          <div className="flex flex-wrap gap-1">
+            {NOTES.map(note => (
+              <button
+                key={note}
+                onClick={() => handleChordRootSelect(note)}
+                className={cn(
+                  'px-2.5 py-1 text-xs rounded-md border font-medium transition-colors',
+                  chordRoot === note
+                    ? 'border-brand-primary text-brand-primary bg-brand-primary/10'
+                    : 'border-brand-line text-brand-secondary hover:border-brand-primary/40 hover:text-brand-ink',
+                )}
+              >
+                {note}
+              </button>
+            ))}
+            {selectedChord && (
+              <button
+                onClick={() => { setChordRoot(null); setSelectedChord(null); if (isDrillPlaying) setIsDrillPlaying(false); }}
+                className="px-2.5 py-1 text-xs rounded-md border border-brand-line text-brand-secondary hover:text-brand-ink transition-colors"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          {chordRoot && (
+            <div className="flex flex-wrap gap-1">
+              {(COMMON_CHORDS[chordRoot] ?? []).map((chord, i) => (
+                <button
+                  key={i}
+                  onClick={() => handleChordSelect(chord)}
+                  className={cn(
+                    'px-2.5 py-1 text-xs rounded-md border transition-colors',
+                    selectedChord === chord
+                      ? 'border-brand-active text-brand-active bg-brand-active/10 font-semibold'
+                      : 'border-brand-line text-brand-secondary hover:border-brand-primary/40 hover:text-brand-ink',
+                  )}
+                >
+                  {chord.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Drill selector grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {tabDrills.map(drill => {
@@ -263,7 +363,12 @@ export function Technique() {
         <div className="rounded-lg border border-brand-line bg-brand-surface p-5 space-y-5">
           {/* Drill title + safety note */}
           <div>
-            <h2 className="text-base font-semibold text-brand-ink">{selectedDrill.name}</h2>
+            <h2 className="text-base font-semibold text-brand-ink">
+              {selectedDrill.name}
+              {selectedChord && (
+                <span className="ml-2 text-sm font-normal text-brand-secondary">— {selectedChord.name}</span>
+              )}
+            </h2>
             {selectedDrill.safetyNote && (
               <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
                 ⚠ {selectedDrill.safetyNote}
@@ -307,8 +412,9 @@ export function Technique() {
           <div className="overflow-x-auto">
             <Fretboard
               showNoteNames={false}
+              chord={selectedChord ?? undefined}
               drillDots={drillDots}
-              fretRange={[selectedDrill.startFret, selectedDrill.startFret + 4]}
+              fretRange={fretRange}
               fretsNum={15}
             />
           </div>
