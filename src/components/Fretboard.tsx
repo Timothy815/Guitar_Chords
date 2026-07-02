@@ -49,9 +49,10 @@ interface FretboardProps {
   labeledDots?: { stringIdx: number; fret: number }[];
   flashHighlight?: boolean;
   tuning?: Tuning;
+  drillDots?: { stringIdx: number; fret: number; label: string }[];
 }
 
-export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClick, onFretMouseDown, showNoteNames = true, className, fretRange, scalePositions, playingNotes = new Set(), compact = false, correctPositions = new Set(), wrongPosition = null, previewPosition = null, focusZone, highlightNote, labeledDots, flashHighlight, tuning = STANDARD_TUNING }: FretboardProps) {
+export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClick, onFretMouseDown, showNoteNames = true, className, fretRange, scalePositions, playingNotes = new Set(), compact = false, correctPositions = new Set(), wrongPosition = null, previewPosition = null, focusZone, highlightNote, labeledDots, flashHighlight, tuning = STANDARD_TUNING, drillDots }: FretboardProps) {
   const [labelMode, setLabelMode] = useState<LabelMode>('none');
 
   const stringsNum = 6;
@@ -153,6 +154,15 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
         const isExplicitlyLabeled = labeledDots?.some(d => d.stringIdx === stringIdx && d.fret === fretIdx) ?? false;
         text = labelMode !== 'none' ? getLabelText(noteJustName) : (showNoteNames || isExplicitlyLabeled ? noteJustName : "");
       }
+    }
+
+    // drillDots: force-show a dot with a custom label (e.g. finger number) at this position
+    const drillDot = drillDots?.find(d => d.stringIdx === stringIdx && d.fret === fretIdx);
+    if (drillDot) {
+      show = true;
+      text = drillDot.label;
+      bgColor = 'fill-brand-primary';
+      textColor = 'fill-white';
     }
 
     const x = isMuted || fretIdx === 0 ? paddingX / 2 : paddingX + (fretIdx - 0.5) * fretSpacing;
