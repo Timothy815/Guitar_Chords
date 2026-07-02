@@ -25,44 +25,30 @@ interface Props {
 // ─── Mini 2-string shape diagram ─────────────────────────────────────────────
 
 interface ShapeCardProps {
-  offset: number;
-  bString: boolean;
-  direction: Direction;
-  rootNote: string;
-  targetNote: string;
+  rootString: number;
+  targetString: number;
+  rootFret: number;
+  targetFret: number;
   stringLabel: string;
-  rootOnTop?: boolean;
 }
 
-function ShapeCard({ offset, bString, direction, rootNote, targetNote, stringLabel, rootOnTop = false }: ShapeCardProps) {
-  const rootFret   = direction === 'forward' ? 3 : 3 - offset;
-  const targetFret = direction === 'forward' ? 3 + offset : 3;
-
-  const leftFret  = Math.min(rootFret, targetFret) - 1;
-  const rightFret = Math.max(rootFret, targetFret) + 1;
-  const numFrets  = rightFret - leftFret;
-
-  const fretPx    = 28;
-  const pX        = 22;
-  const pY        = 14;
-  const stringSep = 38;
-  const cardW     = numFrets * fretPx + pX * 2;
-  const cardH     = pY * 2 + stringSep;
+const ShapeCard: React.FC<ShapeCardProps> = ({ rootString, targetString, rootFret, targetFret, stringLabel }) => {
+  const startFret = Math.max(1, Math.min(rootFret, targetFret) - 1);
+  const numFrets = 5;
+  const fretPx = 18;
+  const pX = 16;
+  const pY = 16;
+  const stringSep = 16;
+  const cardW = numFrets * fretPx + pX * 2;
+  const cardH = pY * 2 + stringSep * 5;
 
   function nx(fret: number) {
-    return pX + (fret - leftFret - 0.5) * fretPx;
+    return pX + (fret - startFret + 0.5) * fretPx;
   }
 
-  const lineColor = bString ? '#f59e0b' : '#818cf8';
-  // rootOnTop: root is on the thinner (top) string, target on the thicker (bottom) string
-  const rootY   = rootOnTop ? pY           : pY + stringSep;
-  const targetY = rootOnTop ? pY + stringSep : pY;
-
-  const fromX = nx(direction === 'forward' ? rootFret   : targetFret);
-  const fromY = direction === 'forward' ? rootY   : targetY;
-  const toX   = nx(direction === 'forward' ? targetFret : rootFret);
-  const toY   = direction === 'forward' ? targetY : rootY;
-  const angle = Math.atan2(toY - fromY, toX - fromX) * (180 / Math.PI);
+  function ny(stringIdx: number) {
+    return pY + (5 - stringIdx) * stringSep;
+  }
 
   return (
     <div className="flex flex-col items-center gap-1">
@@ -70,35 +56,46 @@ function ShapeCard({ offset, bString, direction, rootNote, targetNote, stringLab
       <svg viewBox={`0 0 ${cardW} ${cardH}`} width={cardW} height={cardH}>
         {Array.from({ length: numFrets + 1 }).map((_, i) => (
           <line key={i}
-            x1={pX + i * fretPx} y1={targetY}
-            x2={pX + i * fretPx} y2={rootY}
+            x1={pX + i * fretPx} y1={pY}
+            x2={pX + i * fretPx} y2={cardH - pY}
             stroke="#555" strokeWidth={1.5}
           />
         ))}
-        <line x1={pX} y1={targetY} x2={pX + numFrets * fretPx} y2={targetY} stroke="#aaa" strokeWidth={1} />
-        <line x1={pX} y1={rootY}   x2={pX + numFrets * fretPx} y2={rootY}   stroke="#aaa" strokeWidth={2.5} />
-        <line
-          x1={fromX} y1={fromY} x2={toX} y2={toY}
-          stroke={lineColor} strokeWidth={2}
-          strokeDasharray={bString ? '4 2' : undefined}
-          opacity={0.85}
-        />
-        <polygon
-          points="-5,-3 5,0 -5,3"
-          fill={lineColor} opacity={0.85}
-          transform={`translate(${toX},${toY}) rotate(${angle})`}
-        />
-        <circle cx={nx(rootFret)}   cy={rootY}   r={11} fill="var(--color-brand-active)" stroke="white" strokeWidth={1.5} />
-        <text   x={nx(rootFret)}    y={rootY + 4}   textAnchor="middle" fontSize={9}  fontWeight="bold" fill="white">{rootNote}</text>
-        <circle cx={nx(targetFret)} cy={targetY} r={11} fill="#f97316" stroke="white" strokeWidth={1.5} />
-        <text   x={nx(targetFret)}  y={targetY + 4} textAnchor="middle" fontSize={9}  fontWeight="bold" fill="white">{targetNote}</text>
+        {Array.from({ length: 6 }).map((_, stringIdx) => (
+          <line
+            key={`string-${stringIdx}`}
+            x1={pX}
+            y1={ny(stringIdx)}
+            x2={pX + numFrets * fretPx}
+            y2={ny(stringIdx)}
+            stroke="#888"
+            strokeWidth={stringIdx === 5 ? 2.5 : 1.2}
+          />
+        ))}
+        {Array.from({ length: 6 }).map((_, stringIdx) => {
+          const active = stringIdx === rootString || stringIdx === targetString;
+          if (active) return null;
+          return (
+            <text
+              key={`mute-${stringIdx}`}
+              x={pX + numFrets * fretPx / 2}
+              y={ny(stringIdx) - 6}
+              textAnchor="middle"
+              fontSize={9}
+              fill="#444"
+              fontWeight="600"
+            >
+              x
+            </text>
+          );
+        })}
+        <text x={4} y={pY + 5} textAnchor="start" fontSize={9} fill="#444" fontWeight="600">{startFret}</text>
+        <circle cx={nx(rootFret)} cy={ny(rootString)} r={5.5} fill="#111" />
+        <circle cx={nx(targetFret)} cy={ny(targetString)} r={5.5} fill="#111" />
       </svg>
-      <span className="text-[11px] text-brand-secondary">
-        {bString ? 'exception' : 'standard'} · {offset > 0 ? `+${offset}` : `${offset}`} frets
-      </span>
     </div>
   );
-}
+};
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
@@ -143,6 +140,28 @@ export function IntervalFretboard({ rootNote, intervalSemitones, fretsNum = 15, 
   // guitar tuning relationship (fret 5 on string X = open on string X-1).
   const standardOffset = isUnison ? 5 : intervalSemitones - 5;
   const bStringOffset  = isUnison ? 4 : intervalSemitones - 4;
+  const shapeCards = (() => {
+    const pairDefs = [
+      { label: 'E → A', rootString: 0, targetString: 1, offset: standardOffset },
+      { label: 'A → D', rootString: 1, targetString: 2, offset: standardOffset },
+      { label: 'D → G', rootString: 2, targetString: 3, offset: standardOffset },
+      { label: 'G → B', rootString: 3, targetString: 4, offset: bStringOffset },
+      { label: 'B → e', rootString: 4, targetString: 5, offset: standardOffset },
+    ];
+
+    return pairDefs.map(pair => {
+      const offset = pair.offset;
+      const rootFret = offset >= 0 ? 1 : 1 - offset;
+      const targetFret = rootFret + offset;
+      return {
+        label: pair.label,
+        rootString: pair.rootString,
+        targetString: pair.targetString,
+        rootFret,
+        targetFret,
+      };
+    });
+  })();
 
   function noteX(fret: number) {
     return fret === 0 ? paddingX / 2 : paddingX + (fret - 0.5) * fretSpacing;
@@ -340,25 +359,17 @@ export function IntervalFretboard({ rootNote, intervalSemitones, fretsNum = 15, 
     <div className="w-full space-y-5">
 
       {/* ── Shape reference cards ── */}
-      <div className="flex gap-10 justify-center flex-wrap py-1">
-        <ShapeCard
-          offset={standardOffset}
-          bString={false}
-          direction={direction}
-          rootNote={rootNote}
-          targetNote={isUnison ? rootNote : targetNote}
-          stringLabel="E/A · A/D · D/G · B/E"
-          rootOnTop={isUnison}
-        />
-        <ShapeCard
-          offset={bStringOffset}
-          bString={true}
-          direction={direction}
-          rootNote={rootNote}
-          targetNote={isUnison ? rootNote : targetNote}
-          stringLabel="G → B"
-          rootOnTop={isUnison}
-        />
+      <div className="flex gap-6 justify-center flex-wrap py-1">
+        {shapeCards.map(card => (
+          <ShapeCard
+            key={`${card.label}-${card.rootString}-${card.targetString}`}
+            rootString={card.rootString}
+            targetString={card.targetString}
+            rootFret={card.rootFret}
+            targetFret={card.targetFret}
+            stringLabel={card.label}
+          />
+        ))}
       </div>
 
       {/* ── Controls ── */}
