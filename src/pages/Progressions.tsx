@@ -638,6 +638,7 @@ export function Progressions() {
   const [showVoiceLeading, setShowVoiceLeading] = useState(false);
   const [showDiagrams, setShowDiagrams] = useState(true);
   const [showChart, setShowChart] = useState(true);
+  const [bpmDraft, setBpmDraft] = useState('');
   const stopFnRef = useRef<(() => void) | null>(null);
   const [countInEnabled, setCountInEnabled] = useState(false);
   const [countDownBeat, setCountDownBeat] = useState<number | null>(null);
@@ -805,8 +806,14 @@ export function Progressions() {
 
   const updateBpm = (bpm: number) => {
     if (!activeProgression) return;
+    setBpmDraft(String(bpm));
     saveProgressions(progressions.map(p => p.id === activeProgression.id ? { ...p, bpm } : p));
   };
+
+  // Sync draft when active progression changes
+  useEffect(() => {
+    if (activeProgression) setBpmDraft(String(activeProgression.bpm));
+  }, [activeProgression?.id]);
 
   const handleTap = () => {
     const now = performance.now();
@@ -1035,19 +1042,22 @@ export function Progressions() {
                       className="w-20 accent-brand-primary cursor-pointer"
                     />
                     <input
-                      type="number"
-                      min={40}
-                      max={200}
-                      value={activeProgression.bpm}
-                      onChange={e => {
-                        const v = Number(e.target.value);
-                        if (!isNaN(v) && v >= 40 && v <= 200) updateBpm(v);
-                      }}
-                      onBlur={e => {
-                        const v = Number(e.target.value);
+                      type="text"
+                      inputMode="numeric"
+                      value={bpmDraft}
+                      onChange={e => setBpmDraft(e.target.value)}
+                      onBlur={() => {
+                        const v = parseInt(bpmDraft, 10);
                         updateBpm(Math.min(200, Math.max(40, isNaN(v) ? activeProgression.bpm : v)));
                       }}
-                      className="text-sm font-mono font-bold text-brand-ink w-12 text-center bg-transparent border border-brand-line rounded px-1 focus:outline-none focus:ring-1 focus:ring-brand-primary/50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          const v = parseInt(bpmDraft, 10);
+                          updateBpm(Math.min(200, Math.max(40, isNaN(v) ? activeProgression.bpm : v)));
+                          (e.target as HTMLInputElement).blur();
+                        }
+                      }}
+                      className="text-sm font-mono font-bold text-brand-ink w-12 text-center bg-transparent border border-brand-line rounded px-1 focus:outline-none focus:ring-1 focus:ring-brand-primary/50"
                     />
                     <button
                       onClick={handleTap}

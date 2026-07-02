@@ -103,6 +103,8 @@ export function EarTraining() {
     enableLeadIn: true,
     showCount: false,
   });
+  const [rhythmBpmDraft, setRhythmBpmDraft] = useState('80');
+  const [melodyBpmDraft, setMelodyBpmDraft] = useState(String(loadSettings().melodySettings.bpm));
   const [showPlanComplete, setShowPlanComplete] = useState<{ accuracy: number; stageLabel: string; isFinal: boolean } | null>(null);
   const [expandedDesc, setExpandedDesc] = useState<string | null>(null);
   const [huntSessionRounds, setHuntSessionRounds] = useState<Array<{ firstTapSemitones: number; tapCount: number }>>([]);
@@ -1080,19 +1082,20 @@ export function EarTraining() {
                   <div className="flex items-center gap-2 mb-1.5">
                     <p className="text-xs text-brand-secondary">BPM:</p>
                     <input
-                      type="number"
-                      min={40}
-                      max={160}
-                      value={rhythmSettings.bpm}
-                      onChange={e => {
-                        const v = Number(e.target.value);
-                        if (!isNaN(v) && v >= 40 && v <= 160) setRhythmSettings(r => ({ ...r, bpm: v }));
+                      type="text"
+                      inputMode="numeric"
+                      value={rhythmBpmDraft}
+                      onChange={e => setRhythmBpmDraft(e.target.value)}
+                      onBlur={() => {
+                        const v = parseInt(rhythmBpmDraft, 10);
+                        const clamped = Math.min(160, Math.max(40, isNaN(v) ? rhythmSettings.bpm : v));
+                        setRhythmBpmDraft(String(clamped));
+                        setRhythmSettings(r => ({ ...r, bpm: clamped }));
                       }}
-                      onBlur={e => {
-                        const v = Number(e.target.value);
-                        setRhythmSettings(r => ({ ...r, bpm: Math.min(160, Math.max(40, isNaN(v) ? r.bpm : v)) }));
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
                       }}
-                      className="text-xs font-mono font-bold text-brand-ink w-14 text-center bg-transparent border border-brand-line rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-brand-primary/50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      className="text-xs font-mono font-bold text-brand-ink w-14 text-center bg-transparent border border-brand-line rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-brand-primary/50"
                     />
                   </div>
                   <input
@@ -1101,7 +1104,11 @@ export function EarTraining() {
                     max={160}
                     step={5}
                     value={rhythmSettings.bpm}
-                    onChange={e => setRhythmSettings(r => ({ ...r, bpm: Number(e.target.value) }))}
+                    onChange={e => {
+                      const v = Number(e.target.value);
+                      setRhythmBpmDraft(String(v));
+                      setRhythmSettings(r => ({ ...r, bpm: v }));
+                    }}
                     className="w-full accent-brand-primary"
                   />
                 </div>
@@ -1218,19 +1225,20 @@ export function EarTraining() {
                   <div className="flex items-center gap-2 mb-1.5">
                     <p className="text-xs text-brand-secondary">BPM:</p>
                     <input
-                      type="number"
-                      min={40}
-                      max={120}
-                      value={settings.melodySettings.bpm}
-                      onChange={e => {
-                        const v = Number(e.target.value);
-                        if (!isNaN(v) && v >= 40 && v <= 120) setSettings(s => ({ ...s, melodySettings: { ...s.melodySettings, bpm: v } }));
+                      type="text"
+                      inputMode="numeric"
+                      value={melodyBpmDraft}
+                      onChange={e => setMelodyBpmDraft(e.target.value)}
+                      onBlur={() => {
+                        const v = parseInt(melodyBpmDraft, 10);
+                        const clamped = Math.min(120, Math.max(40, isNaN(v) ? settings.melodySettings.bpm : v));
+                        setMelodyBpmDraft(String(clamped));
+                        setSettings(s => ({ ...s, melodySettings: { ...s.melodySettings, bpm: clamped } }));
                       }}
-                      onBlur={e => {
-                        const v = Number(e.target.value);
-                        setSettings(s => ({ ...s, melodySettings: { ...s.melodySettings, bpm: Math.min(120, Math.max(40, isNaN(v) ? s.melodySettings.bpm : v)) } }));
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
                       }}
-                      className="text-xs font-mono font-bold text-brand-ink w-14 text-center bg-transparent border border-brand-line rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-brand-primary/50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      className="text-xs font-mono font-bold text-brand-ink w-14 text-center bg-transparent border border-brand-line rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-brand-primary/50"
                     />
                   </div>
                   <input
@@ -1239,7 +1247,11 @@ export function EarTraining() {
                     max={120}
                     step={5}
                     value={settings.melodySettings.bpm}
-                    onChange={e => setSettings(s => ({ ...s, melodySettings: { ...s.melodySettings, bpm: Number(e.target.value) } }))}
+                    onChange={e => {
+                      const v = Number(e.target.value);
+                      setMelodyBpmDraft(String(v));
+                      setSettings(s => ({ ...s, melodySettings: { ...s.melodySettings, bpm: v } }));
+                    }}
                     className="w-full accent-brand-primary"
                   />
                 </div>

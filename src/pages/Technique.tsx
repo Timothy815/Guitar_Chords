@@ -43,6 +43,7 @@ export function Technique() {
   const [activeTab, setActiveTab] = useState<Category>('chromatic');
   const [selectedDrillId, setSelectedDrillId] = useState<string | null>(null);
   const [bpm, setBpm] = useState(60);
+  const [bpmDraft, setBpmDraft] = useState('60');
   const [isPlaying, setIsPlaying] = useState(false);
   const [playNotes, setPlayNotes] = useState(true);
   const [bestFlash, setBestFlash] = useState(false);
@@ -87,6 +88,9 @@ export function Technique() {
     label: s.finger ? String(s.finger) : '',
     highlight: activeStep === i,
   }));
+
+  // Keep draft in sync when bpm changes programmatically (drill reset, +/- buttons)
+  useEffect(() => { setBpmDraft(String(bpm)); }, [bpm]);
 
   // Load personal best and reset BPM when selected drill changes
   useEffect(() => {
@@ -409,19 +413,22 @@ export function Technique() {
               </button>
               <div className="text-center min-w-[90px]">
                 <input
-                  type="number"
-                  min={30}
-                  max={300}
-                  value={bpm}
-                  onChange={e => {
-                    const v = Number(e.target.value);
-                    if (!isNaN(v) && v >= 30 && v <= 300) setBpm(v);
-                  }}
-                  onBlur={e => {
-                    const v = Number(e.target.value);
+                  type="text"
+                  inputMode="numeric"
+                  value={bpmDraft}
+                  onChange={e => setBpmDraft(e.target.value)}
+                  onBlur={() => {
+                    const v = parseInt(bpmDraft, 10);
                     setBpm(Math.min(300, Math.max(30, isNaN(v) ? bpm : v)));
                   }}
-                  className="text-5xl font-bold text-brand-primary tabular-nums w-24 text-center bg-transparent border-none outline-none focus:ring-1 focus:ring-brand-primary/50 rounded [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      const v = parseInt(bpmDraft, 10);
+                      setBpm(Math.min(300, Math.max(30, isNaN(v) ? bpm : v)));
+                      (e.target as HTMLInputElement).blur();
+                    }
+                  }}
+                  className="text-5xl font-bold text-brand-primary tabular-nums w-24 text-center bg-transparent border-none outline-none focus:ring-1 focus:ring-brand-primary/50 rounded"
                 />
                 <div className="text-xs text-brand-secondary mt-0.5">BPM</div>
               </div>

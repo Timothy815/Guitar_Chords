@@ -14,6 +14,7 @@ type TimeSig = typeof TIME_SIGNATURES[number];
 
 export function Metronome() {
   const [bpm, setBpm] = useState(120);
+  const [bpmDraft, setBpmDraft] = useState('120');
   const [timeSig, setTimeSig] = useState<TimeSig>(TIME_SIGNATURES[2]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentBeat, setCurrentBeat] = useState<number | null>(null);
@@ -64,8 +65,14 @@ export function Metronome() {
 
   const handleBpmChange = useCallback((value: number) => {
     setBpm(value);
+    setBpmDraft(String(value));
     if (isPlaying) Tone.getTransport().bpm.value = value;
   }, [isPlaying]);
+
+  const commitBpmDraft = useCallback(() => {
+    const v = parseInt(bpmDraft, 10);
+    handleBpmChange(Math.min(240, Math.max(40, isNaN(v) ? bpm : v)));
+  }, [bpmDraft, bpm, handleBpmChange]);
 
   const handleTimeSigChange = useCallback((ts: TimeSig) => {
     if (isPlaying) stop();
@@ -116,16 +123,13 @@ export function Metronome() {
               className="w-8 h-8 rounded border border-brand-line text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar transition-colors"
             >−</button>
             <input
-              type="number"
-              min={40}
-              max={240}
-              value={bpm}
-              onChange={e => {
-                const v = Number(e.target.value);
-                if (!isNaN(v)) handleBpmChange(Math.min(240, Math.max(40, v)));
-              }}
-              onBlur={e => handleBpmChange(Math.min(240, Math.max(40, Number(e.target.value) || bpm)))}
-              className="text-3xl font-bold font-mono text-brand-primary w-16 text-center bg-transparent border-none outline-none focus:ring-1 focus:ring-brand-primary/50 rounded [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+              type="text"
+              inputMode="numeric"
+              value={bpmDraft}
+              onChange={e => setBpmDraft(e.target.value)}
+              onBlur={commitBpmDraft}
+              onKeyDown={e => e.key === 'Enter' && commitBpmDraft()}
+              className="text-3xl font-bold font-mono text-brand-primary w-16 text-center bg-transparent border-none outline-none focus:ring-1 focus:ring-brand-primary/50 rounded"
             />
             <button
               onClick={() => handleBpmChange(Math.min(240, bpm + 1))}
