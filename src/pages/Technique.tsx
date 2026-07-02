@@ -122,15 +122,15 @@ export function Technique() {
 
       {/* Warm-up banner */}
       {showBanner && (
-        <div className="flex items-start justify-between gap-4 rounded-lg border border-amber-400 bg-amber-50 dark:bg-amber-950/30 px-4 py-3">
-          <p className="text-sm text-amber-800 dark:text-amber-300">
+        <div className="flex items-start justify-between gap-4 rounded-lg border border-brand-line bg-brand-surface px-4 py-3">
+          <p className="text-sm text-brand-ink">
             <span className="font-semibold">Warm up first.</span>{' '}
             Spend 2–3 minutes playing open strings or easy chord changes before drilling.
             Stop immediately if you feel pain or tension anywhere in your hand or forearm.
           </p>
           <button
             onClick={() => setShowBanner(false)}
-            className="text-amber-600 hover:text-amber-800 dark:text-amber-400 flex-shrink-0 mt-0.5"
+            className="text-brand-secondary hover:text-brand-ink flex-shrink-0 mt-0.5"
             aria-label="Dismiss"
           >
             <X size={16} />
