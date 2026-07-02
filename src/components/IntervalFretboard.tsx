@@ -34,7 +34,7 @@ interface ShapeCardProps {
 
 const ShapeCard: React.FC<ShapeCardProps> = ({ rootString, targetString, rootFret, targetFret, stringLabel }) => {
   const startFret = Math.max(1, Math.min(rootFret, targetFret) - 1);
-  const numFrets = 5;
+  const numFrets = Math.max(5, Math.abs(targetFret - rootFret) + 2);
   const fretPx = 18;
   const pX = 16;
   const pY = 16;
@@ -141,13 +141,20 @@ export function IntervalFretboard({ rootNote, intervalSemitones, fretsNum = 15, 
   const standardOffset = isUnison ? 5 : intervalSemitones - 5;
   const bStringOffset  = isUnison ? 4 : intervalSemitones - 4;
   const shapeCards = (() => {
-    const pairDefs = [
-      { label: 'E → A', rootString: 0, targetString: 1, offset: standardOffset },
-      { label: 'A → D', rootString: 1, targetString: 2, offset: standardOffset },
-      { label: 'D → G', rootString: 2, targetString: 3, offset: standardOffset },
-      { label: 'G → B', rootString: 3, targetString: 4, offset: bStringOffset },
-      { label: 'B → e', rootString: 4, targetString: 5, offset: standardOffset },
-    ];
+    const pairDefs = intervalSemitones >= 10
+      ? [
+          { label: 'E → D', rootString: 0, targetString: 2, offset: intervalSemitones - 10 },
+          { label: 'A → G', rootString: 1, targetString: 3, offset: intervalSemitones - 10 },
+          { label: 'D → B', rootString: 2, targetString: 4, offset: intervalSemitones - 9 },
+          { label: 'G → e', rootString: 3, targetString: 5, offset: intervalSemitones - 9 },
+        ]
+      : [
+          { label: 'E → A', rootString: 0, targetString: 1, offset: standardOffset },
+          { label: 'A → D', rootString: 1, targetString: 2, offset: standardOffset },
+          { label: 'D → G', rootString: 2, targetString: 3, offset: standardOffset },
+          { label: 'G → B', rootString: 3, targetString: 4, offset: bStringOffset },
+          { label: 'B → e', rootString: 4, targetString: 5, offset: standardOffset },
+        ];
 
     return pairDefs.map(pair => {
       const offset = pair.offset;
