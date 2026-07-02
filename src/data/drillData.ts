@@ -61,18 +61,32 @@ function allStrings(sequence: FingerStep[], startFret: number): DrillStep[] {
   return steps;
 }
 
-// Builds spider steps across given string pairs
-function spider(startFret: number, pairs: [number, number][]): DrillStep[] {
-  return pairs.flatMap(([strA, strB]) => [
-    { stringIdx: strA, fret: startFret,     finger: 1 as const },
-    { stringIdx: strB, fret: startFret + 1, finger: 2 as const },
-    { stringIdx: strA, fret: startFret + 2, finger: 3 as const },
-    { stringIdx: strB, fret: startFret + 3, finger: 4 as const },
-  ]);
+// Diagonal spider crawl: 3 windows of 4 adjacent strings (ascending or descending).
+// Each window plays fingers 1–4 one at a time on consecutive strings, same relative
+// frets. Ascending shifts from low-E toward high-E; descending reverses.
+function spiderCrawl(startFret: number, descending = false): DrillStep[] {
+  const windows = descending ? [2, 1, 0] : [0, 1, 2];
+  return windows.flatMap(s => {
+    const notes: DrillStep[] = [
+      { stringIdx: s,     fret: startFret,     finger: 1 as const },
+      { stringIdx: s + 1, fret: startFret + 1, finger: 2 as const },
+      { stringIdx: s + 2, fret: startFret + 2, finger: 3 as const },
+      { stringIdx: s + 3, fret: startFret + 3, finger: 4 as const },
+    ];
+    return descending ? [...notes].reverse() : notes;
+  });
 }
 
-const ADJ_PAIRS: [number, number][] = [[0,1],[1,2],[2,3],[3,4],[4,5]];
-const SKIP_PAIRS: [number, number][] = [[0,2],[1,3],[2,4],[3,5]];
+// Skip-string spider: each window weaves through strings with a 1-string gap,
+// giving the picking hand a skip-string challenge while frets still advance smoothly.
+function spiderSkip(startFret: number): DrillStep[] {
+  return [0, 1, 2].flatMap(s => [
+    { stringIdx: s,     fret: startFret,     finger: 1 as const },
+    { stringIdx: s + 2, fret: startFret + 1, finger: 2 as const },
+    { stringIdx: s + 1, fret: startFret + 2, finger: 3 as const },
+    { stringIdx: s + 3, fret: startFret + 3, finger: 4 as const },
+  ]);
+}
 
 // ─── Drill definitions ────────────────────────────────────────────────────────
 
@@ -133,8 +147,8 @@ export const DRILLS: Drill[] = [
     hand: 'fretting',
     category: 'spider',
     name: 'Ascending Spider',
-    description: 'Diagonal pattern across adjacent string pairs, low E to high E. Builds string-crossing control.',
-    steps: spider(5, ADJ_PAIRS),
+    description: 'Four fingers crawl diagonally up the strings, low E to high E. Each group of 4 shifts one string at a time.',
+    steps: spiderCrawl(5),
     startFret: 5,
     bpmStart: 50,
     bpmTarget: 100,
@@ -145,8 +159,8 @@ export const DRILLS: Drill[] = [
     hand: 'fretting',
     category: 'spider',
     name: 'Descending Spider',
-    description: 'Same diagonal pattern reversed, high E to low E. Descending often exposes weakness.',
-    steps: spider(5, [...ADJ_PAIRS].reverse()),
+    description: 'Same diagonal crawl reversed, high E to low E. Descending often exposes weakness.',
+    steps: spiderCrawl(5, true),
     startFret: 5,
     bpmStart: 50,
     bpmTarget: 100,
@@ -157,8 +171,8 @@ export const DRILLS: Drill[] = [
     hand: 'fretting',
     category: 'spider',
     name: 'Skip-String Spider',
-    description: 'Jumps one string per step. Harder string-crossing control; exposes picking-hand accuracy.',
-    steps: spider(5, SKIP_PAIRS),
+    description: 'Crawls across the neck but skips a string on each finger 1→2 and finger 3→4 move. Harder picking-hand accuracy.',
+    steps: spiderSkip(5),
     startFret: 5,
     bpmStart: 40,
     bpmTarget: 90,
