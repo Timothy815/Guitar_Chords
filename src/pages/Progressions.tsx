@@ -1034,7 +1034,21 @@ export function Progressions() {
                       onChange={(e) => updateBpm(Number(e.target.value))}
                       className="w-20 accent-brand-primary cursor-pointer"
                     />
-                    <span className="text-sm font-mono font-bold text-brand-ink w-8">{activeProgression.bpm}</span>
+                    <input
+                      type="number"
+                      min={40}
+                      max={200}
+                      value={activeProgression.bpm}
+                      onChange={e => {
+                        const v = Number(e.target.value);
+                        if (!isNaN(v) && v >= 40 && v <= 200) updateBpm(v);
+                      }}
+                      onBlur={e => {
+                        const v = Number(e.target.value);
+                        updateBpm(Math.min(200, Math.max(40, isNaN(v) ? activeProgression.bpm : v)));
+                      }}
+                      className="text-sm font-mono font-bold text-brand-ink w-12 text-center bg-transparent border border-brand-line rounded px-1 focus:outline-none focus:ring-1 focus:ring-brand-primary/50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    />
                     <button
                       onClick={handleTap}
                       className="text-xs px-2 py-1 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink transition-colors font-mono"

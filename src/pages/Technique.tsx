@@ -408,7 +408,21 @@ export function Technique() {
                 −
               </button>
               <div className="text-center min-w-[90px]">
-                <div className="text-5xl font-bold text-brand-primary tabular-nums">{bpm}</div>
+                <input
+                  type="number"
+                  min={30}
+                  max={300}
+                  value={bpm}
+                  onChange={e => {
+                    const v = Number(e.target.value);
+                    if (!isNaN(v) && v >= 30 && v <= 300) setBpm(v);
+                  }}
+                  onBlur={e => {
+                    const v = Number(e.target.value);
+                    setBpm(Math.min(300, Math.max(30, isNaN(v) ? bpm : v)));
+                  }}
+                  className="text-5xl font-bold text-brand-primary tabular-nums w-24 text-center bg-transparent border-none outline-none focus:ring-1 focus:ring-brand-primary/50 rounded [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                />
                 <div className="text-xs text-brand-secondary mt-0.5">BPM</div>
               </div>
               <button

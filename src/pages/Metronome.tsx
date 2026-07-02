@@ -115,7 +115,18 @@ export function Metronome() {
               onClick={() => handleBpmChange(Math.max(40, bpm - 1))}
               className="w-8 h-8 rounded border border-brand-line text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar transition-colors"
             >−</button>
-            <span className="text-3xl font-bold font-mono text-brand-primary w-16 text-center">{bpm}</span>
+            <input
+              type="number"
+              min={40}
+              max={240}
+              value={bpm}
+              onChange={e => {
+                const v = Number(e.target.value);
+                if (!isNaN(v)) handleBpmChange(Math.min(240, Math.max(40, v)));
+              }}
+              onBlur={e => handleBpmChange(Math.min(240, Math.max(40, Number(e.target.value) || bpm)))}
+              className="text-3xl font-bold font-mono text-brand-primary w-16 text-center bg-transparent border-none outline-none focus:ring-1 focus:ring-brand-primary/50 rounded [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+            />
             <button
               onClick={() => handleBpmChange(Math.min(240, bpm + 1))}
               className="w-8 h-8 rounded border border-brand-line text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar transition-colors"

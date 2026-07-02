@@ -1077,7 +1077,24 @@ export function EarTraining() {
                 </div>
 
                 <div>
-                  <p className="text-xs text-brand-secondary mb-1.5">BPM: {rhythmSettings.bpm}</p>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <p className="text-xs text-brand-secondary">BPM:</p>
+                    <input
+                      type="number"
+                      min={40}
+                      max={160}
+                      value={rhythmSettings.bpm}
+                      onChange={e => {
+                        const v = Number(e.target.value);
+                        if (!isNaN(v) && v >= 40 && v <= 160) setRhythmSettings(r => ({ ...r, bpm: v }));
+                      }}
+                      onBlur={e => {
+                        const v = Number(e.target.value);
+                        setRhythmSettings(r => ({ ...r, bpm: Math.min(160, Math.max(40, isNaN(v) ? r.bpm : v)) }));
+                      }}
+                      className="text-xs font-mono font-bold text-brand-ink w-14 text-center bg-transparent border border-brand-line rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-brand-primary/50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    />
+                  </div>
                   <input
                     type="range"
                     min={40}
@@ -1198,7 +1215,24 @@ export function EarTraining() {
                 </div>
 
                 <div>
-                  <p className="text-xs text-brand-secondary mb-1.5">BPM: {settings.melodySettings.bpm}</p>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <p className="text-xs text-brand-secondary">BPM:</p>
+                    <input
+                      type="number"
+                      min={40}
+                      max={120}
+                      value={settings.melodySettings.bpm}
+                      onChange={e => {
+                        const v = Number(e.target.value);
+                        if (!isNaN(v) && v >= 40 && v <= 120) setSettings(s => ({ ...s, melodySettings: { ...s.melodySettings, bpm: v } }));
+                      }}
+                      onBlur={e => {
+                        const v = Number(e.target.value);
+                        setSettings(s => ({ ...s, melodySettings: { ...s.melodySettings, bpm: Math.min(120, Math.max(40, isNaN(v) ? s.melodySettings.bpm : v)) } }));
+                      }}
+                      className="text-xs font-mono font-bold text-brand-ink w-14 text-center bg-transparent border border-brand-line rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-brand-primary/50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    />
+                  </div>
                   <input
                     type="range"
                     min={40}
