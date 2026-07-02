@@ -6,15 +6,22 @@ import type { Drill } from '../data/drillData';
 import { Fretboard } from '../components/Fretboard';
 import { initAudio, playClick } from '../lib/audio';
 
-type Category = 'chromatic' | 'spider' | 'legato' | 'stretch';
+type FrettingCategory = 'chromatic' | 'spider' | 'legato' | 'stretch';
+type PickingCategory  = 'alternate' | 'economy' | 'pima' | 'travis';
+type Category = FrettingCategory | PickingCategory;
 
-const CATEGORIES: Category[] = ['chromatic', 'spider', 'legato', 'stretch'];
+const FRETTING_CATEGORIES: FrettingCategory[] = ['chromatic', 'spider', 'legato', 'stretch'];
+const PICKING_CATEGORIES:  PickingCategory[]  = ['alternate', 'economy', 'pima', 'travis'];
 
 const CATEGORY_LABELS: Record<Category, string> = {
   chromatic: 'Chromatic',
   spider: 'Spider',
   legato: 'Legato',
   stretch: 'Stretch',
+  alternate: 'Alternate',
+  economy: 'Economy',
+  pima: 'PIMA',
+  travis: 'Travis',
 };
 
 const CATEGORY_DESCRIPTIONS: Record<Category, string> = {
@@ -22,6 +29,10 @@ const CATEGORY_DESCRIPTIONS: Record<Category, string> = {
   spider: 'Cross-string coordination and string crossing',
   legato: 'Hammer-on and pull-off strength',
   stretch: 'Reach and fret-span conditioning',
+  alternate: 'Strict down-up pick alternation',
+  economy: 'Sweep through string changes — no wasted motion',
+  pima: 'Classical right-hand fingerpicking patterns',
+  travis: 'Alternating thumb bass with melody fingers',
 };
 
 export function Technique() {
@@ -103,7 +114,7 @@ export function Technique() {
     ? selectedDrill.steps.map(s => ({
         stringIdx: s.stringIdx,
         fret: s.fret,
-        label: String(s.finger),
+        label: s.finger ? String(s.finger) : '',
       }))
     : [];
 
@@ -116,7 +127,7 @@ export function Technique() {
         </div>
         <div>
           <h1 className="text-2xl font-bold text-brand-ink">Technique</h1>
-          <p className="text-sm text-brand-secondary">Fretting hand dexterity drills. Slow and accurate builds speed.</p>
+          <p className="text-sm text-brand-secondary">Fretting and picking technique drills. Slow and accurate builds speed.</p>
         </div>
       </div>
 
@@ -138,23 +149,45 @@ export function Technique() {
         </div>
       )}
 
-      {/* Tab row */}
-      <div className="border-b border-brand-line">
-        <div className="flex gap-0">
-          {CATEGORIES.map(cat => (
-            <button
-              key={cat}
-              onClick={() => handleTabChange(cat)}
-              className={cn(
-                'px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors',
-                activeTab === cat
-                  ? 'border-brand-primary text-brand-primary'
-                  : 'border-transparent text-brand-secondary hover:text-brand-ink hover:border-brand-line',
-              )}
-            >
-              {CATEGORY_LABELS[cat]}
-            </button>
-          ))}
+      {/* Tab rows — Fretting Hand and Picking Hand */}
+      <div>
+        <div className="flex items-center border-b border-brand-line">
+          <span className="text-xs font-medium text-brand-secondary w-28 shrink-0 pl-1 pb-1">Fretting Hand</span>
+          <div className="flex">
+            {FRETTING_CATEGORIES.map(cat => (
+              <button
+                key={cat}
+                onClick={() => handleTabChange(cat)}
+                className={cn(
+                  'px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
+                  activeTab === cat
+                    ? 'border-brand-primary text-brand-primary'
+                    : 'border-transparent text-brand-secondary hover:text-brand-ink hover:border-brand-line',
+                )}
+              >
+                {CATEGORY_LABELS[cat]}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="flex items-center border-b border-brand-line">
+          <span className="text-xs font-medium text-brand-secondary w-28 shrink-0 pl-1 pb-1">Picking Hand</span>
+          <div className="flex">
+            {PICKING_CATEGORIES.map(cat => (
+              <button
+                key={cat}
+                onClick={() => handleTabChange(cat)}
+                className={cn(
+                  'px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
+                  activeTab === cat
+                    ? 'border-brand-primary text-brand-primary'
+                    : 'border-transparent text-brand-secondary hover:text-brand-ink hover:border-brand-line',
+                )}
+              >
+                {CATEGORY_LABELS[cat]}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -201,6 +234,29 @@ export function Technique() {
               </p>
             )}
           </div>
+
+          {/* Picking annotation strip — rendered only for drills with pick annotations */}
+          {selectedDrill.steps.some(s => s.pick) && (
+            <div className="overflow-x-auto">
+              <div className="flex gap-1 pb-1 min-w-max">
+                {selectedDrill.steps.map((s, i) =>
+                  s.pick ? (
+                    <span
+                      key={i}
+                      className={cn(
+                        'w-7 h-7 rounded-md flex items-center justify-center text-sm font-bold flex-shrink-0',
+                        s.pick === 'down' || s.pick === 'up'
+                          ? 'bg-brand-surface border border-brand-line text-brand-ink'
+                          : 'bg-brand-primary/10 text-brand-primary',
+                      )}
+                    >
+                      {s.pick === 'down' ? '↓' : s.pick === 'up' ? '↑' : s.pick}
+                    </span>
+                  ) : null
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Fretboard */}
           <div className="overflow-x-auto">
