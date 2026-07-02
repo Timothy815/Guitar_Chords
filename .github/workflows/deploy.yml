@@ -11,7 +11,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -23,6 +23,7 @@ jobs:
         with:
           node-version: 20
           cache: npm
+      - uses: actions/configure-pages@v5
       - run: npm ci
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
@@ -32,6 +33,10 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -39,3 +44,7 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          timeout: 1200000
+          error_count: 20
+          reporting_interval: 10000
