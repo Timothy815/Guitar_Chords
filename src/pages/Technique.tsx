@@ -4,7 +4,7 @@ import { cn } from '../lib/utils';
 import { DRILLS, getDrillBest, saveDrillBest } from '../data/drillData';
 import type { Drill } from '../data/drillData';
 import { Fretboard } from '../components/Fretboard';
-import { initAudio, playClick } from '../lib/audio';
+import { initAudio, playClick, playNote, getFretNote } from '../lib/audio';
 
 type FrettingCategory = 'chromatic' | 'spider' | 'legato' | 'stretch';
 type PickingCategory  = 'alternate' | 'economy' | 'pima' | 'travis';
@@ -43,7 +43,10 @@ export function Technique() {
   const [bestFlash, setBestFlash] = useState(false);
   const [showBanner, setShowBanner] = useState(true);
   const [personalBest, setPersonalBest] = useState<number | null>(null);
+  const [isDrillPlaying, setIsDrillPlaying] = useState(false);
+  const [activeStep, setActiveStep] = useState<number | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const drillPlayRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const tabDrills = DRILLS.filter(d => d.category === activeTab);
   const selectedDrill: Drill | null = selectedDrillId
@@ -77,14 +80,46 @@ export function Technique() {
     };
   }, [isPlaying, bpm]);
 
+  // Drill playback — steps through notes at current BPM, plays audio and highlights active dot
+  useEffect(() => {
+    if (drillPlayRef.current) {
+      clearInterval(drillPlayRef.current);
+      drillPlayRef.current = null;
+    }
+    if (!isDrillPlaying || !selectedDrill) {
+      setActiveStep(null);
+      return;
+    }
+    const steps = selectedDrill.steps;
+    let idx = 0;
+    const beatMs = Math.floor(60000 / bpm);
+    const fire = () => {
+      setActiveStep(idx);
+      const s = steps[idx];
+      const note = getFretNote(s.stringIdx, s.fret);
+      if (note) initAudio().then(() => playNote(note, beatMs / 1000 * 0.85));
+      idx = (idx + 1) % steps.length;
+    };
+    fire();
+    drillPlayRef.current = setInterval(fire, beatMs);
+    return () => {
+      if (drillPlayRef.current) {
+        clearInterval(drillPlayRef.current);
+        drillPlayRef.current = null;
+      }
+    };
+  }, [isDrillPlaying, bpm, selectedDrill?.id]);
+
   function handleTabChange(tab: Category) {
     setActiveTab(tab);
     setSelectedDrillId(null);
     setIsPlaying(false);
+    setIsDrillPlaying(false);
   }
 
   function handleSelectDrill(drillId: string) {
     if (isPlaying) setIsPlaying(false);
+    if (isDrillPlaying) setIsDrillPlaying(false);
     setSelectedDrillId(prev => (prev === drillId ? null : drillId));
     setBestFlash(false);
   }
@@ -111,10 +146,11 @@ export function Technique() {
   }
 
   const drillDots = selectedDrill
-    ? selectedDrill.steps.map(s => ({
+    ? selectedDrill.steps.map((s, i) => ({
         stringIdx: s.stringIdx,
         fret: s.fret,
         label: s.finger ? String(s.finger) : '',
+        highlight: activeStep === i,
       }))
     : [];
 
@@ -245,10 +281,12 @@ export function Technique() {
                       <span
                         key={i}
                         className={cn(
-                          'w-7 h-7 rounded-md flex items-center justify-center text-sm font-bold flex-shrink-0',
-                          s.pick === 'down' || s.pick === 'up'
-                            ? 'bg-brand-surface border border-brand-line text-brand-ink'
-                            : 'bg-brand-primary/10 text-brand-primary',
+                          'w-7 h-7 rounded-md flex items-center justify-center text-sm font-bold flex-shrink-0 transition-colors',
+                          activeStep === i
+                            ? 'bg-amber-400 text-white'
+                            : s.pick === 'down' || s.pick === 'up'
+                              ? 'bg-brand-surface border border-brand-line text-brand-ink'
+                              : 'bg-brand-primary/10 text-brand-primary',
                         )}
                       >
                         {s.pick === 'down' ? '↓' : s.pick === 'up' ? '↑' : s.pick}
@@ -274,6 +312,19 @@ export function Technique() {
               fretsNum={15}
             />
           </div>
+
+          {/* Play drill button */}
+          <button
+            onClick={async () => { await initAudio(); setIsDrillPlaying(prev => !prev); }}
+            className={cn(
+              'w-full py-2 rounded-lg text-sm font-medium transition-colors',
+              isDrillPlaying
+                ? 'bg-amber-400 text-white hover:bg-amber-500'
+                : 'border border-brand-line text-brand-ink hover:border-amber-400 hover:text-amber-500',
+            )}
+          >
+            {isDrillPlaying ? '■ Stop drill' : '▶ Hear drill'}
+          </button>
 
           {/* BPM controls */}
           <div className="space-y-3">
