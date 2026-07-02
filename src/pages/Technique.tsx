@@ -237,24 +237,31 @@ export function Technique() {
 
           {/* Picking annotation strip — rendered only for drills with pick annotations */}
           {selectedDrill.steps.some(s => s.pick) && (
-            <div className="overflow-x-auto">
-              <div className="flex gap-1 pb-1 min-w-max">
-                {selectedDrill.steps.map((s, i) =>
-                  s.pick ? (
-                    <span
-                      key={i}
-                      className={cn(
-                        'w-7 h-7 rounded-md flex items-center justify-center text-sm font-bold flex-shrink-0',
-                        s.pick === 'down' || s.pick === 'up'
-                          ? 'bg-brand-surface border border-brand-line text-brand-ink'
-                          : 'bg-brand-primary/10 text-brand-primary',
-                      )}
-                    >
-                      {s.pick === 'down' ? '↓' : s.pick === 'up' ? '↑' : s.pick}
-                    </span>
-                  ) : null
-                )}
+            <div className="space-y-2">
+              <div className="overflow-x-auto">
+                <div className="flex gap-1 pb-1 min-w-max">
+                  {selectedDrill.steps.map((s, i) =>
+                    s.pick ? (
+                      <span
+                        key={i}
+                        className={cn(
+                          'w-7 h-7 rounded-md flex items-center justify-center text-sm font-bold flex-shrink-0',
+                          s.pick === 'down' || s.pick === 'up'
+                            ? 'bg-brand-surface border border-brand-line text-brand-ink'
+                            : 'bg-brand-primary/10 text-brand-primary',
+                        )}
+                      >
+                        {s.pick === 'down' ? '↓' : s.pick === 'up' ? '↑' : s.pick}
+                      </span>
+                    ) : null
+                  )}
+                </div>
               </div>
+              <p className="text-xs text-brand-secondary">
+                {selectedDrill.steps.some(s => s.pick === 'down' || s.pick === 'up')
+                  ? '↓ downstroke · ↑ upstroke'
+                  : 'p = thumb · i = index · m = middle · a = ring'}
+              </p>
             </div>
           )}
 
