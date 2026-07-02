@@ -101,7 +101,9 @@ const ShapeCard: React.FC<ShapeCardProps> = ({ rootString, targetString, rootFre
             </text>
           );
         })}
-        <text x={4} y={pY + 5} textAnchor="start" fontSize={9} fill="#444" fontWeight="600">{startFret}</text>
+        <text x={pX + fretPx / 2} y={pY - 6} textAnchor="middle" fontSize={9} fill="#444" fontWeight="600">
+          fret {startFret}
+        </text>
         <circle cx={nx(rootFret)} cy={ny(rootString)} r={5.5} fill="#111" />
         <circle cx={nx(targetFret)} cy={ny(targetString)} r={5.5} fill="#111" />
       </svg>
