@@ -39,10 +39,6 @@ const CATEGORY_DESCRIPTIONS: Record<Category, string> = {
   travis: 'Alternating thumb bass with melody fingers',
 };
 
-function actualFret(relativeFret: number, baseFret: number): number {
-  return relativeFret <= 0 ? relativeFret : relativeFret + baseFret - 1;
-}
-
 export function Technique() {
   const [activeTab, setActiveTab] = useState<Category>('chromatic');
   const [selectedDrillId, setSelectedDrillId] = useState<string | null>(null);
@@ -67,14 +63,13 @@ export function Technique() {
     ? (DRILLS.find(d => d.id === selectedDrillId) ?? null)
     : null;
 
-  // Effective steps — frets overridden by selected chord where the string isn't muted
+  // Effective steps — frets overridden by selected chord where the string isn't muted.
+  // chord.frets stores absolute fret positions, so we use the value directly.
   const effectiveSteps = selectedDrill
     ? selectedDrill.steps.map(s => {
         if (selectedChord) {
-          const rel = selectedChord.frets[s.stringIdx];
-          if (rel !== -1) {
-            return { ...s, fret: actualFret(rel, selectedChord.baseFret ?? 1) };
-          }
+          const f = selectedChord.frets[s.stringIdx];
+          if (f !== -1) return { ...s, fret: f };
         }
         return s;
       })
@@ -112,8 +107,8 @@ export function Technique() {
     const steps = selectedDrill
       ? selectedDrill.steps.map(s => {
           if (selectedChord) {
-            const rel = selectedChord.frets[s.stringIdx];
-            if (rel !== -1) return { ...s, fret: actualFret(rel, selectedChord.baseFret ?? 1) };
+            const f = selectedChord.frets[s.stringIdx];
+            if (f !== -1) return { ...s, fret: f };
           }
           return s;
         })
