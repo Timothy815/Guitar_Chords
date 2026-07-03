@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { cn } from '@/src/lib/utils';
 import { Fretboard } from '@/src/components/Fretboard';
 import { generateScalePattern, COMMON_SCALES, ALL_NOTES } from '@/src/data/guitarData';
@@ -63,6 +63,32 @@ export function ScalePositions() {
   const fretsNum = Math.max(12, endFret + 1);
 
   const pattern = generateScalePattern(root, scaleDef);
+
+  // Build an explicit string-fret set for the Fretboard, deduplicated by MIDI pitch.
+  // When the same pitch appears on two strings within the box (e.g. G string fret 4
+  // and open B string are both B3), we keep only the lowest-fret occurrence so the
+  // player sees the correct position-box fingering with no doubled notes.
+  const scalePositions = useMemo(() => {
+    const candidates: { s: number; f: number; midi: number }[] = [];
+    for (let s = 0; s < 6; s++) {
+      const openMidi = OPEN_STRING_MIDI[s];
+      const openNoteIdx = ALL_NOTES.indexOf(STANDARD_TUNING.notes[s] as Note);
+      for (let f = startFret; f <= endFret; f++) {
+        const name = ALL_NOTES[(openNoteIdx + f) % 12];
+        if (pattern.notes.includes(name as Note)) {
+          candidates.push({ s, f, midi: openMidi + f });
+        }
+      }
+    }
+    // Sort by fret ascending — lower fret wins for the same MIDI pitch.
+    candidates.sort((a, b) => a.f - b.f);
+    const seen = new Set<number>();
+    const positions = new Set<string>();
+    for (const { s, f, midi } of candidates) {
+      if (!seen.has(midi)) { seen.add(midi); positions.add(`${s}-${f}`); }
+    }
+    return positions;
+  }, [pattern, startFret, endFret]);
 
   // Collect unique pitches in the box window, sorted low→high.
   const getBoxNotes = useCallback((): Array<[string, number]> => {
@@ -217,6 +243,7 @@ export function ScalePositions() {
           <Fretboard
             scale={pattern}
             fretRange={fretRange}
+            scalePositions={scalePositions}
             fretsNum={fretsNum}
           />
         </div>
