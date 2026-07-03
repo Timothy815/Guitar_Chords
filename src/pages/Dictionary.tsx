@@ -653,6 +653,32 @@ export function Dictionary() {
     return [];
   }, [scaleBoxOptions, scaleBoxSelection, scaleDiagonalOptions, scaleDiagonalSelection, scalePositionOptions, scalePositionSelection, scaleThreeNpsOptions, scaleThreeNpsSelection, scaleViewMode, strictScaleBoxPositions, strictScaleDiagonalPositions, strictScaleThreeNpsPositions]);
 
+  // When viewing a box/position with only a fretRange (no explicit strict positions), deduplicate
+  // notes by MIDI pitch so the same pitch never appears twice in one box (G string fret+4 = B string open).
+  const dedupedScalePositions = useMemo(() => {
+    if (!displayedScale || scaleFretRange.length !== 2 || activeStrictScalePositions) return undefined;
+    const OPEN_STRING_MIDI = [40, 45, 50, 55, 59, 64];
+    const [startFret, endFret] = scaleFretRange;
+    const candidates: { s: number; f: number; midi: number }[] = [];
+    for (let s = 0; s < 6; s++) {
+      const openMidi = OPEN_STRING_MIDI[s];
+      const openNoteIdx = ALL_NOTES.indexOf(STANDARD_TUNING.notes[s] as Note);
+      for (let f = startFret; f <= endFret; f++) {
+        const name = ALL_NOTES[(openNoteIdx + f) % 12];
+        if (displayedScale.notes.includes(name as Note)) {
+          candidates.push({ s, f, midi: openMidi + f });
+        }
+      }
+    }
+    candidates.sort((a, b) => a.f - b.f);
+    const seen = new Set<number>();
+    const positions = new Set<string>();
+    for (const { s, f, midi } of candidates) {
+      if (!seen.has(midi)) { seen.add(midi); positions.add(`${s}-${f}`); }
+    }
+    return positions;
+  }, [displayedScale, scaleFretRange, activeStrictScalePositions]);
+
   useEffect(() => {
     if (scaleViewMode === 'box' && !boxViewSupported) {
       setScaleViewMode('full');
@@ -1813,7 +1839,7 @@ export function Dictionary() {
                         scale={mode === 'scales' ? displayedScale ?? undefined : undefined}
                         playingNotes={playingNotes}
                         fretRange={mode === 'scales' && scaleFretRange.length === 2 ? [scaleFretRange[0], scaleFretRange[1]] : undefined}
-                        scalePositions={mode === 'scales' ? activeStrictScalePositions : undefined}
+                        scalePositions={mode === 'scales' ? (activeStrictScalePositions ?? dedupedScalePositions) : undefined}
                         onNoteClick={(str) => {
                           // Handled by onFretClick if possible, fallback
                           import('../lib/audio').then(m => m.playNote(str, sustain));
