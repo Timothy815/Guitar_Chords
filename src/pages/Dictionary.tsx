@@ -559,6 +559,20 @@ export function Dictionary() {
     const rootFret = (rootNoteIdx - lowENoteIdx + 12) % 12;
     const familyBoxes = boxFamily === 'majorFamily' ? MAJOR_FAMILY_BOXES : MINOR_FAMILY_BOXES;
     return familyBoxes.map(box => {
+      const strictPattern = activeScaleBase ? getStrictBoxPattern(activeScaleBase.name, box.id) : null;
+      if (strictPattern) {
+        let anchorFret = rootFret;
+        const allOffsets = strictPattern.flat();
+        let minFret = Math.min(...allOffsets.map(o => anchorFret + o));
+        let maxFret = Math.max(...allOffsets.map(o => anchorFret + o));
+        while (minFret < 0) { anchorFret += 12; minFret += 12; maxFret += 12; }
+        while (maxFret > 15 && minFret - 12 >= 0) { anchorFret -= 12; minFret -= 12; maxFret -= 12; }
+        return {
+          id: box.id,
+          label: `${box.label} (${minFret}-${maxFret})`,
+          range: [minFret, maxFret] as [number, number],
+        };
+      }
       let startFret = rootFret + box.startOff;
       if (startFret < 0) startFret += 12;
       if (startFret > 14) startFret -= 12;
@@ -569,7 +583,7 @@ export function Dictionary() {
         range: [startFret, endFret] as [number, number],
       };
     });
-  }, [boxFamily, boxViewSupported, selectedKey]);
+  }, [activeScaleBase, boxFamily, boxViewSupported, selectedKey]);
   const strictScaleBoxPositions = useMemo(() => {
     if (scaleViewMode !== 'box' || !activeScaleBase) return undefined;
     const pattern = getStrictBoxPattern(activeScaleBase.name, scaleBoxSelection);
