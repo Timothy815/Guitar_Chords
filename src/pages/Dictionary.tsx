@@ -6,7 +6,7 @@ import { IntervalFretboard } from '../components/IntervalFretboard';
 import { PianoKeyboard } from '../components/PianoKeyboard';
 import { COMMON_CHORDS, COMMON_SCALES, generateScalePattern, ALL_NOTES, ScaleCategory } from '../data/guitarData';
 import { playStrum, playArpeggio, getFretNote, initAudio, playNote, setEffects } from '../lib/audio';
-import { Volume2, ListMusic, Printer } from 'lucide-react';
+import { Volume2, ListMusic, Printer, ChevronDown, ChevronUp } from 'lucide-react';
 import { ChordShape, Note, TUNINGS, Tuning, Finger } from '../types';
 import { handlePrint, cn, avgChordPitch, chordPositionBucket, PositionBucket, POSITION_LABELS } from '../lib/utils';
 import { addChordToActiveProgression } from '@/src/lib/progressionUtils';
@@ -356,6 +356,7 @@ export function Dictionary() {
   const [positionFilter, setPositionFilter] = useState<PositionBucket>('all');
   const [scaleCategory, setScaleCategory] = useState<ScaleCategory | 'All'>('All');
   const [selectedInterval, setSelectedInterval] = useState<number>(7); // Perfect 5th
+  const [showIntervalInfo, setShowIntervalInfo] = useState(false);
 
   function handleOpenInChords(root: Note, qualityPrefix: string) {
     if (!isStandardTuning) return;
@@ -1784,9 +1785,75 @@ export function Dictionary() {
                 const activeInterval = INTERVALS.find(i => i.semitones === selectedInterval);
                 if (!activeInterval) return null;
                 return (
-                  <p className="w-full text-center text-sm text-brand-secondary -mt-6 mb-8 print:hidden">
-                    {activeInterval.short} = {formatSemitoneLabel(activeInterval.semitones)} from the root note
-                  </p>
+                  <>
+                    <p className="w-full text-center text-sm text-brand-secondary -mt-6 mb-4 print:hidden">
+                      {activeInterval.short} = {formatSemitoneLabel(activeInterval.semitones)} from the root note
+                    </p>
+
+                    {/* Collapsible theory explainer */}
+                    <div className="w-full mb-6 print:hidden">
+                      <button
+                        onClick={() => setShowIntervalInfo(v => !v)}
+                        className="flex items-center gap-1.5 text-xs font-medium text-brand-secondary hover:text-brand-ink transition-colors mx-auto"
+                      >
+                        {showIntervalInfo ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                        Why don't interval names match semitone counts?
+                      </button>
+
+                      {showIntervalInfo && (
+                        <div className="mt-3 p-4 rounded-lg bg-brand-surface border border-brand-line text-sm space-y-4 max-w-2xl mx-auto">
+                          <p className="text-brand-secondary leading-relaxed">
+                            Interval names count <strong className="text-brand-ink">letter steps</strong> in the major scale (C→D→E…), not semitones.
+                            The major scale is <em>unevenly spaced</em> — mostly whole steps (2 semitones) but with half steps at E→F and B→C — so the name number and the semitone count don't line up simply.
+                          </p>
+
+                          {/* Major scale step diagram */}
+                          <div>
+                            <p className="text-xs font-semibold text-brand-secondary uppercase tracking-wider mb-2">C Major scale — gaps in semitones</p>
+                            <div className="flex items-end gap-0 font-mono text-xs select-none overflow-x-auto">
+                              {['C','D','E','F','G','A','B','C'].map((note, i) => (
+                                <div key={i} className="flex flex-col items-center">
+                                  <span className={`px-2.5 py-1 rounded font-bold ${note === 'C' ? 'text-brand-primary' : 'text-brand-ink'}`}>{note}</span>
+                                  {i < 7 && (
+                                    <span className={`text-[10px] px-2 ${[2,6].includes(i) ? 'text-amber-500 font-bold' : 'text-brand-secondary'}`}>
+                                      {[0,1,3,4,5].includes(i) ? '2' : '1'}
+                                    </span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                            <p className="text-xs text-brand-secondary mt-1">Amber = half step (1 semitone). All others = whole step (2 semitones).</p>
+                          </div>
+
+                          {/* Interval + inversion table */}
+                          <div>
+                            <p className="text-xs font-semibold text-brand-secondary uppercase tracking-wider mb-2">Intervals &amp; inversions — pairs always add to 12</p>
+                            <div className="grid grid-cols-2 gap-x-6 gap-y-0.5 text-xs font-mono">
+                              {[
+                                ['m2', 1, 'M7', 11],
+                                ['M2', 2, 'm7', 10],
+                                ['m3', 3, 'M6',  9],
+                                ['M3', 4, 'm6',  8],
+                                ['P4', 5, 'P5',  7],
+                                ['TT', 6, 'TT',  6],
+                              ].map(([a, as_, b, bs]) => (
+                                <div key={String(a)} className="col-span-2 grid grid-cols-[2rem_1.5rem_0.5rem_2rem_1.5rem] items-center gap-x-2 py-0.5 border-b border-brand-line/40 last:border-0">
+                                  <span className="font-bold text-brand-primary">{a}</span>
+                                  <span className="text-brand-secondary">{as_} st</span>
+                                  <span className="text-brand-line text-center">↔</span>
+                                  <span className="font-bold text-brand-primary">{b}</span>
+                                  <span className="text-brand-secondary">{bs} st</span>
+                                </div>
+                              ))}
+                            </div>
+                            <p className="text-xs text-brand-secondary mt-2">
+                              Know your 3rds (3 &amp; 4 st) → you know your 6ths (9 &amp; 8 st) for free. Major inverts to minor and vice versa; Perfect stays Perfect.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </>
                 );
               })()}
 
