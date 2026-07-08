@@ -50,9 +50,10 @@ interface FretboardProps {
   flashHighlight?: boolean;
   tuning?: Tuning;
   drillDots?: { stringIdx: number; fret: number; label: string; highlight?: boolean; color?: string }[];
+  showAllNotes?: boolean; // ghost-dot every fret position; chord dots forced orange
 }
 
-export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClick, onFretMouseDown, showNoteNames = true, className, fretRange, scalePositions, playingNotes = new Set(), compact = false, correctPositions = new Set(), wrongPosition = null, previewPosition = null, focusZone, highlightNote, labeledDots, flashHighlight, tuning = STANDARD_TUNING, drillDots }: FretboardProps) {
+export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClick, onFretMouseDown, showNoteNames = true, className, fretRange, scalePositions, playingNotes = new Set(), compact = false, correctPositions = new Set(), wrongPosition = null, previewPosition = null, focusZone, highlightNote, labeledDots, flashHighlight, tuning = STANDARD_TUNING, drillDots, showAllNotes = false }: FretboardProps) {
   const [labelMode, setLabelMode] = useState<LabelMode>('none');
 
   const stringsNum = 6;
@@ -112,16 +113,16 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
         textColor = "fill-brand-secondary";
       } else {
         if (fretIdx === 0) {
-          bgColor = isPlaying ? "fill-orange-500" : "transparent";
-          textColor = isPlaying ? "fill-white" : "fill-brand-active";
+          bgColor = (isPlaying || showAllNotes) ? "fill-orange-500" : "transparent";
+          textColor = (isPlaying || showAllNotes) ? "fill-white" : "fill-brand-active";
           text = labelMode !== 'none' ? getLabelText(noteJustName) : getFretNote(stringIdx, 0, tuning).replace(/[0-9]/g, '');
         } else {
-          bgColor = isPlaying ? "fill-orange-500" : "fill-brand-active";
+          bgColor = (isPlaying || showAllNotes) ? "fill-orange-500" : "fill-brand-active";
           const finger = chord.fingers[stringIdx];
           if (labelMode !== 'none') {
             text = getLabelText(noteJustName);
           } else {
-            text = (finger !== undefined && finger !== 0 && finger !== -1)
+            text = showAllNotes ? noteJustName : (finger !== undefined && finger !== 0 && finger !== -1)
               ? finger.toString()
               : (showNoteNames ? noteJustName : '');
           }
@@ -184,6 +185,16 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
           <g>
             <circle cx={x} cy={y} r={fretIdx === 0 ? 12 : 14} className="stroke-2 stroke-orange-500 fill-orange-500 shadow-lg print:stroke-black print:fill-white" />
             {showNoteNames && <text x={x} y={y + 5} className="text-[14px] font-bold pointer-events-none fill-white print:fill-black" textAnchor="middle">{noteStr.replace(/[0-9]/g, '')}</text>}
+          </g>
+        );
+      }
+
+      if (showAllNotes) {
+        const noteName = noteStr.replace(/[0-9]/g, '');
+        return (
+          <g onClick={() => handleDotClick(stringIdx, fretIdx)} style={{cursor: 'pointer'}}>
+            <circle cx={x} cy={y} r={fretIdx === 0 ? 9 : 11} className="fill-brand-secondary/10 stroke-brand-secondary/25 stroke-1" />
+            <text x={x} y={y + 4} className="text-[9px] pointer-events-none fill-brand-secondary/40" textAnchor="middle">{noteName}</text>
           </g>
         );
       }

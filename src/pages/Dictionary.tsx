@@ -357,6 +357,7 @@ export function Dictionary() {
   const [scaleCategory, setScaleCategory] = useState<ScaleCategory | 'All'>('All');
   const [selectedInterval, setSelectedInterval] = useState<number>(7); // Perfect 5th
   const [showIntervalInfo, setShowIntervalInfo] = useState(false);
+  const [showAllNotes, setShowAllNotes] = useState(false);
 
   function handleOpenInChords(root: Note, qualityPrefix: string) {
     if (!isStandardTuning) return;
@@ -1527,6 +1528,26 @@ export function Dictionary() {
                            </p>
                          </div>
                        )}
+
+                       {/* Show all notes toggle */}
+                       <div className="mt-3">
+                         <button
+                           onClick={() => setShowAllNotes(v => !v)}
+                           className={cn(
+                             'w-full py-1.5 rounded border text-xs font-medium transition-colors',
+                             showAllNotes
+                               ? 'bg-brand-active/15 border-brand-active text-brand-active'
+                               : 'border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink'
+                           )}
+                         >
+                           {showAllNotes ? 'Hide all notes' : 'Show all notes'}
+                         </button>
+                         {showAllNotes && (
+                           <p className="text-[10px] text-brand-secondary/60 leading-tight mt-1">
+                             Orange = selected · Muted = all other notes
+                           </p>
+                         )}
+                       </div>
                     </div>
                  </>
               )}
@@ -1796,7 +1817,8 @@ export function Dictionary() {
                   const st = p.midi - pitched[0].midi;
                   const iv = INTERVALS.find(i => i.semitones === st % 12);
                   const octaveTag = st >= 12 ? ` +${Math.floor(st / 12)} oct` : '';
-                  return { st, iv, octaveTag };
+                  const upperLabel = getFretNote(p.si, identifiedFrets[p.si]).replace(/\d/g, '');
+                  return { st, iv, octaveTag, upperLabel };
                 });
 
                 const stacked = pitched.slice(1).map((p, i) => {
@@ -1809,15 +1831,16 @@ export function Dictionary() {
                     <p className="text-xs font-semibold text-brand-secondary uppercase tracking-wider mb-2">
                       {pitched.length === 2 ? 'Interval' : 'Intervals from bass'}
                     </p>
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                    <div className="flex flex-col gap-1.5">
                       {fromBass.map((item, i) => (
-                        <span key={i} className="text-sm">
-                          <span className="text-brand-secondary text-xs">{bassLabel}→ </span>
-                          <span className="font-bold text-brand-primary">{item.iv?.short ?? `${item.st % 12}st`}</span>
-                          <span className="text-brand-secondary text-xs ml-1">
-                            {item.iv?.name ?? ''} · {item.st} st{item.octaveTag}
-                          </span>
-                        </span>
+                        <div key={i} className="flex items-center gap-2 text-sm">
+                          <span className="font-semibold text-brand-ink w-5 text-right">{bassLabel}</span>
+                          <span className="text-brand-secondary">→</span>
+                          <span className="font-semibold text-brand-ink w-5">{item.upperLabel}</span>
+                          <span className="font-bold text-brand-primary w-8">{item.iv?.short ?? `${item.st % 12}st`}</span>
+                          <span className="text-brand-secondary text-xs">{item.iv?.name ?? ''}</span>
+                          <span className="text-brand-secondary text-xs tabular-nums">{item.st} st{item.octaveTag}</span>
+                        </div>
                       ))}
                     </div>
                     {pitched.length >= 3 && (
@@ -1975,7 +1998,7 @@ export function Dictionary() {
                   <div className="w-full" onMouseEnter={initAudio}>
                      <Fretboard
                         fretsNum={15}
-                        chord={mode === 'chords' ? scaffoldedChord : (mode === 'identify' ? { name: 'Identified', frets: identifiedFrets, fingers: [-1,-1,-1,-1,-1,-1] } : undefined)}
+                        chord={mode === 'chords' ? scaffoldedChord : (mode === 'identify' ? { name: 'Identified', frets: identifiedFrets, fingers: identifiedFrets.map(f => (f === -1 ? -1 : 0)) as Finger[] } : undefined)}
                         showNoteNames={!(mode === 'chords' && scaffoldLevel === 1)}
                         scale={mode === 'scales' ? displayedScale ?? undefined : undefined}
                         playingNotes={playingNotes}
@@ -1987,6 +2010,7 @@ export function Dictionary() {
                         }}
                         onFretClick={handleFretClick}
                         tuning={currentTuning}
+                        showAllNotes={mode === 'identify' && showAllNotes}
                      />
                   </div>
                   <p className="text-brand-secondary/70 text-sm mt-8 pb-4 print:hidden text-center">
