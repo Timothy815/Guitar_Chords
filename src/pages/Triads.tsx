@@ -42,15 +42,64 @@ const LEGEND = [
   { color: '#e67e22', label: 'Sus' },
 ];
 
-type CagedShape = 'full' | 'E' | 'D' | 'C' | 'A' | 'G';
+type PosMode = 'full' | 'caged' | 'box' | 'diagonal';
+type CagedShape = 'E' | 'D' | 'C' | 'A' | 'G';
+
 const CAGED_POSITIONS: { key: CagedShape; label: string; startOff: number }[] = [
-  { key: 'E', label: 'E shape', startOff: -1 },
-  { key: 'D', label: 'D shape', startOff: 2 },
-  { key: 'C', label: 'C shape', startOff: 4 },
-  { key: 'A', label: 'A shape', startOff: 7 },
-  { key: 'G', label: 'G shape', startOff: 9 },
+  { key: 'E', label: 'E', startOff: -1 },
+  { key: 'D', label: 'D', startOff: 2 },
+  { key: 'C', label: 'C', startOff: 4 },
+  { key: 'A', label: 'A', startOff: 7 },
+  { key: 'G', label: 'G', startOff: 9 },
 ];
 const CAGED_SPAN = 4;
+
+const BOX_POSITIONS_MAJOR = [
+  { id: 'box1', label: 'Box 1', startOff: -3, span: 3 },
+  { id: 'box2', label: 'Box 2', startOff: 0,  span: 2 },
+  { id: 'box3', label: 'Box 3', startOff: 2,  span: 2 },
+  { id: 'box4', label: 'Box 4', startOff: 4,  span: 3 },
+  { id: 'box5', label: 'Box 5', startOff: 7,  span: 2 },
+];
+const BOX_POSITIONS_MINOR = [
+  { id: 'box1', label: 'Box 1', startOff: 0,  span: 3 },
+  { id: 'box2', label: 'Box 2', startOff: 3,  span: 2 },
+  { id: 'box3', label: 'Box 3', startOff: 5,  span: 2 },
+  { id: 'box4', label: 'Box 4', startOff: 7,  span: 3 },
+  { id: 'box5', label: 'Box 5', startOff: 10, span: 2 },
+];
+
+const INTERVAL_DEGREE_LABELS: Record<number, string> = {
+  0: 'Root', 2: '2nd', 3: '♭3rd', 4: '3rd', 5: '4th',
+  6: '♭5th', 7: '5th', 8: '♯5th', 9: '𝄫7th', 10: '♭7th', 11: 'Maj7',
+};
+
+const OPEN_PITCHES_TC = [40, 45, 50, 55, 59, 64]; // low E → high E
+
+function buildChordToneDiagonal(root: Note, intervals: number[], startIntervalIdx: number): Set<string> {
+  const rootMidi = ALL_NOTES.indexOf(root);
+  const startPC = (rootMidi + intervals[startIntervalIdx]) % 12;
+  let minPitch = OPEN_PITCHES_TC[0] + (startPC - OPEN_PITCHES_TC[0] % 12 + 12) % 12;
+  const positions = new Set<string>();
+  for (let sIdx = 0; sIdx < 6; sIdx++) {
+    const candidates: { fret: number; pitch: number }[] = [];
+    for (let fret = 0; fret <= 15; fret++) {
+      const pitch = OPEN_PITCHES_TC[sIdx] + fret;
+      if (pitch < minPitch) continue;
+      if (intervals.includes((pitch - rootMidi + 120) % 12)) candidates.push({ fret, pitch });
+    }
+    if (!candidates.length) continue;
+    const picked = [candidates[0]];
+    const second = candidates.find(c => c.pitch > picked[0].pitch && c.fret - picked[0].fret <= 5);
+    if (second) picked.push(second);
+    picked.forEach(({ fret, pitch }) => { positions.add(`${sIdx}-${fret}`); minPitch = pitch + 1; });
+  }
+  return positions;
+}
+
+function isMajorFamily(qualityKey: string): boolean {
+  return ['major', 'dom7', 'maj7', 'aug', 'aug7', 'augmaj7', 'sus2', 'sus4', 'sus4dom7'].includes(qualityKey);
+}
 
 // --- Module-level helpers for playback ---
 function inferQuality(chordName: string): string {
@@ -105,8 +154,14 @@ export default function Triads() {
   const [scaleRoot, setScaleRoot]             = useState<Note>(() => lsGet('scaleRoot', 'C'));
   const [scaleType, setScaleType]             = useState<string>(() => lsGet('scaleType', 'Major (Ionian)'));
 
-  const [cagedPosition, setCagedPositionState] = useState<CagedShape>(() => lsGet('cagedPosition', 'full'));
-  const setCagedPosition = (v: CagedShape) => { setCagedPositionState(v); lsSet('cagedPosition', v); };
+  const [posMode, setPosModeState]             = useState<PosMode>(() => lsGet('posMode', 'full'));
+  const [cagedShape, setCagedShapeState]       = useState<CagedShape>(() => lsGet('cagedShape', 'E'));
+  const [boxId, setBoxIdState]                 = useState<string>(() => lsGet('boxId', 'box1'));
+  const [diagonalStart, setDiagStartState]     = useState<number>(() => lsGet('diagonalStart', 0));
+  const setPosMode      = (v: PosMode)    => { setPosModeState(v);      lsSet('posMode', v); };
+  const setCagedShape   = (v: CagedShape) => { setCagedShapeState(v);   lsSet('cagedShape', v); };
+  const setBoxId        = (v: string)     => { setBoxIdState(v);        lsSet('boxId', v); };
+  const setDiagStart    = (v: number)     => { setDiagStartState(v);    lsSet('diagonalStart', v); };
 
   const [progression, setProgression]         = useState<ProgChord[]>(() => lsGet('progression', []));
   const [bpm, setBpmState]                    = useState<number>(() => lsGet('bpm', 80));
@@ -140,36 +195,55 @@ export default function Triads() {
     ? progression[activeChordIdx].qualityKey
     : selectedQuality;
 
-  const fretRange = useMemo((): [number, number] | undefined => {
-    if (cagedPosition === 'full') return undefined;
-    const pos = CAGED_POSITIONS.find(p => p.key === cagedPosition);
-    if (!pos) return undefined;
+  const positionView = useMemo(() => {
     const lowEIdx = ALL_NOTES.indexOf('E' as Note);
     const rootIdx = ALL_NOTES.indexOf(displayKey);
-    let startFret = (rootIdx - lowEIdx + 12) % 12 + pos.startOff;
-    if (startFret < 0) startFret += 12;
-    if (startFret > 11) startFret = startFret % 12;
-    return [startFret, startFret + CAGED_SPAN];
-  }, [cagedPosition, displayKey]);
+    const rootFret = (rootIdx - lowEIdx + 12) % 12;
+    const boxFamily = isMajorFamily(displayQuality) ? BOX_POSITIONS_MAJOR : BOX_POSITIONS_MINOR;
+    const quality = CHORD_TONE_QUALITIES[displayQuality];
 
-  // Compute per-position fret ranges for button labels
-  const cagedPositionOptions = useMemo(() => {
-    const lowEIdx = ALL_NOTES.indexOf('E' as Note);
-    const rootIdx = ALL_NOTES.indexOf(displayKey);
-    return CAGED_POSITIONS.map(pos => {
-      let startFret = (rootIdx - lowEIdx + 12) % 12 + pos.startOff;
-      if (startFret < 0) startFret += 12;
-      if (startFret > 11) startFret = startFret % 12;
-      return { ...pos, range: `${startFret}–${startFret + CAGED_SPAN}` };
+    function clampStart(raw: number) {
+      if (raw < 0) raw += 12;
+      if (raw > 11) raw = raw % 12;
+      return raw;
+    }
+
+    const cagedOptions = CAGED_POSITIONS.map(pos => {
+      const s = clampStart(rootFret + pos.startOff);
+      return { ...pos, fretRange: [s, s + CAGED_SPAN] as [number, number], range: `${s}–${s + CAGED_SPAN}` };
     });
-  }, [displayKey]);
+
+    const boxOptions = boxFamily.map(box => {
+      const s = clampStart(rootFret + box.startOff);
+      return { ...box, fretRange: [s, s + box.span] as [number, number], range: `${s}–${s + box.span}` };
+    });
+
+    const pathwayOptions = quality
+      ? quality.intervals.map((iv, i) => ({ label: INTERVAL_DEGREE_LABELS[iv] ?? `${iv}`, index: i }))
+      : [];
+
+    let fretRange: [number, number] | undefined;
+    let allowedPositions: Set<string> | undefined;
+
+    if (posMode === 'caged') {
+      fretRange = cagedOptions.find(o => o.key === cagedShape)?.fretRange;
+    } else if (posMode === 'box') {
+      fretRange = boxOptions.find(o => o.id === boxId)?.fretRange;
+    } else if (posMode === 'diagonal' && quality) {
+      const idx = Math.min(diagonalStart, quality.intervals.length - 1);
+      allowedPositions = buildChordToneDiagonal(displayKey, quality.intervals, idx);
+    }
+
+    return { fretRange, allowedPositions, cagedOptions, boxOptions, pathwayOptions };
+  }, [posMode, cagedShape, boxId, diagonalStart, displayKey, displayQuality]);
 
   const chordToneDots: ChordToneDot[] = useMemo(() => {
     const all = generateChordToneDots(displayKey, displayQuality, stringGroup);
-    if (!fretRange) return all;
-    const [lo, hi] = fretRange;
-    return all.filter(d => d.fret >= lo && d.fret <= hi);
-  }, [displayKey, displayQuality, stringGroup, fretRange]);
+    const { fretRange, allowedPositions } = positionView;
+    if (fretRange) { const [lo, hi] = fretRange; return all.filter(d => d.fret >= lo && d.fret <= hi); }
+    if (allowedPositions) return all.filter(d => allowedPositions.has(`${d.stringIdx}-${d.fret}`));
+    return all;
+  }, [displayKey, displayQuality, stringGroup, positionView]);
 
   const { activeScalePattern, scaleOnlyPositions } = useMemo(() => {
     if (!scaleOn) return { activeScalePattern: undefined, scaleOnlyPositions: undefined };
@@ -352,33 +426,78 @@ export default function Triads() {
         </div>
       </div>
 
-      {/* CAGED position row */}
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-medium text-brand-secondary">Position</span>
-        <button
-          onClick={() => setCagedPosition('full')}
-          className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-            cagedPosition === 'full'
-              ? 'bg-brand-active text-white'
-              : 'bg-brand-bg border border-brand-line text-brand-secondary hover:text-brand-ink'
-          }`}
-        >
-          Full neck
-        </button>
-        {cagedPositionOptions.map(pos => (
-          <button
-            key={pos.key}
-            onClick={() => setCagedPosition(pos.key)}
-            className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-              cagedPosition === pos.key
-                ? 'bg-brand-active text-white'
-                : 'bg-brand-bg border border-brand-line text-brand-secondary hover:text-brand-ink'
-            }`}
-          >
-            {pos.label}
-            <span className="ml-1 opacity-70">({pos.range})</span>
-          </button>
-        ))}
+      {/* Position mode row */}
+      <div className="flex flex-col gap-1.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-brand-secondary w-16 shrink-0">Position</span>
+          {(['full', 'caged', 'box', 'diagonal'] as PosMode[]).map(mode => (
+            <button
+              key={mode}
+              onClick={() => setPosMode(mode)}
+              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                posMode === mode
+                  ? 'bg-brand-active text-white'
+                  : 'bg-brand-bg border border-brand-line text-brand-secondary hover:text-brand-ink'
+              }`}
+            >
+              {mode === 'full' ? 'Full neck' : mode === 'caged' ? 'CAGED' : mode === 'box' ? 'Box' : 'Pathway'}
+            </button>
+          ))}
+        </div>
+
+        {posMode === 'caged' && (
+          <div className="flex flex-wrap items-center gap-1 pl-[4.5rem]">
+            {positionView.cagedOptions.map(pos => (
+              <button
+                key={pos.key}
+                onClick={() => setCagedShape(pos.key)}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                  cagedShape === pos.key
+                    ? 'bg-brand-active text-white'
+                    : 'bg-brand-bg border border-brand-line text-brand-secondary hover:text-brand-ink'
+                }`}
+              >
+                {pos.label} shape <span className="opacity-70">({pos.range})</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {posMode === 'box' && (
+          <div className="flex flex-wrap items-center gap-1 pl-[4.5rem]">
+            {positionView.boxOptions.map(box => (
+              <button
+                key={box.id}
+                onClick={() => setBoxId(box.id)}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                  boxId === box.id
+                    ? 'bg-brand-active text-white'
+                    : 'bg-brand-bg border border-brand-line text-brand-secondary hover:text-brand-ink'
+                }`}
+              >
+                {box.label} <span className="opacity-70">({box.range})</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {posMode === 'diagonal' && (
+          <div className="flex flex-wrap items-center gap-1 pl-[4.5rem]">
+            {positionView.pathwayOptions.map(opt => (
+              <button
+                key={opt.index}
+                onClick={() => setDiagStart(opt.index)}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                  diagonalStart === opt.index
+                    ? 'bg-brand-active text-white'
+                    : 'bg-brand-bg border border-brand-line text-brand-secondary hover:text-brand-ink'
+                }`}
+              >
+                From {opt.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
       </div>
 
@@ -398,7 +517,7 @@ export default function Triads() {
         drillDots={chordToneDots}
         scale={activeScalePattern}
         scalePositions={scaleOnlyPositions}
-        fretRange={fretRange}
+        fretRange={positionView.fretRange}
         showNoteNames={false}
       />
 
