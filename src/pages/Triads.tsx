@@ -154,6 +154,7 @@ export default function Triads() {
   const [isPlaying, setIsPlaying]             = useState(false);
   const [activeChordIdx, setActiveChordIdx]   = useState<number | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
   const [savedProgressions, setSavedProgressions] = useState<
     Array<{ name: string; slots: Array<{ chord: { name: string } }> }>
   >([]);
@@ -328,6 +329,41 @@ export default function Triads() {
   return (
     <div className="flex flex-col gap-4 p-4">
       <h1 className="text-2xl font-serif font-bold text-brand-ink">Triad Explorer</h1>
+
+      {/* Info accordion */}
+      <div className="rounded-xl border border-brand-line bg-brand-surface overflow-hidden">
+        <button
+          onClick={() => setShowInfo(v => !v)}
+          className="w-full flex items-center justify-between px-4 py-2.5 text-left hover:bg-brand-sidebar/40 transition-colors"
+        >
+          <span className="text-sm text-brand-secondary">
+            Triads are the foundation of arpeggios, chord substitutions, and melodic soloing.
+          </span>
+          <span className="text-brand-secondary ml-3 shrink-0 text-xs">{showInfo ? '▲' : '▼'}</span>
+        </button>
+        {showInfo && (
+          <div className="px-4 pb-4 pt-1 border-t border-brand-line">
+            <ul className="space-y-2 text-sm text-brand-secondary">
+              <li>
+                <span className="font-medium text-brand-ink">Chord skeleton.</span>{' '}
+                Every chord voicing you know is built from a triad (root, 3rd, 5th) with optional extensions added. Seeing all chord tones across the neck reveals the full shape of a chord beyond a single open or CAGED voicing.
+              </li>
+              <li>
+                <span className="font-medium text-brand-ink">Arpeggios.</span>{' '}
+                An arpeggio is simply a triad (or 7th chord) played one note at a time. Use <strong>CAGED</strong> mode to isolate chord tones within a single position — the dots you see are exactly the notes of that arpeggio shape in that region of the neck.
+              </li>
+              <li>
+                <span className="font-medium text-brand-ink">Target notes in solos.</span>{' '}
+                In improvisation, landing on a chord tone (especially the 3rd or 7th) on a strong beat makes a phrase sound intentional rather than accidental. The full-neck view lets you see every safe landing spot at a glance.
+              </li>
+              <li>
+                <span className="font-medium text-brand-ink">Diagonal pathways.</span>{' '}
+                Use <strong>Pathway</strong> mode to practice connecting positions across the neck in one linear run — great for building fluid arpeggio lines that move up or down the fretboard rather than staying locked in one box.
+              </li>
+            </ul>
+          </div>
+        )}
+      </div>
 
       {/* Toolbar */}
       <div className="flex flex-col gap-2 bg-brand-surface rounded-xl p-3 border border-brand-line">
