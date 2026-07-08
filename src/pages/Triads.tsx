@@ -300,25 +300,24 @@ export default function Triads() {
       const chordDuration = (beatsPerChord * 60) / bpm; // seconds
 
       if (sorted.length > 0) {
-        // Deduplicate by MIDI pitch — same frequency at different positions
-        // would sound like rapid re-triggering of the same string
-        const seen = new Set<number>();
-        const deduped = sorted.filter(d => {
-          const pitch = OPEN_PITCHES_TC[d.stringIdx] + d.fret;
-          if (seen.has(pitch)) return false;
-          seen.add(pitch);
-          return true;
-        });
+        // One note per string: lowest-pitch dot on each active string,
+        // ordered string 0→5 (low E → high E) to mirror a real ascending arpeggio.
+        // This caps at 6 notes so each note has enough time to sound like guitar.
+        const byString = new Map<number, typeof sorted[0]>();
+        for (const dot of sorted) {
+          if (!byString.has(dot.stringIdx)) byString.set(dot.stringIdx, dot);
+        }
+        const arpDots = [...byString.values()].sort((a, b) => a.stringIdx - b.stringIdx);
 
-        const noteInterval = Math.max(chordDuration / deduped.length, 0.1);
-        const noteStrings = deduped.map(d => getFretNote(d.stringIdx, d.fret));
-        const dotKeys = deduped.map(d => `${d.stringIdx}-${d.fret}`);
+        const noteInterval = Math.max(chordDuration / arpDots.length, 0.18);
+        const noteStrings = arpDots.map(d => getFretNote(d.stringIdx, d.fret));
+        const dotKeys = arpDots.map(d => `${d.stringIdx}-${d.fret}`);
 
         if (!stopped) {
-          playArpeggioSequence(noteStrings, noteInterval, noteInterval * 0.9, i => {
+          playArpeggioSequence(noteStrings, noteInterval, 2.0, i => {
             setActiveDotKey(dotKeys[i]);
           });
-          await sleep(deduped.length * noteInterval * 1000);
+          await sleep(arpDots.length * noteInterval * 1000);
         }
       } else {
         await sleep(chordDuration * 1000);
