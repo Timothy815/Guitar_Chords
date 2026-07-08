@@ -1781,6 +1781,60 @@ export function Dictionary() {
                     </div>
                  )}
               </div>
+
+              {/* Interval analysis for Identify tab — shown whenever 2+ strings are fretted */}
+              {mode === 'identify' && frettedNotes.length >= 2 && (() => {
+                const OPEN_MIDI = [40, 45, 50, 55, 59, 64]; // E2 A2 D3 G3 B3 E4
+                const pitched = identifiedFrets
+                  .map((fret, si) => fret !== -1 ? { midi: OPEN_MIDI[si] + fret, si } : null)
+                  .filter((n): n is { midi: number; si: number } => n !== null)
+                  .sort((a, b) => a.midi - b.midi);
+
+                const bassLabel = getFretNote(pitched[0].si, identifiedFrets[pitched[0].si]).replace(/\d/, '');
+
+                const fromBass = pitched.slice(1).map(p => {
+                  const st = p.midi - pitched[0].midi;
+                  const iv = INTERVALS.find(i => i.semitones === st % 12);
+                  const octaveTag = st >= 12 ? ` +${Math.floor(st / 12)} oct` : '';
+                  return { st, iv, octaveTag };
+                });
+
+                const stacked = pitched.slice(1).map((p, i) => {
+                  const st = p.midi - pitched[i].midi;
+                  return INTERVALS.find(iv => iv.semitones === st % 12);
+                });
+
+                return (
+                  <div className="w-full mb-6 px-4 py-3 rounded-lg bg-brand-surface border border-brand-line print:hidden">
+                    <p className="text-xs font-semibold text-brand-secondary uppercase tracking-wider mb-2">
+                      {pitched.length === 2 ? 'Interval' : 'Intervals from bass'}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                      {fromBass.map((item, i) => (
+                        <span key={i} className="text-sm">
+                          <span className="text-brand-secondary text-xs">{bassLabel}→ </span>
+                          <span className="font-bold text-brand-primary">{item.iv?.short ?? `${item.st % 12}st`}</span>
+                          <span className="text-brand-secondary text-xs ml-1">
+                            {item.iv?.name ?? ''} · {item.st} st{item.octaveTag}
+                          </span>
+                        </span>
+                      ))}
+                    </div>
+                    {pitched.length >= 3 && (
+                      <div className="flex items-center gap-1.5 mt-2 text-xs text-brand-secondary">
+                        <span className="uppercase tracking-wider">Stacked:</span>
+                        {stacked.map((iv, i) => (
+                          <React.Fragment key={i}>
+                            {i > 0 && <span className="text-brand-line">+</span>}
+                            <span className="font-bold text-brand-ink">{iv?.short ?? '?'}</span>
+                          </React.Fragment>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
               {mode === 'intervals' && (() => {
                 const activeInterval = INTERVALS.find(i => i.semitones === selectedInterval);
                 if (!activeInterval) return null;
