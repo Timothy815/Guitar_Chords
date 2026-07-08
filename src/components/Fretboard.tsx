@@ -49,7 +49,7 @@ interface FretboardProps {
   labeledDots?: { stringIdx: number; fret: number }[];
   flashHighlight?: boolean;
   tuning?: Tuning;
-  drillDots?: { stringIdx: number; fret: number; label: string; highlight?: boolean }[];
+  drillDots?: { stringIdx: number; fret: number; label: string; highlight?: boolean; color?: string }[];
 }
 
 export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClick, onFretMouseDown, showNoteNames = true, className, fretRange, scalePositions, playingNotes = new Set(), compact = false, correctPositions = new Set(), wrongPosition = null, previewPosition = null, focusZone, highlightNote, labeledDots, flashHighlight, tuning = STANDARD_TUNING, drillDots }: FretboardProps) {
@@ -161,8 +161,8 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
     if (drillDot) {
       show = true;
       text = drillDot.label;
-      bgColor = drillDot.highlight ? 'fill-amber-400' : 'fill-brand-primary';
-      textColor = drillDot.highlight ? 'fill-white' : 'fill-white';
+      bgColor = drillDot.color ? '' : (drillDot.highlight ? 'fill-amber-400' : 'fill-brand-primary');
+      textColor = 'fill-white';
     }
 
     const x = isMuted || fretIdx === 0 ? paddingX / 2 : paddingX + (fretIdx - 0.5) * fretSpacing;
@@ -204,7 +204,7 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
       : "stroke-brand-secondary fill-brand-bg print:stroke-black print:fill-white";
     return (
       <g onClick={() => handleDotClick(stringIdx, fretIdx)} style={{cursor: 'pointer'}}>
-        <circle cx={x} cy={y} r={fretIdx === 0 ? 10 : 14} className={cn("stroke-2 shadow-lg", fretIdx === 0 ? openStringBase : "stroke-white/20 print:stroke-black print:fill-white", bgColor)} />
+        <circle cx={x} cy={y} r={fretIdx === 0 ? 10 : 14} className={cn("stroke-2 shadow-lg", fretIdx === 0 ? openStringBase : "stroke-white/20 print:stroke-black print:fill-white", bgColor)} style={drillDot?.color ? { fill: drillDot.color } : undefined} />
         {text && <text x={x} y={y + 5} className={cn("text-[14px] font-bold pointer-events-none", textColor, fretIdx === 0 ? "print:fill-black" : "print:fill-black")} textAnchor="middle">{text}</text>}
       </g>
     );
