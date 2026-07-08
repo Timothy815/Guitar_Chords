@@ -55,20 +55,31 @@ const CAGED_POSITIONS: { key: CagedShape; label: string; startOff: number }[] = 
 ];
 const CAGED_SPAN = 4;
 
-// Single set of box positions matching the Dictionary's minor pentatonic standard,
-// so Box 1–5 mean the same neck region on both pages.
-const BOX_POSITIONS = [
+// Mirrors Dictionary's MINOR_FAMILY_BOXES / MAJOR_FAMILY_BOXES exactly (spans 3/2/2/3/2).
+const BOX_POSITIONS_MINOR = [
   { id: 'box1', label: 'Box 1', startOff: 0,  span: 3 },
-  { id: 'box2', label: 'Box 2', startOff: 3,  span: 3 },
-  { id: 'box3', label: 'Box 3', startOff: 5,  span: 3 },
+  { id: 'box2', label: 'Box 2', startOff: 3,  span: 2 },
+  { id: 'box3', label: 'Box 3', startOff: 5,  span: 2 },
   { id: 'box4', label: 'Box 4', startOff: 7,  span: 3 },
-  { id: 'box5', label: 'Box 5', startOff: 10, span: 3 },
+  { id: 'box5', label: 'Box 5', startOff: 10, span: 2 },
+];
+const BOX_POSITIONS_MAJOR = [
+  { id: 'box1', label: 'Box 1', startOff: -3, span: 3 },
+  { id: 'box2', label: 'Box 2', startOff: 0,  span: 2 },
+  { id: 'box3', label: 'Box 3', startOff: 2,  span: 2 },
+  { id: 'box4', label: 'Box 4', startOff: 4,  span: 3 },
+  { id: 'box5', label: 'Box 5', startOff: 7,  span: 2 },
 ];
 
 const INTERVAL_DEGREE_LABELS: Record<number, string> = {
   0: 'Root', 2: '2nd', 3: '♭3rd', 4: '3rd', 5: '4th',
   6: '♭5th', 7: '5th', 8: '♯5th', 9: '𝄫7th', 10: '♭7th', 11: 'Maj7',
 };
+
+// Mirrors Dictionary: major-family scales → MAJOR_FAMILY_BOXES, minor-family → MINOR_FAMILY_BOXES
+function isMajorFamily(qualityKey: string): boolean {
+  return ['major', 'dom7', 'maj7', 'aug', 'aug7', 'augmaj7', 'sus2', 'sus4', 'sus4dom7'].includes(qualityKey);
+}
 
 const OPEN_PITCHES_TC = [40, 45, 50, 55, 59, 64]; // low E → high E
 
@@ -194,19 +205,27 @@ export default function Triads() {
     const rootFret = (rootIdx - lowEIdx + 12) % 12;
     const quality = CHORD_TONE_QUALITIES[displayQuality];
 
-    function clampStart(raw: number) {
+    // Matches Dictionary scalePositionOptions clamping exactly
+    function clampCAGED(raw: number) {
+      if (raw < 0) raw = 0;
+      if (raw > 11) raw = raw % 12;
+      return raw;
+    }
+    // Matches Dictionary scaleBoxOptions fallback clamping exactly
+    function clampBox(raw: number) {
       if (raw < 0) raw += 12;
       if (raw > 14) raw -= 12;
       return raw;
     }
 
     const cagedOptions = CAGED_POSITIONS.map(pos => {
-      const s = clampStart(rootFret + pos.startOff);
+      const s = clampCAGED(rootFret + pos.startOff);
       return { ...pos, fretRange: [s, s + CAGED_SPAN] as [number, number], range: `${s}–${s + CAGED_SPAN}` };
     });
 
-    const boxOptions = BOX_POSITIONS.map(box => {
-      const s = clampStart(rootFret + box.startOff);
+    const familyBoxes = isMajorFamily(displayQuality) ? BOX_POSITIONS_MAJOR : BOX_POSITIONS_MINOR;
+    const boxOptions = familyBoxes.map(box => {
+      const s = clampBox(rootFret + box.startOff);
       return { ...box, fretRange: [s, s + box.span] as [number, number], range: `${s}–${s + box.span}` };
     });
 
@@ -235,7 +254,7 @@ export default function Triads() {
     }
 
     return { fretRange, allowedPositions, focusZone, cagedOptions, boxOptions, pathwayOptions };
-  }, [posMode, cagedShape, boxId, diagonalStart, displayKey, displayQuality]); // displayQuality still needed for diagonal/pathwayOptions
+  }, [posMode, cagedShape, boxId, diagonalStart, displayKey, displayQuality]);
 
   const chordToneDots: ChordToneDot[] = useMemo(() => {
     const all = generateChordToneDots(displayKey, displayQuality, stringGroup);
