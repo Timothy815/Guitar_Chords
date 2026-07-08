@@ -418,6 +418,25 @@ export function playArpeggio(notes: string[], tempoBpm = 120, duration: number |
     });
 }
 
+// Schedules a sequence of notes on the Tone.js audio clock (no setTimeout drift).
+// onNote(i) is called via Tone.Draw so UI updates are audio-synchronized.
+export function playArpeggioSequence(
+  notes: string[],
+  noteInterval: number, // seconds between triggers
+  noteDuration: number, // seconds each note rings
+  onNote: (i: number) => void,
+): void {
+  if (!isInitialized || !sampler) return;
+  const now = Tone.now();
+  notes.forEach((note, i) => {
+    if (!note) return;
+    const t = now + i * noteInterval;
+    sampler!.triggerAttackRelease(note, noteDuration, t);
+    Tone.Draw.schedule(() => onNote(i), t);
+    if (onNotePlayCallback) Tone.Draw.schedule(() => onNotePlayCallback!(note), t);
+  });
+}
+
 const DURATION_MULTIPLIERS: Record<string, number> = {
   '16n': 0.25, '8n': 0.5, '4n': 1, '2n': 2, '1n': 4,
 };

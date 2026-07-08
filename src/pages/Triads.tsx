@@ -6,7 +6,7 @@ import {
   generateChordToneDots, generateScalePositions,
 } from '../data/triadData';
 import { Fretboard } from '../components/Fretboard';
-import { initAudio, playNote, getFretNote } from '../lib/audio';
+import { initAudio, playArpeggioSequence, getFretNote } from '../lib/audio';
 import { FretboardFocus } from '../lib/earTraining';
 
 // --- LocalStorage helpers ---
@@ -297,18 +297,31 @@ export default function Triads() {
         (a, b) => (OPEN_PITCHES_TC[a.stringIdx] + a.fret) - (OPEN_PITCHES_TC[b.stringIdx] + b.fret)
       );
 
+      const chordDuration = (beatsPerChord * 60) / bpm; // seconds
+
       if (sorted.length > 0) {
-        const chordDuration = (beatsPerChord * 60) / bpm; // seconds
-        const noteInterval = Math.max(chordDuration / sorted.length, 0.08);
-        for (const dot of sorted) {
-          if (stopped) break outer;
-          setActiveDotKey(`${dot.stringIdx}-${dot.fret}`);
-          const note = getFretNote(dot.stringIdx, dot.fret);
-          if (note) playNote(note, noteInterval * 0.9);
-          await sleep(noteInterval * 1000);
+        // Deduplicate by MIDI pitch — same frequency at different positions
+        // would sound like rapid re-triggering of the same string
+        const seen = new Set<number>();
+        const deduped = sorted.filter(d => {
+          const pitch = OPEN_PITCHES_TC[d.stringIdx] + d.fret;
+          if (seen.has(pitch)) return false;
+          seen.add(pitch);
+          return true;
+        });
+
+        const noteInterval = Math.max(chordDuration / deduped.length, 0.1);
+        const noteStrings = deduped.map(d => getFretNote(d.stringIdx, d.fret));
+        const dotKeys = deduped.map(d => `${d.stringIdx}-${d.fret}`);
+
+        if (!stopped) {
+          playArpeggioSequence(noteStrings, noteInterval, noteInterval * 0.9, i => {
+            setActiveDotKey(dotKeys[i]);
+          });
+          await sleep(deduped.length * noteInterval * 1000);
         }
       } else {
-        await sleep((beatsPerChord * 60 / bpm) * 1000);
+        await sleep(chordDuration * 1000);
       }
 
       setActiveDotKey(null);
