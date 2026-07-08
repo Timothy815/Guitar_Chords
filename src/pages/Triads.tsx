@@ -212,18 +212,18 @@ export default function Triads() {
     setActiveChordIdx(null);
   }
 
-  // Import modal
+  // Import from Progressions page
   function openImportModal() {
     try {
       const raw = localStorage.getItem('guitar_progressions');
-      if (!raw) return;
-      const progs = JSON.parse(raw) as Array<{
-        name: string;
-        slots: Array<{ chord: { name: string } }>;
-      }>;
+      const progs = raw
+        ? (JSON.parse(raw) as Array<{ name: string; slots: Array<{ chord: { name: string } }> }>)
+        : [];
       setSavedProgressions(progs);
-      setShowImportModal(true);
-    } catch { /* ignore */ }
+    } catch {
+      setSavedProgressions([]);
+    }
+    setShowImportModal(true);
   }
 
   function applyImport(prog: { slots: Array<{ chord: { name: string } }> }) {
@@ -233,6 +233,38 @@ export default function Triads() {
     }));
     setProg(chords);
     setShowImportModal(false);
+  }
+
+  // Export to Progressions page
+  const [exportToast, setExportToast] = useState('');
+
+  function handleExport() {
+    if (progression.length === 0) return;
+    const slots = progression.map(({ root, qualityKey }) => {
+      const shape = findBestChordShape(root, qualityKey);
+      return shape ? { chord: shape } : null;
+    }).filter((s): s is { chord: ChordShape } => s !== null);
+    if (slots.length === 0) return;
+
+    const name = progression
+      .map(c => `${c.root} ${CHORD_TONE_QUALITIES[c.qualityKey]?.label ?? c.qualityKey}`)
+      .join(' – ');
+    const newProg = {
+      id: Date.now().toString() + Math.random().toString(36).slice(2),
+      name: `Triad Explorer: ${name}`,
+      bpm,
+      key: progression[0].root,
+      slots,
+    };
+
+    try {
+      const raw = localStorage.getItem('guitar_progressions');
+      const existing = raw ? JSON.parse(raw) : [];
+      localStorage.setItem('guitar_progressions', JSON.stringify([...existing, newProg]));
+      window.dispatchEvent(new Event('guitar_progressions_updated'));
+      setExportToast('Saved to Progressions!');
+      setTimeout(() => setExportToast(''), 2500);
+    } catch { /* quota */ }
   }
 
   return (
@@ -421,12 +453,24 @@ export default function Triads() {
             Loop {loop ? 'ON' : 'OFF'}
           </button>
 
-          <div className="ml-auto flex gap-2">
+          <div className="ml-auto flex items-center gap-2">
+            {exportToast && (
+              <span className="text-xs text-green-600 font-medium">{exportToast}</span>
+            )}
             <button
               onClick={openImportModal}
               className="px-3 py-1 rounded-lg text-xs font-medium bg-brand-bg border border-brand-line text-brand-secondary hover:text-brand-ink"
+              title="Load a progression from the Progressions page"
             >
               Import
+            </button>
+            <button
+              onClick={handleExport}
+              disabled={progression.length === 0}
+              className="px-3 py-1 rounded-lg text-xs font-medium bg-brand-bg border border-brand-line text-brand-secondary hover:text-brand-ink disabled:opacity-40"
+              title="Send this progression to the Progressions page"
+            >
+              Export
             </button>
             <button
               onClick={() => setProg([...progression, { root: 'C', qualityKey: 'major' }])}
@@ -502,9 +546,14 @@ export default function Triads() {
             className="bg-brand-surface rounded-xl p-6 max-w-sm w-full mx-4 border border-brand-line shadow-xl"
             onClick={e => e.stopPropagation()}
           >
-            <h3 className="text-base font-semibold text-brand-ink mb-3">Import from Progressions</h3>
+            <h3 className="text-base font-semibold text-brand-ink mb-1">Import from Progressions</h3>
+            <p className="text-xs text-brand-secondary mb-3">
+              Loads a progression you've saved on the Progressions page into the strip below.
+            </p>
             {savedProgressions.length === 0 ? (
-              <p className="text-sm text-brand-secondary">No saved progressions found.</p>
+              <p className="text-sm text-brand-secondary">
+                No saved progressions found. Go to the Progressions page and save one first.
+              </p>
             ) : (
               <ul className="space-y-1 max-h-64 overflow-y-auto">
                 {savedProgressions.map((prog, i) => (
