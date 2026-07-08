@@ -1797,26 +1797,31 @@ export function Dictionary() {
                         className="flex items-center gap-1.5 text-xs font-medium text-brand-secondary hover:text-brand-ink transition-colors mx-auto"
                       >
                         {showIntervalInfo ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-                        Why don't interval names match semitone counts?
+                        How semitones map to intervals
                       </button>
 
-                      {showIntervalInfo && (
+                      {showIntervalInfo && (() => {
+                        const MAJOR_GAPS = [2, 2, 1, 2, 2, 2, 1];
+                        const rootIdx = ALL_NOTES.indexOf(selectedKey);
+                        const scaleNotes = [0, 2, 4, 5, 7, 9, 11].map(st => ALL_NOTES[(rootIdx + st) % 12]);
+                        scaleNotes.push(selectedKey); // octave
+                        return (
                         <div className="mt-3 p-4 rounded-lg bg-brand-surface border border-brand-line text-sm space-y-4 max-w-2xl mx-auto">
                           <p className="text-brand-secondary leading-relaxed">
-                            Interval names count <strong className="text-brand-ink">letter steps</strong> in the major scale (C→D→E…), not semitones.
-                            The major scale is <em>unevenly spaced</em> — mostly whole steps (2 semitones) but with half steps at E→F and B→C — so the name number and the semitone count don't line up simply.
+                            Interval names count <strong className="text-brand-ink">letter steps</strong> in the major scale, not semitones.
+                            The major scale is <em>unevenly spaced</em> — mostly whole steps (2 semitones) but with two half steps — so the name number and semitone count don't line up simply.
                           </p>
 
                           {/* Major scale step diagram */}
                           <div>
-                            <p className="text-xs font-semibold text-brand-secondary uppercase tracking-wider mb-2">C Major scale — gaps in semitones</p>
+                            <p className="text-xs font-semibold text-brand-secondary uppercase tracking-wider mb-2">{selectedKey} Major scale — gaps in semitones</p>
                             <div className="flex items-end gap-0 font-mono text-xs select-none overflow-x-auto">
-                              {['C','D','E','F','G','A','B','C'].map((note, i) => (
+                              {scaleNotes.map((note, i) => (
                                 <div key={i} className="flex flex-col items-center">
-                                  <span className={`px-2.5 py-1 rounded font-bold ${note === 'C' ? 'text-brand-primary' : 'text-brand-ink'}`}>{note}</span>
+                                  <span className={`px-2.5 py-1 rounded font-bold ${i === 0 || i === 7 ? 'text-brand-primary' : 'text-brand-ink'}`}>{note}</span>
                                   {i < 7 && (
-                                    <span className={`text-[10px] px-2 ${[2,6].includes(i) ? 'text-amber-500 font-bold' : 'text-brand-secondary'}`}>
-                                      {[0,1,3,4,5].includes(i) ? '2' : '1'}
+                                    <span className={`text-[10px] px-2 ${MAJOR_GAPS[i] === 1 ? 'text-amber-500 font-bold' : 'text-brand-secondary'}`}>
+                                      {MAJOR_GAPS[i]}
                                     </span>
                                   )}
                                 </div>
@@ -1851,7 +1856,8 @@ export function Dictionary() {
                             </p>
                           </div>
                         </div>
-                      )}
+                        );
+                      })()}
                     </div>
                   </>
                 );
