@@ -43,7 +43,7 @@ const LEGEND = [
   { color: '#e67e22', label: 'Other' },
 ];
 
-type PosMode = 'full' | 'caged' | 'box' | 'diagonal';
+type PosMode = 'full' | 'caged' | 'diagonal';
 type CagedShape = 'E' | 'D' | 'C' | 'A' | 'G';
 
 const CAGED_POSITIONS: { key: CagedShape; label: string; startOff: number }[] = [
@@ -55,31 +55,10 @@ const CAGED_POSITIONS: { key: CagedShape; label: string; startOff: number }[] = 
 ];
 const CAGED_SPAN = 4;
 
-// Mirrors Dictionary's MINOR_FAMILY_BOXES / MAJOR_FAMILY_BOXES exactly (spans 3/2/2/3/2).
-const BOX_POSITIONS_MINOR = [
-  { id: 'box1', label: 'Box 1', startOff: 0,  span: 3 },
-  { id: 'box2', label: 'Box 2', startOff: 3,  span: 2 },
-  { id: 'box3', label: 'Box 3', startOff: 5,  span: 2 },
-  { id: 'box4', label: 'Box 4', startOff: 7,  span: 3 },
-  { id: 'box5', label: 'Box 5', startOff: 10, span: 2 },
-];
-const BOX_POSITIONS_MAJOR = [
-  { id: 'box1', label: 'Box 1', startOff: -3, span: 3 },
-  { id: 'box2', label: 'Box 2', startOff: 0,  span: 2 },
-  { id: 'box3', label: 'Box 3', startOff: 2,  span: 2 },
-  { id: 'box4', label: 'Box 4', startOff: 4,  span: 3 },
-  { id: 'box5', label: 'Box 5', startOff: 7,  span: 2 },
-];
-
 const INTERVAL_DEGREE_LABELS: Record<number, string> = {
   0: 'Root', 2: '2nd', 3: '♭3rd', 4: '3rd', 5: '4th',
   6: '♭5th', 7: '5th', 8: '♯5th', 9: '𝄫7th', 10: '♭7th', 11: 'Maj7',
 };
-
-// Mirrors Dictionary: major-family scales → MAJOR_FAMILY_BOXES, minor-family → MINOR_FAMILY_BOXES
-function isMajorFamily(qualityKey: string): boolean {
-  return ['major', 'dom7', 'maj7', 'aug', 'aug7', 'augmaj7', 'sus2', 'sus4', 'sus4dom7'].includes(qualityKey);
-}
 
 const OPEN_PITCHES_TC = [40, 45, 50, 55, 59, 64]; // low E → high E
 
@@ -158,13 +137,14 @@ export default function Triads() {
   const [scaleRoot, setScaleRoot]             = useState<Note>(() => lsGet('scaleRoot', 'C'));
   const [scaleType, setScaleType]             = useState<string>(() => lsGet('scaleType', 'Major (Ionian)'));
 
-  const [posMode, setPosModeState]             = useState<PosMode>(() => lsGet('posMode', 'full'));
+  const [posMode, setPosModeState]             = useState<PosMode>(() => {
+    const v = lsGet<string>('posMode', 'full');
+    return (v === 'box' ? 'full' : v) as PosMode;
+  });
   const [cagedShape, setCagedShapeState]       = useState<CagedShape>(() => lsGet('cagedShape', 'E'));
-  const [boxId, setBoxIdState]                 = useState<string>(() => lsGet('boxId', 'box1'));
   const [diagonalStart, setDiagStartState]     = useState<number>(() => lsGet('diagonalStart', 0));
   const setPosMode      = (v: PosMode)    => { setPosModeState(v);      lsSet('posMode', v); };
   const setCagedShape   = (v: CagedShape) => { setCagedShapeState(v);   lsSet('cagedShape', v); };
-  const setBoxId        = (v: string)     => { setBoxIdState(v);        lsSet('boxId', v); };
   const setDiagStart    = (v: number)     => { setDiagStartState(v);    lsSet('diagonalStart', v); };
 
   const [progression, setProgression]         = useState<ProgChord[]>(() => lsGet('progression', []));
@@ -205,28 +185,15 @@ export default function Triads() {
     const rootFret = (rootIdx - lowEIdx + 12) % 12;
     const quality = CHORD_TONE_QUALITIES[displayQuality];
 
-    // Matches Dictionary scalePositionOptions clamping exactly
     function clampCAGED(raw: number) {
       if (raw < 0) raw = 0;
       if (raw > 11) raw = raw % 12;
-      return raw;
-    }
-    // Matches Dictionary scaleBoxOptions fallback clamping exactly
-    function clampBox(raw: number) {
-      if (raw < 0) raw += 12;
-      if (raw > 14) raw -= 12;
       return raw;
     }
 
     const cagedOptions = CAGED_POSITIONS.map(pos => {
       const s = clampCAGED(rootFret + pos.startOff);
       return { ...pos, fretRange: [s, s + CAGED_SPAN] as [number, number], range: `${s}–${s + CAGED_SPAN}` };
-    });
-
-    const familyBoxes = isMajorFamily(displayQuality) ? BOX_POSITIONS_MAJOR : BOX_POSITIONS_MINOR;
-    const boxOptions = familyBoxes.map(box => {
-      const s = clampBox(rootFret + box.startOff);
-      return { ...box, fretRange: [s, s + box.span] as [number, number], range: `${s}–${s + box.span}` };
     });
 
     const pathwayOptions = quality
@@ -239,8 +206,6 @@ export default function Triads() {
 
     if (posMode === 'caged') {
       fretRange = cagedOptions.find(o => o.key === cagedShape)?.fretRange;
-    } else if (posMode === 'box') {
-      fretRange = boxOptions.find(o => o.id === boxId)?.fretRange;
     } else if (posMode === 'diagonal' && quality) {
       const idx = Math.min(diagonalStart, quality.intervals.length - 1);
       allowedPositions = buildChordToneDiagonal(displayKey, quality.intervals, idx);
@@ -253,8 +218,8 @@ export default function Triads() {
       focusZone = { fretMin: Math.min(...frets), fretMax: Math.max(...frets) };
     }
 
-    return { fretRange, allowedPositions, focusZone, cagedOptions, boxOptions, pathwayOptions };
-  }, [posMode, cagedShape, boxId, diagonalStart, displayKey, displayQuality]);
+    return { fretRange, allowedPositions, focusZone, cagedOptions, pathwayOptions };
+  }, [posMode, cagedShape, diagonalStart, displayKey, displayQuality]);
 
   const chordToneDots: ChordToneDot[] = useMemo(() => {
     const all = generateChordToneDots(displayKey, displayQuality, stringGroup);
@@ -451,7 +416,7 @@ export default function Triads() {
       <div className="flex flex-col gap-1.5">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-medium text-brand-secondary w-16 shrink-0">Position</span>
-          {(['full', 'caged', 'box', 'diagonal'] as PosMode[]).map(mode => (
+          {(['full', 'caged', 'diagonal'] as PosMode[]).map(mode => (
             <button
               key={mode}
               onClick={() => setPosMode(mode)}
@@ -461,7 +426,7 @@ export default function Triads() {
                   : 'bg-brand-bg border border-brand-line text-brand-secondary hover:text-brand-ink'
               }`}
             >
-              {mode === 'full' ? 'Full neck' : mode === 'caged' ? 'CAGED' : mode === 'box' ? 'Box' : 'Pathway'}
+              {mode === 'full' ? 'Full neck' : mode === 'caged' ? 'CAGED' : 'Pathway'}
             </button>
           ))}
         </div>
@@ -479,24 +444,6 @@ export default function Triads() {
                 }`}
               >
                 {pos.label} shape <span className="opacity-70">({pos.range})</span>
-              </button>
-            ))}
-          </div>
-        )}
-
-        {posMode === 'box' && (
-          <div className="flex flex-wrap items-center gap-1 pl-[4.5rem]">
-            {positionView.boxOptions.map(box => (
-              <button
-                key={box.id}
-                onClick={() => setBoxId(box.id)}
-                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                  boxId === box.id
-                    ? 'bg-brand-active text-white'
-                    : 'bg-brand-bg border border-brand-line text-brand-secondary hover:text-brand-ink'
-                }`}
-              >
-                {box.label} <span className="opacity-70">({box.range})</span>
               </button>
             ))}
           </div>
