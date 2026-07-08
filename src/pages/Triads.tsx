@@ -205,6 +205,7 @@ export default function Triads() {
   const [bpm, setBpmState]                    = useState<number>(() => lsGet('bpm', 80));
   const [beatsPerChord, setBpcState]          = useState<1|2|4|8>(() => lsGet('beatsPerChord', 4));
   const [loop, setLoopState]                  = useState<boolean>(() => lsGet('loop', true));
+  const [strumChord, setStrumChordState]      = useState<boolean>(() => lsGet('strumChord', true));
   const [isPlaying, setIsPlaying]             = useState(false);
   const [activeChordIdx, setActiveChordIdx]   = useState<number | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
@@ -224,7 +225,8 @@ export default function Triads() {
   const setSType   = (v: string)     => { setScaleType(v);      lsSet('scaleType', v); };
   const setBpm     = (v: number)     => { setBpmState(v);       lsSet('bpm', v); };
   const setBpc     = (v: 1|2|4|8)   => { setBpcState(v);       lsSet('beatsPerChord', v); };
-  const setLoop    = (v: boolean)    => { setLoopState(v);      lsSet('loop', v); };
+  const setLoop       = (v: boolean)    => { setLoopState(v);       lsSet('loop', v); };
+  const setStrumChord = (v: boolean)    => { setStrumChordState(v); lsSet('strumChord', v); };
   const setProg    = (v: ProgChord[])=> { setProgression(v);    lsSet('progression', v); };
 
   // During playback, fretboard shows the active progression chord's tones
@@ -303,8 +305,8 @@ export default function Triads() {
 
     const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
 
-    // Capture position settings at play time to avoid stale closure issues
-    const pm = posMode, cs = cagedShape, ds = diagonalStart, sg = stringGroup;
+    // Capture settings at play time to avoid stale closure issues
+    const pm = posMode, cs = cagedShape, ds = diagonalStart, sg = stringGroup, doStrum = strumChord;
 
     let chordIdx = 0;
     outer: while (true) {
@@ -329,10 +331,10 @@ export default function Triads() {
       const noteInterval = Math.max(chordDuration / Math.max(arpDots.length, 1), 0.18);
 
       if (!stopped) {
-        // Strum the full chord shape as sustained harmony underneath
-        const strumNotes = getStrumNotes(chord.root, chord.qualityKey);
-        if (strumNotes.length > 0) {
-          playStrum(strumNotes, chordDuration + 0.5, 'down');
+        // Strum the full chord shape as sustained harmony underneath (if enabled)
+        if (doStrum) {
+          const strumNotes = getStrumNotes(chord.root, chord.qualityKey);
+          if (strumNotes.length > 0) playStrum(strumNotes, chordDuration + 0.5, 'down');
         }
 
         if (arpDots.length > 0) {
@@ -679,6 +681,17 @@ export default function Triads() {
             }`}
           >
             Loop {loop ? 'ON' : 'OFF'}
+          </button>
+
+          <button
+            onClick={() => setStrumChord(!strumChord)}
+            className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+              strumChord
+                ? 'bg-brand-active text-white'
+                : 'bg-brand-bg border border-brand-line text-brand-secondary hover:text-brand-ink'
+            }`}
+          >
+            Chord {strumChord ? 'ON' : 'OFF'}
           </button>
 
           <div className="ml-auto flex items-center gap-2">
