@@ -6,7 +6,7 @@ import {
   generateChordToneDots, generateScalePositions,
 } from '../data/triadData';
 import { Fretboard } from '../components/Fretboard';
-import { initAudio, playProgressionWithPatterns, getFretNote } from '../lib/audio';
+import { initAudio, playNote, getFretNote } from '../lib/audio';
 import { FretboardFocus } from '../lib/earTraining';
 
 // --- LocalStorage helpers ---
@@ -84,6 +84,40 @@ function buildChordToneDiagonal(root: Note, intervals: number[], startIntervalId
 }
 
 
+function clampCAGED(raw: number) {
+  if (raw < 0) raw = 0;
+  if (raw > 11) raw = raw % 12;
+  return raw;
+}
+
+function computeFilteredDots(
+  root: Note,
+  qualityKey: string,
+  sg: StringGroup,
+  pm: PosMode,
+  cs: CagedShape,
+  ds: number,
+): ChordToneDot[] {
+  const all = generateChordToneDots(root, qualityKey, sg);
+  const rootFret = (ALL_NOTES.indexOf(root) - ALL_NOTES.indexOf('E' as Note) + 12) % 12;
+
+  if (pm === 'caged') {
+    const pos = CAGED_POSITIONS.find(p => p.key === cs);
+    if (pos) {
+      const s = clampCAGED(rootFret + pos.startOff);
+      return all.filter(d => d.fret >= s && d.fret <= s + CAGED_SPAN);
+    }
+  } else if (pm === 'diagonal') {
+    const quality = CHORD_TONE_QUALITIES[qualityKey];
+    if (quality) {
+      const idx = Math.min(ds, quality.intervals.length - 1);
+      const allowed = buildChordToneDiagonal(root, quality.intervals, idx);
+      return all.filter(d => allowed.has(`${d.stringIdx}-${d.fret}`));
+    }
+  }
+  return all;
+}
+
 // --- Module-level helpers for playback ---
 function inferQuality(chordName: string): string {
   if (/m7b5/i.test(chordName))     return 'm7b5';
@@ -154,6 +188,7 @@ export default function Triads() {
   const [isPlaying, setIsPlaying]             = useState(false);
   const [activeChordIdx, setActiveChordIdx]   = useState<number | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [activeDotKey, setActiveDotKey] = useState<string | null>(null);
   const [showInfo, setShowInfo] = useState(false);
   const [savedProgressions, setSavedProgressions] = useState<
     Array<{ name: string; slots: Array<{ chord: { name: string } }> }>
@@ -185,12 +220,6 @@ export default function Triads() {
     const rootIdx = ALL_NOTES.indexOf(displayKey);
     const rootFret = (rootIdx - lowEIdx + 12) % 12;
     const quality = CHORD_TONE_QUALITIES[displayQuality];
-
-    function clampCAGED(raw: number) {
-      if (raw < 0) raw = 0;
-      if (raw > 11) raw = raw % 12;
-      return raw;
-    }
 
     const cagedOptions = CAGED_POSITIONS.map(pos => {
       const s = clampCAGED(rootFret + pos.startOff);
@@ -241,27 +270,58 @@ export default function Triads() {
     return { activeScalePattern: pattern, scaleOnlyPositions: onlyPos };
   }, [scaleOn, scaleRoot, scaleType, chordToneDots]);
 
-  // Playback
+  // Arpeggio playback — sequences chord tone dots for each progression chord
   async function handlePlay() {
     if (progression.length === 0) return;
     await initAudio();
-    const adjustedBpm = bpm * 4 / beatsPerChord;
-    const slots = progression.map(({ root, qualityKey }) => {
-      const shape = findBestChordShape(root, qualityKey);
-      if (!shape) return { notesByString: Array<string | null>(6).fill(null) };
-      return {
-        notesByString: shape.frets.map((f, sIdx) =>
-          f === -1 ? null : getFretNote(sIdx, f)
-        ),
-      };
-    });
+
+    let stopped = false;
     stopRef.current?.();
-    setActiveChordIdx(0);
+    stopRef.current = () => { stopped = true; };
     setIsPlaying(true);
-    stopRef.current = playProgressionWithPatterns(
-      slots, adjustedBpm, loop,
-      idx => setActiveChordIdx(idx),
-    );
+    setActiveDotKey(null);
+
+    const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
+
+    // Capture position settings at play time to avoid stale closure issues
+    const pm = posMode, cs = cagedShape, ds = diagonalStart, sg = stringGroup;
+
+    let chordIdx = 0;
+    outer: while (true) {
+      if (stopped) break;
+      const chord = progression[chordIdx];
+      setActiveChordIdx(chordIdx);
+
+      const dots = computeFilteredDots(chord.root, chord.qualityKey, sg, pm, cs, ds);
+      const sorted = [...dots].sort(
+        (a, b) => (OPEN_PITCHES_TC[a.stringIdx] + a.fret) - (OPEN_PITCHES_TC[b.stringIdx] + b.fret)
+      );
+
+      if (sorted.length > 0) {
+        const chordDuration = (beatsPerChord * 60) / bpm; // seconds
+        const noteInterval = Math.max(chordDuration / sorted.length, 0.08);
+        for (const dot of sorted) {
+          if (stopped) break outer;
+          setActiveDotKey(`${dot.stringIdx}-${dot.fret}`);
+          const note = getFretNote(dot.stringIdx, dot.fret);
+          if (note) playNote(note, noteInterval * 0.9);
+          await sleep(noteInterval * 1000);
+        }
+      } else {
+        await sleep((beatsPerChord * 60 / bpm) * 1000);
+      }
+
+      setActiveDotKey(null);
+      chordIdx++;
+      if (chordIdx >= progression.length) {
+        if (!loop) break;
+        chordIdx = 0;
+      }
+    }
+
+    setIsPlaying(false);
+    setActiveChordIdx(null);
+    setActiveDotKey(null);
   }
 
   function handleStop() {
@@ -269,6 +329,7 @@ export default function Triads() {
     stopRef.current = null;
     setIsPlaying(false);
     setActiveChordIdx(null);
+    setActiveDotKey(null);
   }
 
   // Import from Progressions page
@@ -325,6 +386,13 @@ export default function Triads() {
       setTimeout(() => setExportToast(''), 2500);
     } catch { /* quota */ }
   }
+
+  // Highlight the currently playing dot amber; all others keep their interval color
+  const displayedDots = chordToneDots.map(d =>
+    activeDotKey === `${d.stringIdx}-${d.fret}`
+      ? { ...d, color: undefined, highlight: true }
+      : d
+  );
 
   return (
     <div className="flex flex-col gap-4 p-4">
@@ -518,7 +586,7 @@ export default function Triads() {
       {/* Fretboard */}
       <Fretboard
         fretsNum={15}
-        drillDots={chordToneDots}
+        drillDots={displayedDots}
         scale={activeScalePattern}
         scalePositions={scaleOnlyPositions}
         fretRange={positionView.fretRange}
