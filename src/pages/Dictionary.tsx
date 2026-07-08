@@ -1812,7 +1812,7 @@ export function Dictionary() {
                   .filter((n): n is { midi: number; si: number } => n !== null)
                   .sort((a, b) => a.midi - b.midi);
 
-                const bassLabel = getFretNote(pitched[0].si, identifiedFrets[pitched[0].si]).replace(/\d/g, '');
+                const bassLabel = getFretNote(pitched[0].si, identifiedFrets[pitched[0].si]);
 
                 const resolveInterval = (st: number) => {
                   // 12, 24, 36 … semitones are octaves, not unisons — use semitone class 12
@@ -1827,15 +1827,15 @@ export function Dictionary() {
                 const fromBassRows = pitched.slice(1).map(p => {
                   const st = p.midi - pitched[0].midi;
                   const { iv, octaveTag } = resolveInterval(st);
-                  const upper = getFretNote(p.si, identifiedFrets[p.si]).replace(/\d/g, '');
+                  const upper = getFretNote(p.si, identifiedFrets[p.si]);
                   return { lower: bassLabel, upper, st, iv, octaveTag };
                 });
 
                 const stackedRows = pitched.slice(1).map((p, i) => {
                   const st = p.midi - pitched[i].midi;
                   const { iv, octaveTag } = resolveInterval(st);
-                  const lower = getFretNote(pitched[i].si, identifiedFrets[pitched[i].si]).replace(/\d/g, '');
-                  const upper = getFretNote(p.si, identifiedFrets[p.si]).replace(/\d/g, '');
+                  const lower = getFretNote(pitched[i].si, identifiedFrets[pitched[i].si]);
+                  const upper = getFretNote(p.si, identifiedFrets[p.si]);
                   return { lower, upper, st, iv, octaveTag };
                 });
 
@@ -1873,9 +1873,9 @@ export function Dictionary() {
                     <div className="flex flex-col gap-1.5">
                       {rows.map((item, i) => (
                         <div key={i} className="flex items-center gap-2 text-sm">
-                          <span className="font-semibold text-brand-ink w-5 text-right">{item.lower}</span>
+                          <span className="font-semibold text-brand-ink w-8 text-right">{item.lower}</span>
                           <span className="text-brand-secondary">→</span>
-                          <span className="font-semibold text-brand-ink w-5">{item.upper}</span>
+                          <span className="font-semibold text-brand-ink w-8">{item.upper}</span>
                           <span className="font-bold text-brand-primary w-8">{item.iv?.short ?? `${item.st % 12}st`}</span>
                           <span className="text-brand-secondary text-xs">{item.iv?.name ?? ''}</span>
                           <span className="text-brand-secondary text-xs tabular-nums">{item.st} st{item.octaveTag}</span>
