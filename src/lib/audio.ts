@@ -425,9 +425,10 @@ export function playArpeggioSequence(
   noteInterval: number, // seconds between triggers
   noteDuration: number, // seconds each note rings
   onNote: (i: number) => void,
+  startOffset: number = 0, // seconds to delay before first note
 ): void {
   if (!isInitialized || !sampler) return;
-  const now = Tone.now();
+  const now = Tone.now() + startOffset;
   notes.forEach((note, i) => {
     if (!note) return;
     const t = now + i * noteInterval;

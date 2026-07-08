@@ -6,7 +6,7 @@ import {
   generateChordToneDots, generateScalePositions,
 } from '../data/triadData';
 import { Fretboard } from '../components/Fretboard';
-import { initAudio, playArpeggioSequence, getFretNote } from '../lib/audio';
+import { initAudio, playStrum, playArpeggioSequence, getFretNote } from '../lib/audio';
 import { FretboardFocus } from '../lib/earTraining';
 
 // --- LocalStorage helpers ---
@@ -88,6 +88,26 @@ function clampCAGED(raw: number) {
   if (raw < 0) raw = 0;
   if (raw > 11) raw = raw % 12;
   return raw;
+}
+
+// Maps CHORD_TONE_QUALITIES key → substring found in COMMON_CHORDS shape names
+const QUALITY_KEYWORDS: Record<string, string> = {
+  major:  ' Major ',  minor:  ' Minor ',
+  dom7:   ' 7 ',      maj7:   ' Maj7 ', min7:  ' m7 ',
+  dim:    ' dim ',    dim7:   ' dim7 ', aug:   ' aug ',
+  m7b5:   ' m7b5 ',  sus2:   ' sus2 ', sus4:  ' sus4 ',
+};
+
+function getStrumNotes(root: Note, qualityKey: string): string[] {
+  const keyword = QUALITY_KEYWORDS[qualityKey];
+  if (!keyword) return [];
+  const shape: ChordShape | undefined = COMMON_CHORDS[root]?.find(
+    (c: ChordShape) => c.name.includes(keyword),
+  );
+  if (!shape) return [];
+  return shape.frets
+    .map((fret, si) => fret === -1 ? null : getFretNote(si, fret))
+    .filter((n): n is string => n !== null);
 }
 
 function computeFilteredDots(
@@ -299,27 +319,31 @@ export default function Triads() {
 
       const chordDuration = (beatsPerChord * 60) / bpm; // seconds
 
-      if (sorted.length > 0) {
-        // One note per string: lowest-pitch dot on each active string,
-        // ordered string 0→5 (low E → high E) to mirror a real ascending arpeggio.
-        // This caps at 6 notes so each note has enough time to sound like guitar.
-        const byString = new Map<number, typeof sorted[0]>();
-        for (const dot of sorted) {
-          if (!byString.has(dot.stringIdx)) byString.set(dot.stringIdx, dot);
+      // One note per string: lowest-pitch dot on each active string,
+      // ordered string 0→5 to mirror a real ascending arpeggio pick
+      const byString = new Map<number, typeof sorted[0]>();
+      for (const dot of sorted) {
+        if (!byString.has(dot.stringIdx)) byString.set(dot.stringIdx, dot);
+      }
+      const arpDots = [...byString.values()].sort((a, b) => a.stringIdx - b.stringIdx);
+      const noteInterval = Math.max(chordDuration / Math.max(arpDots.length, 1), 0.18);
+
+      if (!stopped) {
+        // Strum the full chord shape as sustained harmony underneath
+        const strumNotes = getStrumNotes(chord.root, chord.qualityKey);
+        if (strumNotes.length > 0) {
+          playStrum(strumNotes, chordDuration + 0.5, 'down');
         }
-        const arpDots = [...byString.values()].sort((a, b) => a.stringIdx - b.stringIdx);
 
-        const noteInterval = Math.max(chordDuration / arpDots.length, 0.18);
-        const noteStrings = arpDots.map(d => getFretNote(d.stringIdx, d.fret));
-        const dotKeys = arpDots.map(d => `${d.stringIdx}-${d.fret}`);
-
-        if (!stopped) {
+        if (arpDots.length > 0) {
+          const noteStrings = arpDots.map(d => getFretNote(d.stringIdx, d.fret));
+          const dotKeys = arpDots.map(d => `${d.stringIdx}-${d.fret}`);
+          // 0.2s offset lets the chord strum bloom before the arpeggio melody begins
           playArpeggioSequence(noteStrings, noteInterval, 2.0, i => {
             setActiveDotKey(dotKeys[i]);
-          });
-          await sleep(arpDots.length * noteInterval * 1000);
+          }, 0.2);
         }
-      } else {
+
         await sleep(chordDuration * 1000);
       }
 
