@@ -42,6 +42,16 @@ const LEGEND = [
   { color: '#e67e22', label: 'Sus' },
 ];
 
+type CagedShape = 'full' | 'E' | 'D' | 'C' | 'A' | 'G';
+const CAGED_POSITIONS: { key: CagedShape; label: string; startOff: number }[] = [
+  { key: 'E', label: 'E shape', startOff: -1 },
+  { key: 'D', label: 'D shape', startOff: 2 },
+  { key: 'C', label: 'C shape', startOff: 4 },
+  { key: 'A', label: 'A shape', startOff: 7 },
+  { key: 'G', label: 'G shape', startOff: 9 },
+];
+const CAGED_SPAN = 4;
+
 // --- Module-level helpers for playback ---
 function inferQuality(chordName: string): string {
   if (/m7b5/i.test(chordName))     return 'm7b5';
@@ -95,6 +105,9 @@ export default function Triads() {
   const [scaleRoot, setScaleRoot]             = useState<Note>(() => lsGet('scaleRoot', 'C'));
   const [scaleType, setScaleType]             = useState<string>(() => lsGet('scaleType', 'Major (Ionian)'));
 
+  const [cagedPosition, setCagedPositionState] = useState<CagedShape>(() => lsGet('cagedPosition', 'full'));
+  const setCagedPosition = (v: CagedShape) => { setCagedPositionState(v); lsSet('cagedPosition', v); };
+
   const [progression, setProgression]         = useState<ProgChord[]>(() => lsGet('progression', []));
   const [bpm, setBpmState]                    = useState<number>(() => lsGet('bpm', 80));
   const [beatsPerChord, setBpcState]          = useState<1|2|4|8>(() => lsGet('beatsPerChord', 4));
@@ -127,10 +140,36 @@ export default function Triads() {
     ? progression[activeChordIdx].qualityKey
     : selectedQuality;
 
-  const chordToneDots: ChordToneDot[] = useMemo(
-    () => generateChordToneDots(displayKey, displayQuality, stringGroup),
-    [displayKey, displayQuality, stringGroup],
-  );
+  const fretRange = useMemo((): [number, number] | undefined => {
+    if (cagedPosition === 'full') return undefined;
+    const pos = CAGED_POSITIONS.find(p => p.key === cagedPosition);
+    if (!pos) return undefined;
+    const lowEIdx = ALL_NOTES.indexOf('E' as Note);
+    const rootIdx = ALL_NOTES.indexOf(displayKey);
+    let startFret = (rootIdx - lowEIdx + 12) % 12 + pos.startOff;
+    if (startFret < 0) startFret += 12;
+    if (startFret > 11) startFret = startFret % 12;
+    return [startFret, startFret + CAGED_SPAN];
+  }, [cagedPosition, displayKey]);
+
+  // Compute per-position fret ranges for button labels
+  const cagedPositionOptions = useMemo(() => {
+    const lowEIdx = ALL_NOTES.indexOf('E' as Note);
+    const rootIdx = ALL_NOTES.indexOf(displayKey);
+    return CAGED_POSITIONS.map(pos => {
+      let startFret = (rootIdx - lowEIdx + 12) % 12 + pos.startOff;
+      if (startFret < 0) startFret += 12;
+      if (startFret > 11) startFret = startFret % 12;
+      return { ...pos, range: `${startFret}–${startFret + CAGED_SPAN}` };
+    });
+  }, [displayKey]);
+
+  const chordToneDots: ChordToneDot[] = useMemo(() => {
+    const all = generateChordToneDots(displayKey, displayQuality, stringGroup);
+    if (!fretRange) return all;
+    const [lo, hi] = fretRange;
+    return all.filter(d => d.fret >= lo && d.fret <= hi);
+  }, [displayKey, displayQuality, stringGroup, fretRange]);
 
   const { activeScalePattern, scaleOnlyPositions } = useMemo(() => {
     if (!scaleOn) return { activeScalePattern: undefined, scaleOnlyPositions: undefined };
@@ -199,7 +238,8 @@ export default function Triads() {
   return (
     <div className="flex flex-col gap-4 p-4">
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-3 bg-brand-surface rounded-xl p-3 border border-brand-line">
+      <div className="flex flex-col gap-2 bg-brand-surface rounded-xl p-3 border border-brand-line">
+      <div className="flex flex-wrap items-center gap-3">
         {/* Key selector */}
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-brand-secondary">Key</span>
@@ -280,6 +320,36 @@ export default function Triads() {
         </div>
       </div>
 
+      {/* CAGED position row */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-medium text-brand-secondary">Position</span>
+        <button
+          onClick={() => setCagedPosition('full')}
+          className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+            cagedPosition === 'full'
+              ? 'bg-brand-active text-white'
+              : 'bg-brand-bg border border-brand-line text-brand-secondary hover:text-brand-ink'
+          }`}
+        >
+          Full neck
+        </button>
+        {cagedPositionOptions.map(pos => (
+          <button
+            key={pos.key}
+            onClick={() => setCagedPosition(pos.key)}
+            className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+              cagedPosition === pos.key
+                ? 'bg-brand-active text-white'
+                : 'bg-brand-bg border border-brand-line text-brand-secondary hover:text-brand-ink'
+            }`}
+          >
+            {pos.label}
+            <span className="ml-1 opacity-70">({pos.range})</span>
+          </button>
+        ))}
+      </div>
+      </div>
+
       {/* Legend */}
       <div className="flex gap-4 flex-wrap px-1">
         {LEGEND.map(({ color, label }) => (
@@ -296,6 +366,7 @@ export default function Triads() {
         drillDots={chordToneDots}
         scale={activeScalePattern}
         scalePositions={scaleOnlyPositions}
+        fretRange={fretRange}
         showNoteNames={false}
       />
 
