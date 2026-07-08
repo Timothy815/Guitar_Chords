@@ -352,6 +352,8 @@ export default function Triads() {
 
   return (
     <div className="flex flex-col gap-4 p-4">
+      <h1 className="text-2xl font-serif font-bold text-brand-ink">Triad Explorer</h1>
+
       {/* Toolbar */}
       <div className="flex flex-col gap-2 bg-brand-surface rounded-xl p-3 border border-brand-line">
       <div className="flex flex-wrap items-center gap-3">
