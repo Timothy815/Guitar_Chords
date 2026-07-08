@@ -7,6 +7,7 @@ import {
 } from '../data/triadData';
 import { Fretboard } from '../components/Fretboard';
 import { initAudio, playProgressionWithPatterns, getFretNote } from '../lib/audio';
+import { FretboardFocus } from '../lib/earTraining';
 
 // --- LocalStorage helpers ---
 function lsGet<T>(key: string, fallback: T): T {
@@ -39,7 +40,7 @@ const LEGEND = [
   { color: '#2980b9', label: '3rd' },
   { color: '#27ae60', label: '5th' },
   { color: '#8e44ad', label: '7th' },
-  { color: '#e67e22', label: 'Sus' },
+  { color: '#e67e22', label: 'Other' },
 ];
 
 type PosMode = 'full' | 'caged' | 'box' | 'diagonal';
@@ -224,6 +225,7 @@ export default function Triads() {
 
     let fretRange: [number, number] | undefined;
     let allowedPositions: Set<string> | undefined;
+    let focusZone: FretboardFocus | undefined;
 
     if (posMode === 'caged') {
       fretRange = cagedOptions.find(o => o.key === cagedShape)?.fretRange;
@@ -234,7 +236,14 @@ export default function Triads() {
       allowedPositions = buildChordToneDiagonal(displayKey, quality.intervals, idx);
     }
 
-    return { fretRange, allowedPositions, cagedOptions, boxOptions, pathwayOptions };
+    if (fretRange) {
+      focusZone = { fretMin: fretRange[0], fretMax: fretRange[1] };
+    } else if (allowedPositions && allowedPositions.size > 0) {
+      const frets = [...allowedPositions].map(k => Number(k.split('-')[1]));
+      focusZone = { fretMin: Math.min(...frets), fretMax: Math.max(...frets) };
+    }
+
+    return { fretRange, allowedPositions, focusZone, cagedOptions, boxOptions, pathwayOptions };
   }, [posMode, cagedShape, boxId, diagonalStart, displayKey, displayQuality]);
 
   const chordToneDots: ChordToneDot[] = useMemo(() => {
@@ -518,6 +527,7 @@ export default function Triads() {
         scale={activeScalePattern}
         scalePositions={scaleOnlyPositions}
         fretRange={positionView.fretRange}
+        focusZone={positionView.focusZone}
         showNoteNames={false}
       />
 
@@ -592,7 +602,7 @@ export default function Triads() {
               Export
             </button>
             <button
-              onClick={() => setProg([...progression, { root: 'C', qualityKey: 'major' }])}
+              onClick={() => setProg([...progression, { root: selectedKey, qualityKey: selectedQuality }])}
               className="px-3 py-1 rounded-lg text-xs font-medium bg-brand-bg border border-brand-line text-brand-secondary hover:text-brand-ink"
             >
               + Add
