@@ -1814,18 +1814,26 @@ export function Dictionary() {
 
                 const bassLabel = getFretNote(pitched[0].si, identifiedFrets[pitched[0].si]).replace(/\d/g, '');
 
+                const resolveInterval = (st: number) => {
+                  // 12, 24, 36 … semitones are octaves, not unisons — use semitone class 12
+                  const semClass = st === 0 ? 0 : st % 12 === 0 ? 12 : st % 12;
+                  const iv = INTERVALS.find(i => i.semitones === semClass);
+                  // extra octaves beyond the first (P1 has none; 8ve at 12 st has none)
+                  const extraOct = st % 12 === 0 ? Math.floor(st / 12) - 1 : Math.floor(st / 12);
+                  const octaveTag = extraOct > 0 ? ` +${extraOct} oct` : '';
+                  return { iv, octaveTag };
+                };
+
                 const fromBassRows = pitched.slice(1).map(p => {
                   const st = p.midi - pitched[0].midi;
-                  const iv = INTERVALS.find(i => i.semitones === st % 12);
-                  const octaveTag = st >= 12 ? ` +${Math.floor(st / 12)} oct` : '';
+                  const { iv, octaveTag } = resolveInterval(st);
                   const upper = getFretNote(p.si, identifiedFrets[p.si]).replace(/\d/g, '');
                   return { lower: bassLabel, upper, st, iv, octaveTag };
                 });
 
                 const stackedRows = pitched.slice(1).map((p, i) => {
                   const st = p.midi - pitched[i].midi;
-                  const iv = INTERVALS.find(ivv => ivv.semitones === st % 12);
-                  const octaveTag = st >= 12 ? ` +${Math.floor(st / 12)} oct` : '';
+                  const { iv, octaveTag } = resolveInterval(st);
                   const lower = getFretNote(pitched[i].si, identifiedFrets[pitched[i].si]).replace(/\d/g, '');
                   const upper = getFretNote(p.si, identifiedFrets[p.si]).replace(/\d/g, '');
                   return { lower, upper, st, iv, octaveTag };
