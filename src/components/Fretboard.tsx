@@ -193,8 +193,8 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
         const noteName = noteStr.replace(/[0-9]/g, '');
         return (
           <g onClick={() => handleDotClick(stringIdx, fretIdx)} style={{cursor: 'pointer'}}>
-            <circle cx={x} cy={y} r={fretIdx === 0 ? 9 : 11} className="fill-brand-secondary/10 stroke-brand-secondary/25 stroke-1" />
-            <text x={x} y={y + 4} className="text-[9px] pointer-events-none fill-brand-secondary/40" textAnchor="middle">{noteName}</text>
+            <circle cx={x} cy={y} r={fretIdx === 0 ? 9 : 11} className="fill-brand-bg stroke-brand-secondary/60 stroke-1" />
+            <text x={x} y={y + 4} className="text-[10px] pointer-events-none fill-brand-secondary" textAnchor="middle">{noteName}</text>
           </g>
         );
       }
