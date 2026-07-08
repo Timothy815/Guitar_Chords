@@ -358,6 +358,7 @@ export function Dictionary() {
   const [selectedInterval, setSelectedInterval] = useState<number>(7); // Perfect 5th
   const [showIntervalInfo, setShowIntervalInfo] = useState(false);
   const [showAllNotes, setShowAllNotes] = useState(false);
+  const [intervalView, setIntervalView] = useState<'bass' | 'stacked'>('bass');
 
   function handleOpenInChords(root: Note, qualityPrefix: string) {
     if (!isStandardTuning) return;
@@ -1811,49 +1812,68 @@ export function Dictionary() {
                   .filter((n): n is { midi: number; si: number } => n !== null)
                   .sort((a, b) => a.midi - b.midi);
 
-                const bassLabel = getFretNote(pitched[0].si, identifiedFrets[pitched[0].si]).replace(/\d/, '');
+                const bassLabel = getFretNote(pitched[0].si, identifiedFrets[pitched[0].si]).replace(/\d/g, '');
 
-                const fromBass = pitched.slice(1).map(p => {
+                const fromBassRows = pitched.slice(1).map(p => {
                   const st = p.midi - pitched[0].midi;
                   const iv = INTERVALS.find(i => i.semitones === st % 12);
                   const octaveTag = st >= 12 ? ` +${Math.floor(st / 12)} oct` : '';
-                  const upperLabel = getFretNote(p.si, identifiedFrets[p.si]).replace(/\d/g, '');
-                  return { st, iv, octaveTag, upperLabel };
+                  const upper = getFretNote(p.si, identifiedFrets[p.si]).replace(/\d/g, '');
+                  return { lower: bassLabel, upper, st, iv, octaveTag };
                 });
 
-                const stacked = pitched.slice(1).map((p, i) => {
+                const stackedRows = pitched.slice(1).map((p, i) => {
                   const st = p.midi - pitched[i].midi;
-                  return INTERVALS.find(iv => iv.semitones === st % 12);
+                  const iv = INTERVALS.find(ivv => ivv.semitones === st % 12);
+                  const octaveTag = st >= 12 ? ` +${Math.floor(st / 12)} oct` : '';
+                  const lower = getFretNote(pitched[i].si, identifiedFrets[pitched[i].si]).replace(/\d/g, '');
+                  const upper = getFretNote(p.si, identifiedFrets[p.si]).replace(/\d/g, '');
+                  return { lower, upper, st, iv, octaveTag };
                 });
+
+                const showToggle = pitched.length >= 3;
+                const activeView = showToggle ? intervalView : 'bass';
+                const rows = activeView === 'bass' ? fromBassRows : stackedRows;
 
                 return (
                   <div className="w-full mb-6 px-4 py-3 rounded-lg bg-brand-surface border border-brand-line print:hidden">
-                    <p className="text-xs font-semibold text-brand-secondary uppercase tracking-wider mb-2">
-                      {pitched.length === 2 ? 'Interval' : 'Intervals from bass'}
-                    </p>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-semibold text-brand-secondary uppercase tracking-wider">
+                        {activeView === 'bass' ? (pitched.length === 2 ? 'Interval' : 'From bass') : 'Consecutive'}
+                      </p>
+                      {showToggle && (
+                        <div className="flex gap-1 bg-brand-bg rounded p-0.5 border border-brand-line">
+                          <button
+                            onClick={() => setIntervalView('bass')}
+                            className={cn('px-2 py-0.5 rounded text-[10px] font-medium transition-colors',
+                              activeView === 'bass' ? 'bg-brand-primary text-white' : 'text-brand-secondary hover:text-brand-ink'
+                            )}
+                          >
+                            From Bass
+                          </button>
+                          <button
+                            onClick={() => setIntervalView('stacked')}
+                            className={cn('px-2 py-0.5 rounded text-[10px] font-medium transition-colors',
+                              activeView === 'stacked' ? 'bg-brand-primary text-white' : 'text-brand-secondary hover:text-brand-ink'
+                            )}
+                          >
+                            Stacked
+                          </button>
+                        </div>
+                      )}
+                    </div>
                     <div className="flex flex-col gap-1.5">
-                      {fromBass.map((item, i) => (
+                      {rows.map((item, i) => (
                         <div key={i} className="flex items-center gap-2 text-sm">
-                          <span className="font-semibold text-brand-ink w-5 text-right">{bassLabel}</span>
+                          <span className="font-semibold text-brand-ink w-5 text-right">{item.lower}</span>
                           <span className="text-brand-secondary">→</span>
-                          <span className="font-semibold text-brand-ink w-5">{item.upperLabel}</span>
+                          <span className="font-semibold text-brand-ink w-5">{item.upper}</span>
                           <span className="font-bold text-brand-primary w-8">{item.iv?.short ?? `${item.st % 12}st`}</span>
                           <span className="text-brand-secondary text-xs">{item.iv?.name ?? ''}</span>
                           <span className="text-brand-secondary text-xs tabular-nums">{item.st} st{item.octaveTag}</span>
                         </div>
                       ))}
                     </div>
-                    {pitched.length >= 3 && (
-                      <div className="flex items-center gap-1.5 mt-2 text-xs text-brand-secondary">
-                        <span className="uppercase tracking-wider">Stacked:</span>
-                        {stacked.map((iv, i) => (
-                          <React.Fragment key={i}>
-                            {i > 0 && <span className="text-brand-line">+</span>}
-                            <span className="font-bold text-brand-ink">{iv?.short ?? '?'}</span>
-                          </React.Fragment>
-                        ))}
-                      </div>
-                    )}
                   </div>
                 );
               })()}
