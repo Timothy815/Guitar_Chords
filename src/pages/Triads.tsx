@@ -205,7 +205,7 @@ export default function Triads() {
 
     function clampStart(raw: number) {
       if (raw < 0) raw += 12;
-      if (raw > 11) raw = raw % 12;
+      if (raw > 14) raw -= 12;
       return raw;
     }
 
