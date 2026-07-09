@@ -97,6 +97,7 @@ export function ShellVoicings() {
   const [qualityKey, setQualityKey] = useState<QualityKey>('maj7');
   const [playingNotes, setPlayingNotes] = useState<Set<string>>(new Set());
   const [showTheory, setShowTheory] = useState(false);
+  const [showAllNotes, setShowAllNotes] = useState(false);
 
   const quality = SHELL_QUALITIES.find(q => q.key === qualityKey)!;
   const voicings = computeShellVoicings(root, quality.thirdSt, quality.seventhSt);
@@ -191,12 +192,25 @@ export function ShellVoicings() {
 
       {/* Fretboard — all positions at once */}
       <div onMouseEnter={initAudio}>
+        <div className="flex justify-end mb-1">
+          <button
+            onClick={() => setShowAllNotes(v => !v)}
+            className={cn('text-xs px-2.5 py-0.5 rounded border transition-colors',
+              showAllNotes
+                ? 'border-brand-primary text-brand-primary bg-brand-primary/10'
+                : 'border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-primary'
+            )}
+          >
+            {showAllNotes ? 'Notes: on' : 'Notes: off'}
+          </button>
+        </div>
         <Fretboard
           fretsNum={15}
           chord={MUTED_CHORD}
           drillDots={drillDots}
           playingNotes={playingNotes}
           showNoteNames={false}
+          showAllNotes={showAllNotes}
         />
       </div>
 
