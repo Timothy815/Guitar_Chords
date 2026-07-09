@@ -45,20 +45,29 @@ export function TensionsTab() {
     [root, quality, tension]
   );
 
-  const voicings = allVoicings.filter(v => activeStringSets.has(v.setKey));
+  const voicings = useMemo(() =>
+    allVoicings.filter(v => activeStringSets.has(v.setKey)),
+    [allVoicings, activeStringSets]
+  );
+
+  const [hiddenCards, setHiddenCards] = useState<Set<number>>(new Set());
+  const toggleCard = (i: number) => setHiddenCards(prev => {
+    const next = new Set(prev); next.has(i) ? next.delete(i) : next.add(i); return next;
+  });
+  useEffect(() => { setHiddenCards(new Set()); }, [voicings]);
 
   const drillDots = useMemo(() =>
-    allVoicings
-      .filter(v => activeStringSets.has(v.setKey))
+    voicings
+      .filter((_, i) => !hiddenCards.has(i))
       .flatMap(v =>
-        v.strings.map((si, i) => ({
+        v.strings.map((si, ni) => ({
           stringIdx: si,
           fret: v.frets[si],
-          label: v.notes[i].role,
+          label: v.notes[ni].role,
           color: SET_CONFIG[v.setKey].hex,
         }))
       ),
-    [allVoicings, activeStringSets]
+    [voicings, hiddenCards]
   );
 
   const toggleSet = (key: string) =>
@@ -247,7 +256,7 @@ export function TensionsTab() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {voicings.map((v, i) => {
             const color = SET_CONFIG[v.setKey].hex;
-            const isActive = activeStringSets.has(v.setKey);
+            const isActive = !hiddenCards.has(i);
             return (
               <div
                 key={i}
@@ -269,7 +278,7 @@ export function TensionsTab() {
                       fret {v.rootFret === 0 ? 'open' : v.rootFret}
                     </span>
                     <button
-                      onClick={() => toggleSet(v.setKey)}
+                      onClick={() => toggleCard(i)}
                       className="p-0.5 rounded text-brand-secondary hover:text-brand-ink transition-colors"
                       title={isActive ? 'Hide on fretboard' : 'Show on fretboard'}
                     >

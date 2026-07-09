@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { ChordShape, Finger } from '../../types';
 import { ALL_NOTES } from '../../data/guitarData';
 import { Fretboard } from '../Fretboard';
@@ -41,22 +41,29 @@ export function Drop2Tab() {
   const quality = DROP2_QUALITIES.find(q => q.key === qualityKey)!;
   const allVoicings = useMemo(() => computeDrop2Voicings(root, quality), [root, quality]);
 
-  const voicings = allVoicings.filter(
-    v => activeStringSets.has(v.setKey) && activeInversions.has(v.inversionKey)
+  const voicings = useMemo(() =>
+    allVoicings.filter(v => activeStringSets.has(v.setKey) && activeInversions.has(v.inversionKey)),
+    [allVoicings, activeStringSets, activeInversions]
   );
 
+  const [hiddenCards, setHiddenCards] = useState<Set<number>>(new Set());
+  const toggleCard = (i: number) => setHiddenCards(prev => {
+    const next = new Set(prev); next.has(i) ? next.delete(i) : next.add(i); return next;
+  });
+  useEffect(() => { setHiddenCards(new Set()); }, [voicings]);
+
   const drillDots = useMemo(() =>
-    allVoicings
-      .filter(v => activeStringSets.has(v.setKey) && activeInversions.has(v.inversionKey))
+    voicings
+      .filter((_, i) => !hiddenCards.has(i))
       .flatMap(v =>
-        v.strings.map((si, i) => ({
+        v.strings.map((si, ni) => ({
           stringIdx: si,
           fret: v.frets[si],
-          label: dotLabel === 'role' ? v.notes[i].role : v.notes[i].name.replace(/[0-9]/g, ''),
+          label: dotLabel === 'role' ? v.notes[ni].role : v.notes[ni].name.replace(/[0-9]/g, ''),
           color: SET_CONFIG[v.setKey].hex,
         }))
       ),
-    [allVoicings, activeStringSets, activeInversions, dotLabel]
+    [voicings, hiddenCards, dotLabel]
   );
 
   const toggleSet = (key: string) =>
@@ -265,7 +272,7 @@ export function Drop2Tab() {
           {voicings.map((v, i) => {
             const color = SET_CONFIG[v.setKey].hex;
             const invColor = INV_COLORS[v.inversionKey];
-            const isActive = activeStringSets.has(v.setKey);
+            const isActive = !hiddenCards.has(i);
             return (
               <div
                 key={i}
@@ -288,7 +295,7 @@ export function Drop2Tab() {
                       {v.inversionLabel}
                     </span>
                     <button
-                      onClick={() => toggleSet(v.setKey)}
+                      onClick={() => toggleCard(i)}
                       className="p-0.5 rounded text-brand-secondary hover:text-brand-ink transition-colors"
                       title={isActive ? 'Hide on fretboard' : 'Show on fretboard'}
                     >

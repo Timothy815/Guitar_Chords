@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { ChordShape, Finger } from '../../types';
 import { ALL_NOTES } from '../../data/guitarData';
 import { Fretboard } from '../Fretboard';
@@ -49,20 +49,29 @@ export function QuartalTab() {
   };
 
   const allVoicings = useMemo(() => computeQuartalVoicings(bottomNote, stack), [bottomNote, stack]);
-  const voicings = allVoicings.filter(v => activeStringSets.has(v.setKey));
+  const voicings = useMemo(() =>
+    allVoicings.filter(v => activeStringSets.has(v.setKey)),
+    [allVoicings, activeStringSets]
+  );
+
+  const [hiddenCards, setHiddenCards] = useState<Set<number>>(new Set());
+  const toggleCard = (i: number) => setHiddenCards(prev => {
+    const next = new Set(prev); next.has(i) ? next.delete(i) : next.add(i); return next;
+  });
+  useEffect(() => { setHiddenCards(new Set()); }, [voicings]);
 
   const drillDots = useMemo(() =>
-    allVoicings
-      .filter(v => activeStringSets.has(v.setKey))
+    voicings
+      .filter((_, i) => !hiddenCards.has(i))
       .flatMap(v =>
-        v.strings.map((si, i) => ({
+        v.strings.map((si, ni) => ({
           stringIdx: si,
-          fret: v.fretValues[i],
-          label: v.notes[i].replace(/[0-9]/g, ''),
+          fret: v.fretValues[ni],
+          label: v.notes[ni].replace(/[0-9]/g, ''),
           color: SET_CONFIG[v.setKey].hex,
         }))
       ),
-    [allVoicings, activeStringSets]
+    [voicings, hiddenCards]
   );
 
   const toggleSet = (key: string) =>
@@ -209,7 +218,7 @@ export function QuartalTab() {
           {voicings.map((v, i) => {
             const color = SET_CONFIG[v.setKey].hex;
             const cols = is4note ? 4 : 3;
-            const isActive = activeStringSets.has(v.setKey);
+            const isActive = !hiddenCards.has(i);
             return (
               <div
                 key={i}
@@ -229,7 +238,7 @@ export function QuartalTab() {
                       fret {v.fretValues[0] === 0 ? 'open' : v.fretValues[0]}
                     </span>
                     <button
-                      onClick={() => toggleSet(v.setKey)}
+                      onClick={() => toggleCard(i)}
                       className="p-0.5 rounded text-brand-secondary hover:text-brand-ink transition-colors"
                       title={isActive ? 'Hide on fretboard' : 'Show on fretboard'}
                     >

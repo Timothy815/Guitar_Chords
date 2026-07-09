@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { ChordShape, Finger } from '../../types';
 import { ALL_NOTES } from '../../data/guitarData';
 import { Fretboard } from '../Fretboard';
@@ -35,16 +35,25 @@ export function DyadsTab() {
 
   const interval = DYAD_INTERVALS.find(i => i.key === intervalKey)!;
   const allDyads = useMemo(() => computeDyads(root, interval.semitones), [root, interval.semitones]);
-  const dyads = allDyads.filter(d => activeStringSets.has(d.setKey));
+  const dyads = useMemo(() =>
+    allDyads.filter(d => activeStringSets.has(d.setKey)),
+    [allDyads, activeStringSets]
+  );
+
+  const [hiddenCards, setHiddenCards] = useState<Set<number>>(new Set());
+  const toggleCard = (i: number) => setHiddenCards(prev => {
+    const next = new Set(prev); next.has(i) ? next.delete(i) : next.add(i); return next;
+  });
+  useEffect(() => { setHiddenCards(new Set()); }, [dyads]);
 
   const drillDots = useMemo(() =>
-    allDyads
-      .filter(d => activeStringSets.has(d.setKey))
+    dyads
+      .filter((_, i) => !hiddenCards.has(i))
       .flatMap(d => [
         { stringIdx: d.strings[0], fret: d.bottomFret, label: d.bottomNote.replace(/[0-9]/g, ''), color: SET_CONFIG[d.setKey].hex },
         { stringIdx: d.strings[1], fret: d.topFret,    label: d.topNote.replace(/[0-9]/g, ''),    color: SET_CONFIG[d.setKey].hex },
       ]),
-    [allDyads, activeStringSets]
+    [dyads, hiddenCards]
   );
 
   const toggleSet = (key: string) =>
@@ -185,7 +194,7 @@ export function DyadsTab() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {dyads.map((d, i) => {
             const color = SET_CONFIG[d.setKey].hex;
-            const isActive = activeStringSets.has(d.setKey);
+            const isActive = !hiddenCards.has(i);
             return (
               <div
                 key={i}
@@ -205,7 +214,7 @@ export function DyadsTab() {
                       fret {d.bottomFret === 0 ? 'open' : d.bottomFret}
                     </span>
                     <button
-                      onClick={() => toggleSet(d.setKey)}
+                      onClick={() => toggleCard(i)}
                       className="p-0.5 rounded text-brand-secondary hover:text-brand-ink transition-colors"
                       title={isActive ? 'Hide on fretboard' : 'Show on fretboard'}
                     >
