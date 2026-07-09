@@ -211,6 +211,7 @@ export function ShellVoicings() {
           playingNotes={playingNotes}
           showNoteNames={false}
           showAllNotes={showAllNotes}
+          compact
         />
       </div>
 
