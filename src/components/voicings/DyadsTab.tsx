@@ -9,11 +9,17 @@ import { computeDyads, DYAD_INTERVALS } from './dyads';
 import type { Note } from '../../types';
 
 const SET_CONFIG: Record<string, { hex: string; label: string }> = {
+  // Adjacent string pairs
   '6-5': { hex: '#f59e0b', label: 'Str 6–5' },
   '5-4': { hex: '#14b8a6', label: 'Str 5–4' },
   '4-3': { hex: '#8b5cf6', label: 'Str 4–3' },
   '3-2': { hex: '#ec4899', label: 'Str 3–2' },
   '2-1': { hex: '#10b981', label: 'Str 2–1' },
+  // Skip-1 string pairs
+  '6-4': { hex: '#ef4444', label: 'Str 6–4' },
+  '5-3': { hex: '#3b82f6', label: 'Str 5–3' },
+  '4-2': { hex: '#d97706', label: 'Str 4–2' },
+  '3-1': { hex: '#6366f1', label: 'Str 3–1' },
 };
 
 const MUTED_CHORD: ChordShape = {
@@ -28,7 +34,7 @@ export function DyadsTab() {
   const [playingNotes, setPlayingNotes] = useState<Set<string>>(new Set());
   const [showAllNotes, setShowAllNotes] = useState(false);
   const [activeStringSets, setActiveStringSets] = useState<Set<string>>(
-    new Set(['6-5', '5-4', '4-3', '3-2', '2-1'])
+    new Set(['6-5', '5-4', '4-3', '3-2', '2-1', '6-4', '5-3', '4-2', '3-1'])
   );
   const [addedIndices, setAddedIndices] = useState<Set<number>>(new Set());
   const [showTheory, setShowTheory] = useState(false);

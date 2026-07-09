@@ -26,11 +26,17 @@ export const DYAD_INTERVALS: DyadInterval[] = [
 ];
 
 const STRING_PAIRS = [
+  // Adjacent string pairs
   { strings: [0, 1] as [number, number], setKey: '6-5', setLabel: 'Str 6–5', openNames: 'E · A' },
   { strings: [1, 2] as [number, number], setKey: '5-4', setLabel: 'Str 5–4', openNames: 'A · D' },
   { strings: [2, 3] as [number, number], setKey: '4-3', setLabel: 'Str 4–3', openNames: 'D · G' },
   { strings: [3, 4] as [number, number], setKey: '3-2', setLabel: 'Str 3–2', openNames: 'G · B' },
   { strings: [4, 5] as [number, number], setKey: '2-1', setLabel: 'Str 2–1', openNames: 'B · E' },
+  // Skip-1 string pairs (one muted string between — large intervals fit in 1–2 frets)
+  { strings: [0, 2] as [number, number], setKey: '6-4', setLabel: 'Str 6–4', openNames: 'E · D' },
+  { strings: [1, 3] as [number, number], setKey: '5-3', setLabel: 'Str 5–3', openNames: 'A · G' },
+  { strings: [2, 4] as [number, number], setKey: '4-2', setLabel: 'Str 4–2', openNames: 'D · B' },
+  { strings: [3, 5] as [number, number], setKey: '3-1', setLabel: 'Str 3–1', openNames: 'G · E' },
 ];
 
 export interface Dyad {
@@ -56,6 +62,7 @@ export function computeDyads(root: string, intervalSt: number): Dyad[] {
       const topMidi = bottomMidi + intervalSt;
       const topFret = topMidi - OPEN_MIDI[s1];
       if (topFret < 0 || topFret > 12) continue;
+      if (topFret - rootFret > 5) continue; // filter unplayable stretches
 
       const frets = [-1, -1, -1, -1, -1, -1];
       frets[s0] = rootFret;
