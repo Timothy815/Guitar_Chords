@@ -98,14 +98,15 @@ export function ShellVoicings() {
   const [playingNotes, setPlayingNotes] = useState<Set<string>>(new Set());
   const [showTheory, setShowTheory] = useState(false);
   const [showAllNotes, setShowAllNotes] = useState(false);
+  const [dotLabel, setDotLabel] = useState<'role' | 'note'>('role');
 
   const quality = SHELL_QUALITIES.find(q => q.key === qualityKey)!;
   const voicings = computeShellVoicings(root, quality.thirdSt, quality.seventhSt);
 
   const drillDots = voicings.flatMap(v => [
-    { stringIdx: v.strings[0], fret: v.rootFret,    label: 'R', highlight: true },
-    { stringIdx: v.strings[1], fret: v.thirdFret,   label: '3' },
-    { stringIdx: v.strings[2], fret: v.seventhFret, label: '7', color: '#8b5cf6' },
+    { stringIdx: v.strings[0], fret: v.rootFret,    label: dotLabel === 'role' ? 'R' : v.rootNote.replace(/[0-9]/g, ''),    highlight: true },
+    { stringIdx: v.strings[1], fret: v.thirdFret,   label: dotLabel === 'role' ? '3' : v.thirdNote.replace(/[0-9]/g, '') },
+    { stringIdx: v.strings[2], fret: v.seventhFret, label: dotLabel === 'role' ? '7' : v.seventhNote.replace(/[0-9]/g, ''), color: '#8b5cf6' },
   ]);
 
   const handlePlay = async (v: ShellVoicing) => {
@@ -201,7 +202,7 @@ export function ShellVoicings() {
                 : 'border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-primary'
             )}
           >
-            {showAllNotes ? 'Notes: on' : 'Notes: off'}
+            {showAllNotes ? 'All notes: on' : 'All notes: off'}
           </button>
         </div>
         <Fretboard
@@ -213,6 +214,18 @@ export function ShellVoicings() {
           showAllNotes={showAllNotes}
           compact
         />
+        <div className="flex justify-end mt-1">
+          <button
+            onClick={() => setDotLabel(v => v === 'role' ? 'note' : 'role')}
+            className={cn('text-xs px-2.5 py-0.5 rounded border transition-colors',
+              dotLabel === 'note'
+                ? 'border-brand-primary text-brand-primary bg-brand-primary/10'
+                : 'border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-primary'
+            )}
+          >
+            {dotLabel === 'role' ? 'Labels: R / 3 / 7' : 'Labels: note names'}
+          </button>
+        </div>
       </div>
 
       {/* Position cards */}
