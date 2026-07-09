@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Note } from '../types';
+import { useNavigate } from 'react-router-dom';
+import { Note, ChordShape, Finger } from '../types';
 import { ALL_NOTES } from '../data/guitarData';
 import { Fretboard } from '../components/Fretboard';
 import { initAudio, playStrum, getFretNote } from '../lib/audio';
 import { cn } from '../lib/utils';
-import { ChevronDown, ChevronUp, Eye, EyeOff } from 'lucide-react';
+import { ChevronDown, ChevronUp, Eye, EyeOff, Plus, Search } from 'lucide-react';
 
 const OPEN_MIDI = [40, 45, 50, 55, 59, 64]; // E2 A2 D3 G3 B3 E4
 
@@ -91,9 +92,10 @@ function computeShellVoicings(root: Note, thirdSt: number, seventhSt: number): S
 }
 
 // Suppresses open-string ghost circles without affecting drillDots or showAllNotes
-const MUTED_CHORD = { name: '', frets: [-1, -1, -1, -1, -1, -1] as number[], fingers: [-1, -1, -1, -1, -1, -1] as import('../types').Finger[] };
+const MUTED_CHORD: ChordShape = { name: '', frets: [-1, -1, -1, -1, -1, -1], fingers: [-1, -1, -1, -1, -1, -1] as Finger[] };
 
 export function ShellVoicings() {
+  const navigate = useNavigate();
   const [root, setRoot] = useState<Note>('G');
   const [qualityKey, setQualityKey] = useState<QualityKey>('maj7');
   const [playingNotes, setPlayingNotes] = useState<Set<string>>(new Set());
@@ -122,6 +124,31 @@ export function ShellVoicings() {
         { stringIdx: v.strings[2], fret: v.seventhFret, label: dotLabel === 'role' ? '7' : v.seventhNote.replace(/[0-9]/g, ''), color },
       ];
     });
+
+  const sendToIdentify = (v: ShellVoicing) => {
+    navigate(`/dictionary?mode=identify&frets=${v.frets.join(',')}`);
+  };
+
+  const sendToProgressions = (v: ShellVoicing) => {
+    const chord: ChordShape = {
+      name: `${root}${quality.label} shell`,
+      frets: v.frets,
+      fingers: v.frets.map(f => (f === -1 ? -1 : 0)) as Finger[],
+    };
+    try {
+      const raw = localStorage.getItem('guitar_progressions');
+      const activeId = localStorage.getItem('guitar_active_prog_id');
+      if (raw && activeId) {
+        const progs = JSON.parse(raw);
+        const updated = progs.map((p: any) =>
+          p.id === activeId ? { ...p, slots: [...p.slots, { chord }] } : p
+        );
+        localStorage.setItem('guitar_progressions', JSON.stringify(updated));
+        window.dispatchEvent(new Event('guitar_progressions_updated'));
+      }
+    } catch { /* ignore */ }
+    navigate('/progressions');
+  };
 
   const handlePlay = async (v: ShellVoicing) => {
     await initAudio();
@@ -319,6 +346,21 @@ export function ShellVoicings() {
                 >
                   ▶ Play
                 </button>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => sendToProgressions(v)}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-brand-line text-xs font-medium text-brand-secondary hover:text-brand-ink hover:border-brand-primary/50 transition-colors"
+                  >
+                    <Plus size={12} /> Progression
+                  </button>
+                  <button
+                    onClick={() => sendToIdentify(v)}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-brand-line text-xs font-medium text-brand-secondary hover:text-brand-ink hover:border-brand-primary/50 transition-colors"
+                  >
+                    <Search size={12} /> Identify
+                  </button>
+                </div>
               </div>
             );
           })}
