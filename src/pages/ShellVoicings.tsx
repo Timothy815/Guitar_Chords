@@ -14,6 +14,7 @@ const SET_CONFIG: Record<string, { hex: string; label: string }> = {
   '6-4': { hex: '#f59e0b', label: 'Strings 6–4' }, // amber
   '5-3': { hex: '#14b8a6', label: 'Strings 5–3' }, // teal
   '4-2': { hex: '#8b5cf6', label: 'Strings 4–2' }, // violet
+  '3-1': { hex: '#ec4899', label: 'Strings 3–1' }, // pink
 };
 
 const SHELL_QUALITIES = [
@@ -30,6 +31,7 @@ const STRING_SETS: Array<{ strings: readonly [number, number, number]; setKey: s
   { strings: [0, 1, 2], setKey: '6-4', openNames: 'E · A · D' },
   { strings: [1, 2, 3], setKey: '5-3', openNames: 'A · D · G' },
   { strings: [2, 3, 4], setKey: '4-2', openNames: 'D · G · B' },
+  { strings: [3, 4, 5], setKey: '3-1', openNames: 'G · B · E' },
 ];
 
 interface ShellVoicing {
@@ -55,7 +57,7 @@ function computeShellVoicings(root: Note, thirdSt: number, seventhSt: number): S
   for (const { strings, setKey, openNames } of STRING_SETS) {
     const [s0, s1, s2] = strings;
 
-    for (let rootFret = 0; rootFret <= 12; rootFret++) {
+    for (let rootFret = 0; rootFret <= 15; rootFret++) {
       const rootMidi = OPEN_MIDI[s0] + rootFret;
       if (noteNameFromMidi(rootMidi) !== root) continue;
 
@@ -102,7 +104,7 @@ export function ShellVoicings() {
   const [showTheory, setShowTheory] = useState(false);
   const [showAllNotes, setShowAllNotes] = useState(false);
   const [dotLabel, setDotLabel] = useState<'role' | 'note'>('role');
-  const [activeStringSets, setActiveStringSets] = useState<Set<string>>(new Set(['6-4', '5-3', '4-2']));
+  const [activeStringSets, setActiveStringSets] = useState<Set<string>>(new Set(['6-4', '5-3', '4-2', '3-1']));
   const [addedIndices, setAddedIndices] = useState<Set<number>>(new Set());
 
   const toggleSet = (key: string) =>
@@ -273,7 +275,7 @@ export function ShellVoicings() {
 
       {/* Position cards */}
       {voicings.length === 0 ? (
-        <p className="text-brand-secondary text-sm">No closed shell voicings found in frets 0–12 for this combination.</p>
+        <p className="text-brand-secondary text-sm">No closed shell voicings found in frets 0–15 for this combination.</p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {voicings.map((v, i) => {
