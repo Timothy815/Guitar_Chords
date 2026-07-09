@@ -11,10 +11,13 @@ const OPEN_MIDI = [40, 45, 50, 55, 59, 64]; // E2 A2 D3 G3 B3 E4
 
 // Per-string-set color identity — used on both the card and the fretboard dots
 const SET_CONFIG: Record<string, { hex: string; label: string }> = {
-  '6-4': { hex: '#f59e0b', label: 'Strings 6–4' }, // amber
-  '5-3': { hex: '#14b8a6', label: 'Strings 5–3' }, // teal
-  '4-2': { hex: '#8b5cf6', label: 'Strings 4–2' }, // violet
-  '3-1': { hex: '#ec4899', label: 'Strings 3–1' }, // pink
+  '6-4':   { hex: '#f59e0b', label: 'Strings 6–4'   }, // amber
+  '5-3':   { hex: '#14b8a6', label: 'Strings 5–3'   }, // teal
+  '4-2':   { hex: '#8b5cf6', label: 'Strings 4–2'   }, // violet
+  '3-1':   { hex: '#ec4899', label: 'Strings 3–1'   }, // pink
+  '6-4-3': { hex: '#f97316', label: 'Strings 6,4,3' }, // orange (skip A)
+  '5-3-2': { hex: '#06b6d4', label: 'Strings 5,3,2' }, // cyan   (skip D)
+  '4-2-1': { hex: '#10b981', label: 'Strings 4,2,1' }, // emerald (skip G)
 };
 
 const SHELL_QUALITIES = [
@@ -28,10 +31,13 @@ const SHELL_QUALITIES = [
 type QualityKey = typeof SHELL_QUALITIES[number]['key'];
 
 const STRING_SETS: Array<{ strings: readonly [number, number, number]; setKey: string; openNames: string }> = [
-  { strings: [0, 1, 2], setKey: '6-4', openNames: 'E · A · D' },
-  { strings: [1, 2, 3], setKey: '5-3', openNames: 'A · D · G' },
-  { strings: [2, 3, 4], setKey: '4-2', openNames: 'D · G · B' },
-  { strings: [3, 4, 5], setKey: '3-1', openNames: 'G · B · E' },
+  { strings: [0, 1, 2], setKey: '6-4',   openNames: 'E · A · D' },
+  { strings: [1, 2, 3], setKey: '5-3',   openNames: 'A · D · G' },
+  { strings: [2, 3, 4], setKey: '4-2',   openNames: 'D · G · B' },
+  { strings: [3, 4, 5], setKey: '3-1',   openNames: 'G · B · E' },
+  { strings: [0, 2, 3], setKey: '6-4-3', openNames: 'E · D · G' },
+  { strings: [1, 3, 4], setKey: '5-3-2', openNames: 'A · G · B' },
+  { strings: [2, 4, 5], setKey: '4-2-1', openNames: 'D · B · E' },
 ];
 
 interface ShellVoicing {
@@ -104,7 +110,7 @@ export function ShellVoicings() {
   const [showTheory, setShowTheory] = useState(false);
   const [showAllNotes, setShowAllNotes] = useState(false);
   const [dotLabel, setDotLabel] = useState<'role' | 'note'>('role');
-  const [activeStringSets, setActiveStringSets] = useState<Set<string>>(new Set(['6-4', '5-3', '4-2', '3-1']));
+  const [activeStringSets, setActiveStringSets] = useState<Set<string>>(new Set(['6-4', '5-3', '4-2', '3-1', '6-4-3', '5-3-2', '4-2-1']));
   const [addedIndices, setAddedIndices] = useState<Set<number>>(new Set());
 
   const toggleSet = (key: string) =>
