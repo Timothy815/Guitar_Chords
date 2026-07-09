@@ -23,7 +23,7 @@ class ErrorBoundary extends (React.Component as any) {
 import { Dictionary } from './pages/Dictionary';
 import { Progressions } from './pages/Progressions';
 import { EarTraining } from './pages/EarTraining';
-import { Music, Calendar, BookOpen, Sun, Moon, Disc, Headphones, Clock, Layers, Gauge, Dumbbell, Target } from 'lucide-react';
+import { Music, Calendar, BookOpen, Sun, Moon, Disc, Headphones, Clock, Layers, Gauge, Dumbbell, Target, Piano } from 'lucide-react';
 
 function Layout({ children }: { children: React.ReactNode }) {
   const [isDark, setIsDark] = useState(() => {
@@ -81,6 +81,9 @@ function Layout({ children }: { children: React.ReactNode }) {
               <NavLink title="Triad Explorer" to="/triads" className={({isActive}) => `p-2 rounded-md transition-colors ${isActive ? 'bg-brand-sidebar text-brand-ink' : 'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar/50'}`}>
                 <Target size={18} />
               </NavLink>
+              <NavLink title="Shell Voicings" to="/shell-voicings" className={({isActive}) => `p-2 rounded-md transition-colors ${isActive ? 'bg-brand-sidebar text-brand-ink' : 'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar/50'}`}>
+                <Piano size={18} />
+              </NavLink>
             </nav>
             <div className="w-px h-6 bg-brand-line"></div>
             <button 
@@ -108,6 +111,7 @@ import { ScalePositions } from './pages/ScalePositions';
 import { Tuner } from './pages/Tuner';
 import { Technique } from './pages/Technique';
 import Triads from './pages/Triads';
+import { ShellVoicings } from './pages/ShellVoicings';
 
 export default function App() {
   return (
@@ -126,6 +130,7 @@ export default function App() {
           <Route path="/tuner" element={<Tuner />} />
           <Route path="/technique" element={<Technique />} />
           <Route path="/triads" element={<Triads />} />
+          <Route path="/shell-voicings" element={<ShellVoicings />} />
         </Routes>
       </Layout>
       </ErrorBoundary>

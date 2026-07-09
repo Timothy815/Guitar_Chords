@@ -1,0 +1,279 @@
+import React, { useState } from 'react';
+import { Note } from '../types';
+import { ALL_NOTES } from '../data/guitarData';
+import { Fretboard } from '../components/Fretboard';
+import { initAudio, playStrum, getFretNote } from '../lib/audio';
+import { cn } from '../lib/utils';
+import { ChevronDown, ChevronUp } from 'lucide-react';
+
+const OPEN_MIDI = [40, 45, 50, 55, 59, 64]; // E2 A2 D3 G3 B3 E4
+
+const SHELL_QUALITIES = [
+  { key: 'maj7',  label: 'maj7',  fullName: 'Major 7th',      thirdSt: 4, seventhSt: 11, thirdName: 'Major 3rd', seventhName: 'Major 7th' },
+  { key: 'm7',    label: 'm7',    fullName: 'Minor 7th',      thirdSt: 3, seventhSt: 10, thirdName: 'Minor 3rd', seventhName: 'Minor 7th' },
+  { key: 'dom7',  label: '7',     fullName: 'Dominant 7th',   thirdSt: 4, seventhSt: 10, thirdName: 'Major 3rd', seventhName: 'Minor 7th' },
+  { key: 'm7b5',  label: 'm7♭5', fullName: 'Half-Dim. 7th',  thirdSt: 3, seventhSt: 10, thirdName: 'Minor 3rd', seventhName: 'Minor 7th' },
+  { key: 'dim7',  label: 'dim7',  fullName: 'Diminished 7th', thirdSt: 3, seventhSt: 9,  thirdName: 'Minor 3rd', seventhName: 'Dim. 7th' },
+] as const;
+
+type QualityKey = typeof SHELL_QUALITIES[number]['key'];
+
+const STRING_SETS: Array<{ strings: readonly [number, number, number]; label: string; openNames: string }> = [
+  { strings: [0, 1, 2], label: 'Strings 6–4', openNames: 'E · A · D' },
+  { strings: [1, 2, 3], label: 'Strings 5–3', openNames: 'A · D · G' },
+  { strings: [2, 3, 4], label: 'Strings 4–2', openNames: 'D · G · B' },
+];
+
+interface ShellVoicing {
+  frets: number[];
+  rootFret: number;
+  thirdFret: number;
+  seventhFret: number;
+  strings: readonly [number, number, number];
+  setLabel: string;
+  openNames: string;
+  rootNote: string;
+  thirdNote: string;
+  seventhNote: string;
+}
+
+function noteNameFromMidi(midi: number): string {
+  return ALL_NOTES[midi % 12];
+}
+
+function computeShellVoicings(root: Note, thirdSt: number, seventhSt: number): ShellVoicing[] {
+  const results: ShellVoicing[] = [];
+
+  for (const { strings, label, openNames } of STRING_SETS) {
+    const [s0, s1, s2] = strings;
+
+    for (let rootFret = 0; rootFret <= 12; rootFret++) {
+      const rootMidi = OPEN_MIDI[s0] + rootFret;
+      if (noteNameFromMidi(rootMidi) !== root) continue;
+
+      // Find 3rd on middle string — closest position at or above root pitch
+      let thirdMidi = rootMidi + thirdSt;
+      let thirdFret = thirdMidi - OPEN_MIDI[s1];
+      if (thirdFret < 0) { thirdFret += 12; thirdMidi += 12; }
+
+      // Find 7th on top string — must be above 3rd in pitch
+      let seventhMidi = rootMidi + seventhSt;
+      while (seventhMidi <= thirdMidi) seventhMidi += 12;
+      let seventhFret = seventhMidi - OPEN_MIDI[s2];
+      while (seventhFret < 0) { seventhFret += 12; seventhMidi += 12; }
+
+      // Only include truly closed voicings (≤ 12 semitone span root to 7th)
+      if (seventhMidi - rootMidi > 12) continue;
+      if (rootFret > 15 || thirdFret > 15 || seventhFret > 15) continue;
+
+      const frets: number[] = [-1, -1, -1, -1, -1, -1];
+      frets[s0] = rootFret;
+      frets[s1] = thirdFret;
+      frets[s2] = seventhFret;
+
+      results.push({
+        frets,
+        rootFret,
+        thirdFret,
+        seventhFret,
+        strings,
+        setLabel: label,
+        openNames,
+        rootNote: getFretNote(s0, rootFret),
+        thirdNote: getFretNote(s1, thirdFret),
+        seventhNote: getFretNote(s2, seventhFret),
+      });
+    }
+  }
+
+  return results;
+}
+
+// Dummy chord to suppress open-string ghost circles on the fretboard
+const MUTED_CHORD = { name: '', frets: [-1, -1, -1, -1, -1, -1] as number[], fingers: [-1, -1, -1, -1, -1, -1] as import('../types').Finger[] };
+
+export function ShellVoicings() {
+  const [root, setRoot] = useState<Note>('G');
+  const [qualityKey, setQualityKey] = useState<QualityKey>('maj7');
+  const [playingNotes, setPlayingNotes] = useState<Set<string>>(new Set());
+  const [showTheory, setShowTheory] = useState(false);
+
+  const quality = SHELL_QUALITIES.find(q => q.key === qualityKey)!;
+  const voicings = computeShellVoicings(root, quality.thirdSt, quality.seventhSt);
+
+  const drillDots = voicings.flatMap(v => [
+    { stringIdx: v.strings[0], fret: v.rootFret,    label: 'R', highlight: true },
+    { stringIdx: v.strings[1], fret: v.thirdFret,   label: '3' },
+    { stringIdx: v.strings[2], fret: v.seventhFret, label: '7', color: '#8b5cf6' },
+  ]);
+
+  const handlePlay = async (v: ShellVoicing) => {
+    await initAudio();
+    const notes = v.frets
+      .map((fret, si) => fret === -1 ? null : getFretNote(si, fret))
+      .filter((n): n is string => n !== null);
+    setPlayingNotes(new Set(notes));
+    playStrum(notes, 2.5, 'down');
+    setTimeout(() => setPlayingNotes(new Set()), 3000);
+  };
+
+  return (
+    <div className="max-w-5xl mx-auto space-y-6">
+      <div>
+        <h1 className="text-2xl font-serif font-bold text-brand-ink">Shell Voicings</h1>
+        <p className="text-sm text-brand-secondary mt-1">
+          Root, 3rd, and 7th — the chord skeleton used in jazz. The 5th is dropped because it adds no color.
+        </p>
+      </div>
+
+      {/* Root selector */}
+      <div>
+        <p className="text-xs font-semibold text-brand-secondary uppercase tracking-wider mb-2">Root</p>
+        <div className="flex flex-wrap gap-1.5">
+          {ALL_NOTES.map(note => (
+            <button
+              key={note}
+              onClick={() => setRoot(note as Note)}
+              className={cn('px-3 py-1.5 rounded-lg text-sm font-bold transition-colors',
+                root === note
+                  ? 'bg-brand-primary text-white'
+                  : 'bg-brand-bg border border-brand-line text-brand-secondary hover:text-brand-ink hover:border-brand-primary/50'
+              )}
+            >
+              {note}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Quality selector */}
+      <div>
+        <p className="text-xs font-semibold text-brand-secondary uppercase tracking-wider mb-2">Quality</p>
+        <div className="flex flex-wrap gap-1.5">
+          {SHELL_QUALITIES.map(q => (
+            <button
+              key={q.key}
+              onClick={() => setQualityKey(q.key)}
+              className={cn('px-3 py-1.5 rounded-lg text-sm font-bold transition-colors',
+                qualityKey === q.key
+                  ? 'bg-brand-primary text-white'
+                  : 'bg-brand-bg border border-brand-line text-brand-secondary hover:text-brand-ink hover:border-brand-primary/50'
+              )}
+            >
+              {q.label}
+            </button>
+          ))}
+        </div>
+        {qualityKey === 'm7b5' && (
+          <p className="text-xs text-brand-secondary/70 mt-2">
+            m7♭5 uses the same shell as m7 — only the omitted 5th differs between them.
+          </p>
+        )}
+      </div>
+
+      {/* Formula row */}
+      <div className="flex flex-wrap items-center gap-3 text-sm">
+        <div className="flex items-center gap-1.5">
+          <span className="w-6 h-6 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 flex items-center justify-center text-[10px] font-bold flex-shrink-0">R</span>
+          <span className="text-brand-secondary">root</span>
+        </div>
+        <span className="text-brand-line">·</span>
+        <div className="flex items-center gap-1.5">
+          <span className="w-6 h-6 rounded-full bg-brand-primary/10 text-brand-primary flex items-center justify-center text-[10px] font-bold flex-shrink-0">3</span>
+          <span className="text-brand-secondary">{quality.thirdName} ({quality.thirdSt} st)</span>
+        </div>
+        <span className="text-brand-line">·</span>
+        <div className="flex items-center gap-1.5">
+          <span className="w-6 h-6 rounded-full bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400 flex items-center justify-center text-[10px] font-bold flex-shrink-0">7</span>
+          <span className="text-brand-secondary">{quality.seventhName} ({quality.seventhSt} st)</span>
+        </div>
+      </div>
+
+      {/* Fretboard — all positions at once */}
+      <div onMouseEnter={initAudio}>
+        <Fretboard
+          fretsNum={15}
+          chord={MUTED_CHORD}
+          drillDots={drillDots}
+          playingNotes={playingNotes}
+          showNoteNames={false}
+        />
+      </div>
+
+      {/* Position cards */}
+      {voicings.length === 0 ? (
+        <p className="text-brand-secondary text-sm">No closed shell voicings found in frets 0–12 for this combination.</p>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {voicings.map((v, i) => (
+            <div key={i} className="bg-brand-surface border border-brand-line rounded-xl p-4 space-y-3">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-brand-ink">{v.setLabel}</h3>
+                  <p className="text-xs text-brand-secondary">{v.openNames}</p>
+                </div>
+                <span className="text-xs font-medium text-brand-secondary tabular-nums mt-0.5">
+                  fret {v.rootFret === 0 ? 'open' : v.rootFret}
+                </span>
+              </div>
+
+              {/* Note roles */}
+              <div className="flex items-center gap-4">
+                {([
+                  { label: 'R', note: v.rootNote,    cls: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
+                  { label: '3', note: v.thirdNote,   cls: 'bg-brand-primary/10 text-brand-primary' },
+                  { label: '7', note: v.seventhNote, cls: 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400' },
+                ] as const).map(({ label, note, cls }) => (
+                  <div key={label} className="flex items-center gap-1.5">
+                    <span className={cn('w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0', cls)}>
+                      {label}
+                    </span>
+                    <span className="text-sm font-semibold text-brand-ink">{note}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Fret map */}
+              <div className="grid grid-cols-3 gap-1 text-xs text-center">
+                {v.strings.map((si, ri) => (
+                  <div key={si} className="bg-brand-bg rounded px-2 py-1.5 border border-brand-line">
+                    <div className="text-brand-secondary">str {6 - si}</div>
+                    <div className="font-bold text-brand-ink tabular-nums">
+                      {(['R', '3', '7'] as const)[ri]}={v.frets[si] === 0 ? 'open' : v.frets[si]}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                onClick={() => handlePlay(v)}
+                onMouseEnter={initAudio}
+                className="w-full py-2 rounded-lg bg-brand-primary text-white text-sm font-semibold hover:bg-brand-primary/90 transition-colors"
+              >
+                ▶ Play
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Theory note */}
+      <div className="border border-brand-line rounded-xl overflow-hidden">
+        <button
+          onClick={() => setShowTheory(v => !v)}
+          className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-brand-secondary hover:text-brand-ink transition-colors"
+        >
+          <span>Why leave out the 5th?</span>
+          {showTheory ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+        </button>
+        {showTheory && (
+          <div className="px-4 pb-4 pt-3 space-y-2 text-sm text-brand-secondary border-t border-brand-line">
+            <p>The perfect 5th is harmonically neutral — it reinforces the root but adds no color or tension. Whether it's present or absent, the chord quality stays exactly the same.</p>
+            <p>Dropping it keeps the voicing on just 3 strings, leaving the other strings free for a bass note below or extensions (9th, 11th, 13th) above. Jazz pianists use this exact principle: left hand plays the shell, right hand plays melody or color tones.</p>
+            <p>Compare maj7 vs. 7 on any string set — only the 7th note changes by one fret. That small movement is the entire difference in sound between "dreamy" (maj7) and "tense" (dom7).</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
