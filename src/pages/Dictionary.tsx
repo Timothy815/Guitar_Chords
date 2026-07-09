@@ -76,6 +76,31 @@ function formatSemitoneLabel(semitones: number) {
   return `${semitones} semitone${semitones === 1 ? '' : 's'}`;
 }
 
+const SHELL_DETECT_PATTERNS = [
+  { label: 'maj7',  thirdSt: 4,  seventhSt: 11 },
+  { label: 'm7',    thirdSt: 3,  seventhSt: 10 },
+  { label: '7',     thirdSt: 4,  seventhSt: 10 },
+  { label: 'dim7',  thirdSt: 3,  seventhSt: 9  },
+] as const;
+
+function detectShellVoicings(notes: string[]): string[] {
+  if (notes.length !== 3) return [];
+  const results: string[] = [];
+  for (const rootNote of notes) {
+    const rootIdx = ALL_NOTES.indexOf(rootNote as Note);
+    if (rootIdx === -1) continue;
+    for (const pat of SHELL_DETECT_PATTERNS) {
+      const thirdNote = ALL_NOTES[(rootIdx + pat.thirdSt) % 12];
+      const seventhNote = ALL_NOTES[(rootIdx + pat.seventhSt) % 12];
+      const others = notes.filter(n => n !== rootNote);
+      if (others.includes(thirdNote) && others.includes(seventhNote)) {
+        results.push(`${rootNote} ${pat.label} (shell)`);
+      }
+    }
+  }
+  return results;
+}
+
 const SCALE_POSITION_BOXES = [
   { id: 'pos1', label: 'CAGED 1 (E-shape)', startOff: -1 },
   { id: 'pos2', label: 'CAGED 2 (D-shape)', startOff: 2 },
@@ -766,6 +791,8 @@ export function Dictionary() {
   const identifiedNotesRaw = identifiedFrets.map((f, strIdx) => f !== -1 ? getFretNote(strIdx, f).replace(/[0-9]/g, '') : null).filter((n): n is string => n !== null);
   const uniqueNotes: string[] = Array.from(new Set(identifiedNotesRaw));
   const identifiedChordNames = uniqueNotes.length > 0 ? TonalChord.detect(uniqueNotes) as string[] : [];
+  const shellVoicingNames = detectShellVoicings(uniqueNotes);
+  const allIdentifiedNames = [...identifiedChordNames, ...shellVoicingNames];
 
   const navChords: ChordShape[] =
     mode === 'identify' && identifiedChordNames.length > 0
@@ -1710,7 +1737,7 @@ export function Dictionary() {
                     {mode === 'chords' ? activeChord?.name
                       : mode === 'scales' ? activeScale?.name
                       : mode === 'intervals' ? `${selectedKey} — ${INTERVALS.find(i => i.semitones === selectedInterval)?.name ?? ''}`
-                      : identifiedChordNames.length > 0 ? identifiedChordNames.join(' or ') : 'Select notes to identify chord'}
+                      : allIdentifiedNames.length > 0 ? allIdentifiedNames.join(' or ') : 'Select notes to identify chord'}
                  </h2>
                  
                  {((mode === 'chords' && activeChord) || mode === 'identify') && (
@@ -1755,7 +1782,7 @@ export function Dictionary() {
                        {mode === 'identify' && frettedNotes.length >= 2 && (
                          <button
                            onClick={() => handleAddToProgression({
-                             name: identifiedChordNames.length > 0 ? identifiedChordNames[0] : 'Custom voicing',
+                             name: allIdentifiedNames.length > 0 ? allIdentifiedNames[0] : 'Custom voicing',
                              frets: identifiedFrets,
                              fingers: identifiedFrets.map(f => (f === -1 ? -1 : 0)) as Finger[],
                            })}
