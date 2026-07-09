@@ -103,6 +103,7 @@ export function ShellVoicings() {
   const [showAllNotes, setShowAllNotes] = useState(false);
   const [dotLabel, setDotLabel] = useState<'role' | 'note'>('role');
   const [activeStringSets, setActiveStringSets] = useState<Set<string>>(new Set(['6-4', '5-3', '4-2']));
+  const [addedIndices, setAddedIndices] = useState<Set<number>>(new Set());
 
   const toggleSet = (key: string) =>
     setActiveStringSets(prev => {
@@ -129,7 +130,7 @@ export function ShellVoicings() {
     navigate(`/dictionary?mode=identify&frets=${v.frets.join(',')}`);
   };
 
-  const sendToProgressions = (v: ShellVoicing) => {
+  const sendToProgressions = (v: ShellVoicing, index: number) => {
     const chord: ChordShape = {
       name: `${root}${quality.label} shell`,
       frets: v.frets,
@@ -147,7 +148,8 @@ export function ShellVoicings() {
         window.dispatchEvent(new Event('guitar_progressions_updated'));
       }
     } catch { /* ignore */ }
-    navigate('/progressions');
+    setAddedIndices(prev => new Set(prev).add(index));
+    setTimeout(() => setAddedIndices(prev => { const next = new Set(prev); next.delete(index); return next; }), 1500);
   };
 
   const handlePlay = async (v: ShellVoicing) => {
@@ -349,10 +351,14 @@ export function ShellVoicings() {
 
                 <div className="flex gap-2">
                   <button
-                    onClick={() => sendToProgressions(v)}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-brand-line text-xs font-medium text-brand-secondary hover:text-brand-ink hover:border-brand-primary/50 transition-colors"
+                    onClick={() => sendToProgressions(v, i)}
+                    className={cn('flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg border text-xs font-medium transition-colors',
+                      addedIndices.has(i)
+                        ? 'border-green-500 text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20'
+                        : 'border-brand-line text-brand-secondary hover:text-brand-ink hover:border-brand-primary/50'
+                    )}
                   >
-                    <Plus size={12} /> Progression
+                    <Plus size={12} /> {addedIndices.has(i) ? 'Added ✓' : 'Progression'}
                   </button>
                   <button
                     onClick={() => sendToIdentify(v)}
