@@ -81,7 +81,7 @@ function Layout({ children }: { children: React.ReactNode }) {
               <NavLink title="Triad Explorer" to="/triads" className={({isActive}) => `p-2 rounded-md transition-colors ${isActive ? 'bg-brand-sidebar text-brand-ink' : 'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar/50'}`}>
                 <Target size={18} />
               </NavLink>
-              <NavLink title="Shell Voicings" to="/shell-voicings" className={({isActive}) => `p-2 rounded-md transition-colors ${isActive ? 'bg-brand-sidebar text-brand-ink' : 'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar/50'}`}>
+              <NavLink title="Voicings" to="/voicings" className={({isActive}) => `p-2 rounded-md transition-colors ${isActive ? 'bg-brand-sidebar text-brand-ink' : 'text-brand-secondary hover:text-brand-ink hover:bg-brand-sidebar/50'}`}>
                 <Piano size={18} />
               </NavLink>
             </nav>
@@ -111,7 +111,7 @@ import { ScalePositions } from './pages/ScalePositions';
 import { Tuner } from './pages/Tuner';
 import { Technique } from './pages/Technique';
 import Triads from './pages/Triads';
-import { ShellVoicings } from './pages/ShellVoicings';
+import { Voicings } from './pages/Voicings';
 
 export default function App() {
   return (
@@ -130,7 +130,7 @@ export default function App() {
           <Route path="/tuner" element={<Tuner />} />
           <Route path="/technique" element={<Technique />} />
           <Route path="/triads" element={<Triads />} />
-          <Route path="/shell-voicings" element={<ShellVoicings />} />
+          <Route path="/voicings" element={<Voicings />} />
         </Routes>
       </Layout>
       </ErrorBoundary>
