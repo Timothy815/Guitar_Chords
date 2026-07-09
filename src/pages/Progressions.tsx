@@ -129,7 +129,20 @@ function parseProgressionJSON(raw: string): ImportResult | null {
     for (const item of data.chords) {
       const chordStr: string = typeof item === 'string' ? item : (item as any)?.chord;
       if (!chordStr) { warnings.push(`Skipped entry: ${JSON.stringify(item)}`); continue; }
-      const shape = parseChordName(chordStr);
+
+      // Prefer raw frets if present (exported by GuitarMaster — preserves custom voicings)
+      let shape: ChordShape | null = null;
+      const rawFrets = (item as any)?.frets;
+      if (Array.isArray(rawFrets) && rawFrets.length === 6 && rawFrets.every((f: unknown) => typeof f === 'number')) {
+        const rawFingers = (item as any)?.fingers;
+        const fingers = Array.isArray(rawFingers) && rawFingers.length === 6
+          ? rawFingers as import('../types').Finger[]
+          : rawFrets.map((f: number) => (f === -1 ? -1 : 0)) as import('../types').Finger[];
+        shape = { name: chordStr, frets: rawFrets as number[], fingers };
+      } else {
+        shape = parseChordName(chordStr);
+      }
+
       if (!shape) { warnings.push(`Chord not found: "${chordStr}"`); continue; }
       const slot: ChordSlot = { chord: shape };
       if (typeof item === 'object' && (item as any).arpeggio?.steps) {
@@ -220,6 +233,29 @@ function downloadTemplate() {
   const a = document.createElement('a');
   a.href = url;
   a.download = 'guitarmaster-progression-template.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportProgression(prog: import('../types').Progression) {
+  const chords = prog.slots.map(slot => {
+    const entry: Record<string, unknown> = {
+      chord: slot.chord.name,
+      frets: slot.chord.frets,
+      fingers: slot.chord.fingers,
+    };
+    if (slot.pattern?.steps?.length) {
+      entry.arpeggio = { steps: slot.pattern.steps };
+    }
+    return entry;
+  });
+  const payload = { name: prog.name, bpm: prog.bpm, key: prog.key, chords };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const safe = prog.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+  a.download = `guitarmaster-${safe}.json`;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -953,6 +989,11 @@ export function Progressions() {
           <p className="text-brand-secondary mt-1">Build and save chord sequences for practice.</p>
         </div>
         <div className="flex items-center gap-3">
+          {activeProgression && (
+            <button onClick={() => exportProgression(activeProgression)} className="flex items-center gap-2 border border-brand-line text-brand-secondary px-4 py-2 rounded-lg hover:border-brand-primary hover:text-brand-primary transition-colors">
+              <FileText size={16} /> Export JSON
+            </button>
+          )}
           <button onClick={() => setShowImportModal(true)} className="flex items-center gap-2 border border-brand-primary text-brand-primary px-4 py-2 rounded-lg hover:bg-brand-primary hover:text-white transition-colors">
             <Upload size={16} /> Import JSON
           </button>

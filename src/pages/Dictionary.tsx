@@ -1752,19 +1752,21 @@ export function Dictionary() {
                            </button>
                          </>
                        )}
+                       {mode === 'identify' && frettedNotes.length >= 2 && (
+                         <button
+                           onClick={() => handleAddToProgression({
+                             name: identifiedChordNames.length > 0 ? identifiedChordNames[0] : 'Custom voicing',
+                             frets: identifiedFrets,
+                             fingers: identifiedFrets.map(f => (f === -1 ? -1 : 0)) as Finger[],
+                           })}
+                           className="text-xs px-2 py-1 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink transition-colors"
+                           title="Add to progression"
+                         >
+                           + Progression
+                         </button>
+                       )}
                        {mode === 'identify' && identifiedChordNames.length > 0 && (
                          <>
-                           <button
-                             onClick={() => handleAddToProgression({
-                               name: identifiedChordNames[0],
-                               frets: identifiedFrets,
-                               fingers: identifiedFrets.map(f => (f === -1 ? -1 : 0)) as Finger[],
-                             })}
-                             className="text-xs px-2 py-1 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink transition-colors"
-                             title="Add identified chord to progression"
-                           >
-                             + Progression
-                           </button>
                            {isStandardTuning && navChords.length > 0 && (() => {
                              const target = navIdx >= 0 ? navChords[navIdx] : navChords[0];
                              const base = identifiedChordNames[0].split('/')[0];
