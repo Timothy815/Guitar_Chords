@@ -185,10 +185,11 @@ export function DyadsTab() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {dyads.map((d, i) => {
             const color = SET_CONFIG[d.setKey].hex;
+            const isActive = activeStringSets.has(d.setKey);
             return (
               <div
                 key={i}
-                className="bg-brand-surface border border-brand-line rounded-xl p-4 space-y-3"
+                className={cn('bg-brand-surface border border-brand-line rounded-xl p-4 space-y-3 transition-opacity duration-200', !isActive && 'opacity-40')}
                 style={{ borderLeft: `4px solid ${color}` }}
               >
                 <div className="flex items-start justify-between">
@@ -199,9 +200,18 @@ export function DyadsTab() {
                     </div>
                     <p className="text-xs text-brand-secondary mt-0.5 pl-4">{d.openNames}</p>
                   </div>
-                  <span className="text-xs font-medium text-brand-secondary tabular-nums">
-                    fret {d.bottomFret === 0 ? 'open' : d.bottomFret}
-                  </span>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-xs font-medium text-brand-secondary tabular-nums">
+                      fret {d.bottomFret === 0 ? 'open' : d.bottomFret}
+                    </span>
+                    <button
+                      onClick={() => toggleSet(d.setKey)}
+                      className="p-0.5 rounded text-brand-secondary hover:text-brand-ink transition-colors"
+                      title={isActive ? 'Hide on fretboard' : 'Show on fretboard'}
+                    >
+                      {isActive ? <Eye size={14} /> : <EyeOff size={14} />}
+                    </button>
+                  </div>
                 </div>
 
                 {/* Notes */}

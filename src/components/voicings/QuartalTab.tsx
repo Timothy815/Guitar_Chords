@@ -209,10 +209,11 @@ export function QuartalTab() {
           {voicings.map((v, i) => {
             const color = SET_CONFIG[v.setKey].hex;
             const cols = is4note ? 4 : 3;
+            const isActive = activeStringSets.has(v.setKey);
             return (
               <div
                 key={i}
-                className="bg-brand-surface border border-brand-line rounded-xl p-4 space-y-3"
+                className={cn('bg-brand-surface border border-brand-line rounded-xl p-4 space-y-3 transition-opacity duration-200', !isActive && 'opacity-40')}
                 style={{ borderLeft: `4px solid ${color}` }}
               >
                 <div className="flex items-start justify-between">
@@ -223,9 +224,18 @@ export function QuartalTab() {
                     </div>
                     <p className="text-xs text-brand-secondary mt-0.5 pl-4">{stack.shortLabel}</p>
                   </div>
-                  <span className="text-xs font-medium text-brand-secondary tabular-nums">
-                    fret {v.fretValues[0] === 0 ? 'open' : v.fretValues[0]}
-                  </span>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-xs font-medium text-brand-secondary tabular-nums">
+                      fret {v.fretValues[0] === 0 ? 'open' : v.fretValues[0]}
+                    </span>
+                    <button
+                      onClick={() => toggleSet(v.setKey)}
+                      className="p-0.5 rounded text-brand-secondary hover:text-brand-ink transition-colors"
+                      title={isActive ? 'Hide on fretboard' : 'Show on fretboard'}
+                    >
+                      {isActive ? <Eye size={14} /> : <EyeOff size={14} />}
+                    </button>
+                  </div>
                 </div>
 
                 {/* Notes */}

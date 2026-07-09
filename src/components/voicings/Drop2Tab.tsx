@@ -265,10 +265,11 @@ export function Drop2Tab() {
           {voicings.map((v, i) => {
             const color = SET_CONFIG[v.setKey].hex;
             const invColor = INV_COLORS[v.inversionKey];
+            const isActive = activeStringSets.has(v.setKey);
             return (
               <div
                 key={i}
-                className="bg-brand-surface border border-brand-line rounded-xl p-4 space-y-3"
+                className={cn('bg-brand-surface border border-brand-line rounded-xl p-4 space-y-3 transition-opacity duration-200', !isActive && 'opacity-40')}
                 style={{ borderLeft: `4px solid ${color}` }}
               >
                 <div className="flex items-start justify-between">
@@ -279,12 +280,21 @@ export function Drop2Tab() {
                     </div>
                     <p className="text-xs text-brand-secondary mt-0.5 pl-4">{v.openNames}</p>
                   </div>
-                  <span
-                    className="text-xs font-medium text-white px-2 py-0.5 rounded-full"
-                    style={{ backgroundColor: invColor }}
-                  >
-                    {v.inversionLabel}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="text-xs font-medium text-white px-2 py-0.5 rounded-full"
+                      style={{ backgroundColor: invColor }}
+                    >
+                      {v.inversionLabel}
+                    </span>
+                    <button
+                      onClick={() => toggleSet(v.setKey)}
+                      className="p-0.5 rounded text-brand-secondary hover:text-brand-ink transition-colors"
+                      title={isActive ? 'Hide on fretboard' : 'Show on fretboard'}
+                    >
+                      {isActive ? <Eye size={14} /> : <EyeOff size={14} />}
+                    </button>
+                  </div>
                 </div>
 
                 {/* Note roles */}
