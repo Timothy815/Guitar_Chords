@@ -2,16 +2,18 @@ import React, { useState } from 'react';
 import { ShellVoicingsTab } from '../components/voicings/ShellVoicingsTab';
 import { Drop2Tab } from '../components/voicings/Drop2Tab';
 import { Drop3Tab } from '../components/voicings/Drop3Tab';
+import { TriadsTab } from '../components/voicings/TriadsTab';
 import { DyadsTab } from '../components/voicings/DyadsTab';
 import { QuartalTab } from '../components/voicings/QuartalTab';
 import { TensionsTab } from '../components/voicings/TensionsTab';
 
-type Tab = 'shell' | 'drop2' | 'drop3' | 'dyads' | 'quartal' | 'tensions';
+type Tab = 'shell' | 'drop2' | 'drop3' | 'triads' | 'dyads' | 'quartal' | 'tensions';
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'shell',    label: 'Shell Voicings' },
   { key: 'drop2',   label: 'Drop 2'          },
   { key: 'drop3',   label: 'Drop 3'          },
+  { key: 'triads',  label: 'Triads'          },
   { key: 'dyads',   label: 'Dyads'           },
   { key: 'quartal', label: 'Quartal'         },
   { key: 'tensions',label: 'Tensions'        },
@@ -48,6 +50,7 @@ export function Voicings() {
       {tab === 'shell'    && <ShellVoicingsTab />}
       {tab === 'drop2'   && <Drop2Tab />}
       {tab === 'drop3'   && <Drop3Tab />}
+      {tab === 'triads'  && <TriadsTab />}
       {tab === 'dyads'   && <DyadsTab />}
       {tab === 'quartal' && <QuartalTab />}
       {tab === 'tensions'&& <TensionsTab />}
