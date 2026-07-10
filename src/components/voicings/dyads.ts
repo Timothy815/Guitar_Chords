@@ -51,34 +51,56 @@ export interface Dyad {
   frets: number[];
 }
 
-export function computeDyads(root: string, intervalSt: number): Dyad[] {
+export function computeDyads(root: string, intervalSt: number, inverted = false): Dyad[] {
   const results: Dyad[] = [];
 
   for (const { strings: [s0, s1], setKey, setLabel, openNames } of STRING_PAIRS) {
-    for (let rootFret = 0; rootFret <= 12; rootFret++) {
-      const bottomMidi = OPEN_MIDI[s0] + rootFret;
-      if (noteNameFromMidi(bottomMidi) !== root) continue;
+    for (let fret = 0; fret <= 12; fret++) {
+      if (!inverted) {
+        // Root on lower string, interval note on upper string
+        const bottomMidi = OPEN_MIDI[s0] + fret;
+        if (noteNameFromMidi(bottomMidi) !== root) continue;
 
-      const topMidi = bottomMidi + intervalSt;
-      const topFret = topMidi - OPEN_MIDI[s1];
-      if (topFret < 0 || topFret > 12) continue;
-      if (topFret - rootFret > 5) continue; // filter unplayable stretches
+        const topMidi = bottomMidi + intervalSt;
+        const topFret = topMidi - OPEN_MIDI[s1];
+        if (topFret < 0 || topFret > 12) continue;
+        if (topFret - fret > 5) continue;
 
-      const frets = [-1, -1, -1, -1, -1, -1];
-      frets[s0] = rootFret;
-      frets[s1] = topFret;
+        const frets = [-1, -1, -1, -1, -1, -1];
+        frets[s0] = fret;
+        frets[s1] = topFret;
 
-      results.push({
-        strings: [s0, s1],
-        bottomFret: rootFret,
-        topFret,
-        bottomNote: getFretNote(s0, rootFret),
-        topNote: getFretNote(s1, topFret),
-        setKey,
-        setLabel,
-        openNames,
-        frets,
-      });
+        results.push({
+          strings: [s0, s1],
+          bottomFret: fret,
+          topFret,
+          bottomNote: getFretNote(s0, fret),
+          topNote: getFretNote(s1, topFret),
+          setKey, setLabel, openNames, frets,
+        });
+      } else {
+        // Root on upper string, interval note (complement) on lower string
+        const topMidi = OPEN_MIDI[s1] + fret;
+        if (noteNameFromMidi(topMidi) !== root) continue;
+
+        const bottomMidi = topMidi - intervalSt;
+        const bottomFret = bottomMidi - OPEN_MIDI[s0];
+        if (bottomFret < 0 || bottomFret > 12) continue;
+        if (fret - bottomFret > 5) continue;
+
+        const frets = [-1, -1, -1, -1, -1, -1];
+        frets[s0] = bottomFret;
+        frets[s1] = fret;
+
+        results.push({
+          strings: [s0, s1],
+          bottomFret,
+          topFret: fret,
+          bottomNote: getFretNote(s0, bottomFret),
+          topNote: getFretNote(s1, fret),
+          setKey, setLabel, openNames, frets,
+        });
+      }
     }
   }
 
