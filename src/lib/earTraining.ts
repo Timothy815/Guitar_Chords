@@ -13,6 +13,7 @@ export interface ChordTypeDef {
 export interface IntervalDef {
   semitones: number;
   label: string;
+  shortLabel: string;
 }
 
 export interface EarTrainingSettings {
@@ -34,6 +35,7 @@ export interface ChordAnswer {
 export interface IntervalAnswer {
   semitones: number;
   label: string;
+  shortLabel: string;
   rootNote: string;
   topNote: string;
 }
@@ -135,19 +137,19 @@ export const CHORD_TYPE_DEFS: ChordTypeDef[] = [
 ];
 
 export const INTERVAL_DEFS: IntervalDef[] = [
-  { semitones: 0, label: 'Unison' },
-  { semitones: 1, label: 'Minor 2nd' },
-  { semitones: 2, label: 'Major 2nd' },
-  { semitones: 3, label: 'Minor 3rd' },
-  { semitones: 4, label: 'Major 3rd' },
-  { semitones: 5, label: 'Perfect 4th' },
-  { semitones: 6, label: 'Tritone' },
-  { semitones: 7, label: 'Perfect 5th' },
-  { semitones: 8, label: 'Minor 6th' },
-  { semitones: 9, label: 'Major 6th' },
-  { semitones: 10, label: 'Minor 7th' },
-  { semitones: 11, label: 'Major 7th' },
-  { semitones: 12, label: 'Octave' },
+  { semitones: 0, label: 'Unison', shortLabel: 'Uni' },
+  { semitones: 1, label: 'Minor 2nd', shortLabel: 'm2' },
+  { semitones: 2, label: 'Major 2nd', shortLabel: 'M2' },
+  { semitones: 3, label: 'Minor 3rd', shortLabel: 'm3' },
+  { semitones: 4, label: 'Major 3rd', shortLabel: 'M3' },
+  { semitones: 5, label: 'Perfect 4th', shortLabel: 'P4' },
+  { semitones: 6, label: 'Tritone', shortLabel: 'TT' },
+  { semitones: 7, label: 'Perfect 5th', shortLabel: 'P5' },
+  { semitones: 8, label: 'Minor 6th', shortLabel: 'm6' },
+  { semitones: 9, label: 'Major 6th', shortLabel: 'M6' },
+  { semitones: 10, label: 'Minor 7th', shortLabel: 'm7' },
+  { semitones: 11, label: 'Major 7th', shortLabel: 'M7' },
+  { semitones: 12, label: 'Octave', shortLabel: 'Oct' },
 ];
 
 export type DifficultyLevel = 'Beginner' | 'Intermediate' | 'Advanced';
@@ -303,6 +305,7 @@ export function generateIntervalRound(activeIntervals: string[]): IntervalRound 
   const correct: IntervalAnswer = {
     semitones: correctDef.semitones,
     label: correctDef.label,
+    shortLabel: correctDef.shortLabel,
     rootNote,
     topNote: addSemitones(rootNote, correctDef.semitones),
   };
@@ -312,6 +315,7 @@ export function generateIntervalRound(activeIntervals: string[]): IntervalRound 
   const options: IntervalAnswer[] = activeDefs.map(def => ({
     semitones: def.semitones,
     label: def.label,
+    shortLabel: def.shortLabel,
     rootNote,
     topNote: addSemitones(rootNote, def.semitones),
   }));

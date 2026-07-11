@@ -680,7 +680,7 @@ export function EarTraining() {
 
   function getOptionLabel(index: number): string {
     if (round.kind === 'chord') return (round as ChordRound).options[index].displayLabel;
-    return (round as IntervalRound).options[index].label;
+    return (round as IntervalRound).options[index].shortLabel;
   }
 
   function getOptionCount(): number {
@@ -1504,7 +1504,7 @@ export function EarTraining() {
                     <Volume2 size={18} /> Replay
                   </button>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className={cn('grid gap-2', round.kind === 'interval' ? 'grid-cols-4 sm:grid-cols-5' : 'grid-cols-2 gap-3')}>
                   {Array.from({ length: getOptionCount() }, (_, i) => {
                     const answered = selected !== null;
                     const correct = isOptionCorrect(i);
@@ -1517,7 +1517,8 @@ export function EarTraining() {
                         onClick={() => handleTentative(i)}
                         disabled={answered}
                         className={cn(
-                          'p-4 rounded-lg border-2 text-sm font-medium transition-colors text-center leading-snug',
+                          'rounded-lg border-2 font-medium transition-colors text-center leading-snug',
+                          round.kind === 'interval' ? 'p-2 text-xs' : 'p-4 text-sm',
                           !answered && !hasTentative && 'border-brand-line hover:border-brand-primary hover:bg-brand-sidebar cursor-pointer text-brand-ink',
                           !answered && isTentative && 'border-brand-primary bg-brand-primary/10 cursor-pointer text-brand-ink',
                           !answered && hasTentative && !isTentative && 'border-brand-line cursor-pointer text-brand-ink opacity-60 hover:opacity-90',
@@ -1812,8 +1813,8 @@ export function EarTraining() {
                 </button>
               </div>
 
-              {/* Answer options — 2×2 grid */}
-              <div className="grid grid-cols-2 gap-3">
+              {/* Answer options */}
+              <div className={cn('grid gap-2', round.kind === 'interval' ? 'grid-cols-4 sm:grid-cols-5' : 'grid-cols-2 gap-3')}>
                 {Array.from({ length: getOptionCount() }, (_, i) => {
                   const answered = selected !== null;
                   const correct = isOptionCorrect(i);
@@ -1826,7 +1827,8 @@ export function EarTraining() {
                       onClick={() => handleTentative(i)}
                       disabled={answered}
                       className={cn(
-                        'p-4 rounded-lg border-2 text-sm font-medium transition-colors text-center leading-snug',
+                        'rounded-lg border-2 font-medium transition-colors text-center leading-snug',
+                        round.kind === 'interval' ? 'p-2 text-xs' : 'p-4 text-sm',
                         !answered && !hasTentative && 'border-brand-line hover:border-brand-primary hover:bg-brand-sidebar cursor-pointer text-brand-ink',
                         !answered && isTentative && 'border-brand-primary bg-brand-primary/10 cursor-pointer text-brand-ink',
                         !answered && hasTentative && !isTentative && 'border-brand-line cursor-pointer text-brand-ink opacity-60 hover:opacity-90',
