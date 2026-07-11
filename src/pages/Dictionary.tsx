@@ -666,12 +666,26 @@ export function Dictionary() {
     if (scaleViewMode !== 'diagonal') return undefined;
     return scaleDiagonalOptions.find(option => option.id === scaleDiagonalSelection)?.positions;
   }, [scaleDiagonalOptions, scaleDiagonalSelection, scaleViewMode]);
+  const pentDiagonalCells = useMemo(
+    () => (pentDiagonalSupported && activeScaleBase ? generateDiagonalPentatonic(selectedKey, activeScaleBase) : []),
+    [activeScaleBase, pentDiagonalSupported, selectedKey],
+  );
+  const strictScalePentDiagonalPositions = useMemo(() => {
+    if (scaleViewMode !== 'pentDiagonal') return undefined;
+    const set = new Set<string>();
+    pentDiagonalCells.forEach((cell, i) => {
+      if (!pentDiagonalVisibleCells.has(i)) return;
+      cell.positions.forEach(p => set.add(`${p.stringIdx}-${p.fret}`));
+    });
+    return set;
+  }, [pentDiagonalCells, pentDiagonalVisibleCells, scaleViewMode]);
   const activeStrictScalePositions = useMemo(() => {
     if (scaleViewMode === 'box') return strictScaleBoxPositions;
+    if (scaleViewMode === 'pentDiagonal') return strictScalePentDiagonalPositions;
     if (scaleViewMode === 'threeNps') return strictScaleThreeNpsPositions;
     if (scaleViewMode === 'diagonal') return strictScaleDiagonalPositions;
     return undefined;
-  }, [scaleViewMode, strictScaleBoxPositions, strictScaleThreeNpsPositions, strictScaleDiagonalPositions]);
+  }, [scaleViewMode, strictScaleBoxPositions, strictScalePentDiagonalPositions, strictScaleThreeNpsPositions, strictScaleDiagonalPositions]);
 
   const scaleFretRange = useMemo<number[]>(() => {
     if (scaleViewMode === 'full') return [];
@@ -684,6 +698,7 @@ export function Dictionary() {
       const match = scaleBoxOptions.find(option => option.id === scaleBoxSelection);
       return match ? [match.range[0], match.range[1]] : [];
     }
+    if (scaleViewMode === 'pentDiagonal') return [];
     if (scaleViewMode === 'threeNps') {
       if (strictScaleThreeNpsPositions) return [];
       const match = scaleThreeNpsOptions.find(option => option.id === scaleThreeNpsSelection);
@@ -696,6 +711,12 @@ export function Dictionary() {
     }
     return [];
   }, [scaleBoxOptions, scaleBoxSelection, scaleDiagonalOptions, scaleDiagonalSelection, scalePositionOptions, scalePositionSelection, scaleThreeNpsOptions, scaleThreeNpsSelection, scaleViewMode, strictScaleBoxPositions, strictScaleDiagonalPositions, strictScaleThreeNpsPositions]);
+
+  const pentDiagonalFretsNum = useMemo(() => {
+    if (scaleViewMode !== 'pentDiagonal' || !strictScalePentDiagonalPositions || strictScalePentDiagonalPositions.size === 0) return 15;
+    const frets = [...strictScalePentDiagonalPositions].map(p => parseInt(p.split('-')[1], 10));
+    return Math.max(15, Math.max(...frets) + 1);
+  }, [scaleViewMode, strictScalePentDiagonalPositions]);
 
   // When viewing a box/position with only a fretRange (no explicit strict positions), deduplicate
   // notes by MIDI pitch so the same pitch never appears twice in one box (G string fret+4 = B string open).
