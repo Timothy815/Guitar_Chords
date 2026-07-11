@@ -163,6 +163,55 @@
 
 ---
 
+## Picking Drills
+**Plan:** docs/superpowers/plans/2026-07-02-picking-drills.md
+- [x] Task 1: Extend drillData.ts with picking drill types and 17 new drills (commits 02500b8..13cb522, review clean)
+- [x] Task 2: Update Technique.tsx — two-row tabs and annotation strip (commits 13cb522..ef3ee9a, review clean)
+**Final whole-branch review:** APPROVED (commits 9b52828..ef3ee9a, 4 commits, ready to merge)
+**Minor findings:** fretRange/drillDots latent coupling (open-string drills work by drillDots bypassing fretRange — note in code if fretRange filtering ever changes); annotation strip key={i} is safe for static step arrays; duplicate step positions in PIMA/Travis render once correctly (existing Fretboard behavior)
+
+---
+
 ## Minor fixes (all shipped)
 - [x] Progressions.tsx JSON.parse wrapped in try/catch (commit b1a3704 area)
 - [x] ScaleDrillTrainer .find() non-null assertion replaced with ?? COMMON_SCALES[0] fallback
+
+## Tuner Simulator
+**Plan:** docs/superpowers/plans/2026-06-27-tuner-simulator.md
+- [x] Task 1: playTunedString in audio.ts (commit 3b3f61e, review clean)
+- [x] Task 2: tunerData.ts (commit 4e4a276, review clean)
+- [x] Task 3: Tuner.tsx page (commit 5e107dd, review clean)
+- [x] Task 4: Wire /tuner route and nav in App.tsx (commit 3f0edce, review clean)
+
+## Tuner Enhancements
+**Plan:** docs/superpowers/plans/2026-06-27-tuner-enhancements.md
+- [x] Task 1: tunerData.ts — ScaffoldMode, settings, getColorModeRowStyle (commit 8891b95, review clean)
+- [x] Task 2: Tuner.tsx — toolbar, reference tone, conditional rendering (commit 4425b41, review clean; minor: Stop btn red-500 pre-existing)
+
+## Scale Drill Overhaul
+**Plan:** docs/superpowers/plans/2026-06-29-scale-drill-overhaul.md
+- [x] Task 1: Fretboard labeledDots + flashHighlight (commit 454c237..22ba299, review clean)
+- [x] Task 2: earTraining.ts generateScaleDrillRound + SCALE_DRILL_POSITIONS + anchor (commit 22ba299..b76eaa3, review clean)
+- [x] Task 3: ScaleDrillTrainer rebuilt (commit b76eaa3..d1e5b49, review clean; minor: openNote unused param, vestigial scaleDrillRound state in EarTraining — Task 4 fixes)
+- [x] Task 4: EarTraining.tsx cleanup (commits d1e5b49..10fb172, review clean after Fragment fix)
+- Final whole-branch review: clean (454c237..10fb172, 5 commits, merge approved)
+
+## Scale Interval Drill
+**Plan:** docs/superpowers/plans/2026-06-29-scale-interval-drill.md
+- [x] Task 1: ScaleIntervalRound type + generateScaleIntervalRound in earTraining.ts (commits 4601d3a..7b7865f, fix bbe8df3 — options fallback for narrow scales, review clean)
+- [x] Task 2: IntervalDrillTrainer component (commit bbe8df3..cbbe44a, review clean; minor: labeledDots shown in Beginner mode — cosmetic, low impact)
+- [x] Task 3: EarTraining.tsx tab row integration (commit cbbe44a..4f4645b, review clean)
+- [x] Fix: Advanced mode flashHighlight — added advancedHighlight state (commit a81ca1b, final-review finding resolved)
+
+## Technique Drills
+**Plan:** docs/superpowers/plans/2026-07-02-technique-drills.md
+- [x] Task 1: Add drillDots prop to Fretboard.tsx (commits 63a5453..42dec84, review clean)
+- [x] Task 2: Create src/data/drillData.ts (commits 42dec84..75504e7, review clean)
+- [x] Task 3: Create src/pages/Technique.tsx (commits 75504e7..4d221d4, review clean)
+- [x] Task 4: Wire Technique into App.tsx (commits 4d221d4..88b481f, review clean)
+**Final whole-branch review:** APPROVED (commits 188098d..88b481f, 5 commits)
+**Minor findings logged:** useEffect dep style (selectedDrill vs selectedDrillId), duplicate drillDots on legato drills (visually correct), drillDots no fretRange clip (not a current bug), flash condition `>=` vs `>` (misleading message but no data corruption)
+Task 1: complete (commits 3432e7d..c02f56a, review clean)
+Task 2: complete (commits c02f56a..c95d36d, review clean)
+Final whole-branch review: APPROVED, ready to merge (commits 3432e7d..c95d36d, 2 commits)
+Minor finding fixed post-review: unused `type DiagonalCell` import removed (commit 4899bf8)
