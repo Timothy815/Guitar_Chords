@@ -65,6 +65,14 @@ export interface IntervalRound {
   options: IntervalAnswer[];
 }
 
+export interface IntervalPitchRound {
+  kind: 'intervalPitch';
+  rootNote: string;
+  correctSemitones: number; // 0-12, index into the 13 ascending candidate buttons
+  correctLabel: string;     // e.g. "Perfect 5th" — target prompt and score/history key
+  correctNote: string;      // e.g. "D3" — actual note name, shown in the post-grading reveal caption
+}
+
 export interface FretboardRound {
   kind: 'fretboard';
   targetNote: string;
@@ -113,7 +121,7 @@ export interface ScaleIntervalRound {
   validPositions: { stringIdx: number; fret: number }[];
 }
 
-export type Round = ChordRound | IntervalRound | FretboardRound | RhythmRound | MelodyRound | IntervalFretboardRound | ScaleIntervalRound;
+export type Round = ChordRound | IntervalRound | FretboardRound | RhythmRound | MelodyRound | IntervalFretboardRound | ScaleIntervalRound | IntervalPitchRound;
 
 export interface SessionScore {
   correct: number;
@@ -323,6 +331,20 @@ export function generateIntervalRound(activeIntervals: string[]): IntervalRound 
   return { kind: 'interval', correct, options: shuffle(options) };
 }
 
+export function generateIntervalPitchRound(activeIntervals: string[]): IntervalPitchRound {
+  const activeDefs = INTERVAL_DEFS.filter(d => activeIntervals.includes(d.label));
+  const correctDef = pickRandom(activeDefs);
+  const rootNote = pickRandom(INTERVAL_ROOTS);
+
+  return {
+    kind: 'intervalPitch',
+    rootNote,
+    correctSemitones: correctDef.semitones,
+    correctLabel: correctDef.label,
+    correctNote: addSemitones(rootNote, correctDef.semitones),
+  };
+}
+
 export function loadSettings(): EarTrainingSettings {
   try {
     const raw = localStorage.getItem('ear-training-settings');
@@ -346,6 +368,9 @@ export async function playOptionAudio(round: Round, index: number): Promise<void
   if (round.kind === 'chord') {
     const cr = round as ChordRound;
     playStrum(chordToNotes(cr.options[index].chord), '2n');
+  } else if (round.kind === 'intervalPitch') {
+    const pr = round as IntervalPitchRound;
+    playNote(addSemitones(pr.rootNote, index), '2n');
   } else {
     const ir = round as IntervalRound;
     const opt = ir.options[index];
