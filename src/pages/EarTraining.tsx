@@ -9,7 +9,7 @@ import {
   loadSettings, saveSettings, initialScore,
   generateChordRound, generateIntervalRound, generateIntervalPitchRound, generateStudyDeck, generateFretboardRound,
   buildFretboardNotePool, makeFretboardRound, buildKeyboardNotePool,
-  chordToNotes, playOptionAudio, playStudyCard,
+  chordToNotes, playOptionAudio, playStudyCard, addSemitones, shuffle,
   generateIntervalFretboardRound, IntervalFretboardRound,
 } from '../lib/earTraining';
 import { loadSRSData, saveSRSData, updateSRS, getSRSCardId, defaultSRSState, buildSRSDeck } from '@/src/lib/srs';
@@ -76,6 +76,8 @@ export function EarTraining() {
   const [difficulty, setDifficulty] = useState<DifficultyLevel>('Beginner');
   const [fretboardSubMode, setFretboardSubMode] = useState<'guess' | 'hunt' | 'sing' | 'singhunt'>('guess');
   const [intervalSubMode, setIntervalSubMode] = useState<'choice' | 'findTone'>('choice');
+  const [phase, setPhase] = useState<'match' | 'name'>('match');
+  const [matchPick, setMatchPick] = useState<number | null>(null);
   const [biasTally, setBiasTally] = useState({ sharp: 0, flat: 0, correct: 0 });
   const [fretboardFocus, setFretboardFocus] = useState<FretboardFocus>({});
   const [pianoView, setPianoView] = useState(false);
@@ -213,6 +215,24 @@ export function EarTraining() {
     }
   }, [round, playRoundAudio]);
 
+  // Melodic root→target reveal after Phase A confirm, with an optional
+  // simultaneous (harmonic) replay — always derived from the round's actual
+  // correct semitones/direction, never from the user's tentative pick.
+  function playMatchReveal(pr: IntervalPitchRound, alsoHarmonic: boolean) {
+    const semitones = pr.direction === 'asc' ? pr.correctSemitones : -pr.correctSemitones;
+    const targetNote = addSemitones(pr.rootNote, semitones);
+    playNote(pr.rootNote, '2n');
+    setTimeout(() => {
+      playNote(targetNote, '2n');
+      if (alsoHarmonic) {
+        setTimeout(() => {
+          playNote(pr.rootNote, '2n');
+          playNote(targetNote, '2n');
+        }, 500);
+      }
+    }, 400);
+  }
+
   function advanceRound(s: EarTrainingSettings = settings, focusOverride?: FretboardFocus, pianoViewOverride?: boolean, intervalSubModeOverride?: 'choice' | 'findTone') {
     const activeFocus = focusOverride ?? fretboardFocus;
     const effectiveMode = s.mode === 'plan' && activeLadder
@@ -257,12 +277,14 @@ export function EarTraining() {
         ? generateChordRound(s.activeChordTypes)
         : generateIntervalRound(s.activeIntervals);
     } else if (s.mode === 'interval' && effectiveIntervalSubMode === 'findTone') {
-      r = generateIntervalPitchRound(s.activeIntervals);
+      r = generateIntervalPitchRound(s.activeIntervals, s.intervalDirection);
     } else {
       r = makeRound({ ...s, mode: effectiveMode }, difficulty, activeFocus);
     }
     setSelected(null);
     setTentative(null);
+    setPhase('match');
+    setMatchPick(null);
     setRound(r);
     roundStartTimeRef.current = Date.now();
   }
@@ -576,9 +598,29 @@ export function EarTraining() {
     });
   }
 
+  function handleIntervalDirectionChange(direction: 'asc' | 'desc' | 'both') {
+    setSettings(s => ({ ...s, intervalDirection: direction }));
+  }
+
+  function handleToggleIntervalHarmonic() {
+    setSettings(s => ({ ...s, intervalPlayHarmonic: !s.intervalPlayHarmonic }));
+  }
+
+  // Phase B (naming) option list — every active interval def, shuffled once
+  // per round via useMemo so the order stays stable across re-renders within
+  // the round (a plain recompute-on-render would reshuffle between the
+  // user's click and the graded result, desyncing index-based grading).
+  const findTonePhaseBOptions = useMemo(() => {
+    if (round.kind !== 'intervalPitch') return [];
+    return shuffle(INTERVAL_DEFS.filter(d => settings.activeIntervals.includes(d.label)));
+  }, [round, settings.activeIntervals]);
+
   function handleTentative(i: number) {
     if (selected !== null) return;
     setTentative(i);
+    // Phase B (naming) options are interval-name buttons, not pitches — the
+    // sound was already established in Phase A, so no audio plays on click.
+    if (round.kind === 'intervalPitch' && phase === 'name') return;
     playOptionAudio(round, i).catch(() => {});
   }
 
@@ -589,18 +631,20 @@ export function EarTraining() {
 
   function handleSelect(index: number) {
     if (selected !== null) return;
+
+    if (round.kind === 'intervalPitch') {
+      handleIntervalPitchSelect(round as IntervalPitchRound, index);
+      return;
+    }
+
     setSelected(index);
 
     const isCorrect = round.kind === 'chord'
       ? (round as ChordRound).options[index].displayLabel === (round as ChordRound).correct.displayLabel
-      : round.kind === 'intervalPitch'
-      ? index === (round as IntervalPitchRound).correctSemitones
       : (round as IntervalRound).options[index].label === (round as IntervalRound).correct.label;
 
     const typeKey = round.kind === 'chord'
       ? (round as ChordRound).correct.typeLabel
-      : round.kind === 'intervalPitch'
-      ? (round as IntervalPitchRound).correctLabel
       : (round as IntervalRound).correct.label;
 
     const newCorrect = score.correct + (isCorrect ? 1 : 0);
@@ -639,15 +683,6 @@ export function EarTraining() {
         correct: isCorrect,
         responseTimeMs,
       }]);
-    } else if (round.kind === 'intervalPitch') {
-      const pr = round as IntervalPitchRound;
-      appendIntervalEntries([{
-        date: new Date().toISOString().slice(0, 10),
-        label: pr.correctLabel,
-        rootNote: pr.rootNote,
-        correct: isCorrect,
-        responseTimeMs,
-      }]);
     }
 
     if (settings.mode === 'plan' && planPracticing && activeLadder !== null) {
@@ -657,6 +692,77 @@ export function EarTraining() {
         handlePlanAdvance(newCorrect / newTotal);
       }
     }
+  }
+
+  // Find the Tone grading — kept separate from the chord/interval branch
+  // above because an intervalPitch round grades twice against the same
+  // round object: once for the Phase A pitch match, once for Phase B naming.
+  // (intervalPitch rounds never occur in Plan mode — see advanceRound — so
+  // there is no SKILL_LADDERS advancement check here.)
+  function handleIntervalPitchSelect(pr: IntervalPitchRound, index: number) {
+    const responseTimeMs = Date.now() - roundStartTimeRef.current;
+
+    if (phase === 'match') {
+      const isCorrect = index === pr.correctSemitones;
+      const typeKey = `${pr.correctLabel} (match)`;
+
+      setScore(prev => ({
+        correct: prev.correct + (isCorrect ? 1 : 0),
+        total: prev.total + 1,
+        streak: isCorrect ? prev.streak + 1 : 0,
+        byType: {
+          ...prev.byType,
+          [typeKey]: {
+            correct: (prev.byType[typeKey]?.correct ?? 0) + (isCorrect ? 1 : 0),
+            total: (prev.byType[typeKey]?.total ?? 0) + 1,
+          },
+        },
+      }));
+
+      appendIntervalEntries([{
+        date: new Date().toISOString().slice(0, 10),
+        label: pr.correctLabel,
+        rootNote: pr.rootNote,
+        correct: isCorrect,
+        responseTimeMs,
+        skill: 'match',
+      }]);
+
+      playMatchReveal(pr, settings.intervalPlayHarmonic);
+      setMatchPick(index);
+      setPhase('name');
+      setTentative(null);
+      setSelected(null);
+      roundStartTimeRef.current = Date.now();
+      return;
+    }
+
+    // phase === 'name'
+    setSelected(index);
+    const isCorrect = findTonePhaseBOptions[index]?.label === pr.correctLabel;
+    const typeKey = `${pr.correctLabel} (name)`;
+
+    setScore(prev => ({
+      correct: prev.correct + (isCorrect ? 1 : 0),
+      total: prev.total + 1,
+      streak: isCorrect ? prev.streak + 1 : 0,
+      byType: {
+        ...prev.byType,
+        [typeKey]: {
+          correct: (prev.byType[typeKey]?.correct ?? 0) + (isCorrect ? 1 : 0),
+          total: (prev.byType[typeKey]?.total ?? 0) + 1,
+        },
+      },
+    }));
+
+    appendIntervalEntries([{
+      date: new Date().toISOString().slice(0, 10),
+      label: pr.correctLabel,
+      rootNote: pr.rootNote,
+      correct: isCorrect,
+      responseTimeMs,
+      skill: 'name',
+    }]);
   }
 
   function handleStartOver() {
@@ -709,14 +815,16 @@ export function EarTraining() {
 
   function getOptionLabel(index: number): string {
     if (round.kind === 'chord') return (round as ChordRound).options[index].displayLabel;
-    if (round.kind === 'intervalPitch') return '';
+    if (round.kind === 'intervalPitch') {
+      return phase === 'name' ? (findTonePhaseBOptions[index]?.shortLabel ?? '') : '';
+    }
     return (round as IntervalRound).options[index].shortLabel;
   }
 
   function getOptionCount(): number {
     if (round.kind === 'chord') return (round as ChordRound).options.length;
     if (round.kind === 'interval') return (round as IntervalRound).options.length;
-    if (round.kind === 'intervalPitch') return 13;
+    if (round.kind === 'intervalPitch') return phase === 'name' ? findTonePhaseBOptions.length : 13;
     return 4;
   }
 
@@ -726,7 +834,10 @@ export function EarTraining() {
       return r.options[index].displayLabel === r.correct.displayLabel;
     }
     if (round.kind === 'intervalPitch') {
-      return index === (round as IntervalPitchRound).correctSemitones;
+      const pr = round as IntervalPitchRound;
+      return phase === 'name'
+        ? findTonePhaseBOptions[index]?.label === pr.correctLabel
+        : index === pr.correctSemitones;
     }
     const r = round as IntervalRound;
     return r.options[index].label === r.correct.label;
@@ -1090,6 +1201,49 @@ export function EarTraining() {
                         );
                       })}
                 </div>
+              </div>
+            )}
+
+            {/* Find the Tone settings — Interval mode, Find the Tone sub-mode only */}
+            {settings.mode === 'interval' && intervalSubMode === 'findTone' && (
+              <div className="pt-3 space-y-3 border-t border-brand-line">
+                <p className="text-xs font-semibold uppercase tracking-widest text-brand-secondary">Find the Tone Settings</p>
+
+                <div>
+                  <p className="text-xs text-brand-secondary mb-1.5">Direction</p>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {([
+                      { id: 'asc' as const, label: 'Ascending' },
+                      { id: 'desc' as const, label: 'Descending' },
+                      { id: 'both' as const, label: 'Both' },
+                    ]).map(({ id, label }) => (
+                      <button
+                        key={id}
+                        onClick={() => handleIntervalDirectionChange(id)}
+                        className={cn(
+                          'px-3 py-1 rounded text-xs font-medium border transition-colors',
+                          settings.intervalDirection === id
+                            ? 'bg-brand-primary text-white border-brand-primary'
+                            : 'border-brand-line text-brand-secondary hover:border-brand-primary/60',
+                        )}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleToggleIntervalHarmonic}
+                  className={cn(
+                    'px-3 py-1 rounded text-xs font-medium border transition-colors',
+                    settings.intervalPlayHarmonic
+                      ? 'bg-brand-primary text-white border-brand-primary'
+                      : 'border-brand-line text-brand-secondary hover:border-brand-primary/60',
+                  )}
+                >
+                  {settings.intervalPlayHarmonic ? 'Also play harmonically: On' : 'Also play harmonically: Off'}
+                </button>
               </div>
             )}
 
@@ -1873,19 +2027,24 @@ export function EarTraining() {
                 </div>
               )}
 
-              {/* Target interval prompt — Find the Tone only */}
+              {/* Phase A / Phase B prompt — Find the Tone only */}
               {round.kind === 'intervalPitch' && (
-                <p className="text-center text-sm font-medium text-brand-ink">
-                  Find the {(round as IntervalPitchRound).correctLabel}
-                </p>
+                <div className="text-center space-y-1">
+                  <p className="text-sm font-medium text-brand-ink">
+                    {phase === 'match' ? 'Listen, then find the matching tone' : 'Now name it'}
+                  </p>
+                  {phase === 'match' && (
+                    <p className="text-xs text-brand-secondary">Root: {(round as IntervalPitchRound).rootNote}</p>
+                  )}
+                </div>
               )}
 
               {/* Answer options */}
               <div
                 className={cn(
                   'gap-2',
-                  round.kind === 'intervalPitch' && 'flex flex-wrap justify-center',
-                  round.kind === 'interval' && 'grid grid-cols-4 sm:grid-cols-5',
+                  round.kind === 'intervalPitch' && phase === 'match' && 'flex flex-wrap justify-center',
+                  (round.kind === 'interval' || (round.kind === 'intervalPitch' && phase === 'name')) && 'grid grid-cols-4 sm:grid-cols-5',
                   round.kind === 'chord' && 'grid grid-cols-2 gap-3',
                 )}
               >
@@ -1902,8 +2061,8 @@ export function EarTraining() {
                       disabled={answered}
                       className={cn(
                         'border-2 font-medium transition-colors text-center leading-snug',
-                        round.kind === 'intervalPitch' ? 'w-9 h-9 rounded-full text-[10px]' : 'rounded-lg',
-                        round.kind === 'interval' && 'p-2 text-xs',
+                        round.kind === 'intervalPitch' && phase === 'match' ? 'w-9 h-9 rounded-full text-[10px]' : 'rounded-lg',
+                        (round.kind === 'interval' || (round.kind === 'intervalPitch' && phase === 'name')) && 'p-2 text-xs',
                         round.kind === 'chord' && 'p-4 text-sm',
                         !answered && !hasTentative && 'border-brand-line hover:border-brand-primary hover:bg-brand-sidebar cursor-pointer text-brand-ink',
                         !answered && isTentative && 'border-brand-primary bg-brand-primary/10 cursor-pointer text-brand-ink',
@@ -1919,11 +2078,33 @@ export function EarTraining() {
                 })}
               </div>
 
-              {/* Reveal caption — Find the Tone only, after grading */}
-              {round.kind === 'intervalPitch' && selected !== null && (
-                <p className="text-center text-xs text-brand-secondary">
-                  Correct answer: {(round as IntervalPitchRound).correctNote}
-                </p>
+              {/* Phase A recap — shown throughout Phase B: all 13 dots revealed
+                  with note names, correct one green, the user's Phase A pick
+                  (if wrong) red. Static, independent of the interactive
+                  Phase B options grid above/below it. */}
+              {round.kind === 'intervalPitch' && phase === 'name' && (
+                <div className="flex flex-wrap justify-center gap-2">
+                  {Array.from({ length: 13 }, (_, i) => {
+                    const pr = round as IntervalPitchRound;
+                    const semitones = pr.direction === 'asc' ? i : -i;
+                    const noteLabel = addSemitones(pr.rootNote, semitones);
+                    const isCorrectDot = i === pr.correctSemitones;
+                    const wasPicked = matchPick === i;
+                    return (
+                      <div
+                        key={i}
+                        className={cn(
+                          'w-9 h-9 rounded-full border-2 flex items-center justify-center text-center leading-snug text-[10px] font-medium',
+                          isCorrectDot && 'border-green-500 bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300',
+                          !isCorrectDot && wasPicked && 'border-red-500 bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300',
+                          !isCorrectDot && !wasPicked && 'border-brand-line text-brand-secondary opacity-50',
+                        )}
+                      >
+                        {noteLabel}
+                      </div>
+                    );
+                  })}
+                </div>
               )}
 
               {/* Confirm button — appears after tentative pick */}
