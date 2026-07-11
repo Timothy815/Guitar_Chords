@@ -1334,6 +1334,7 @@ export function Dictionary() {
                           { id: 'full', label: 'Full Neck', disabled: false },
                           { id: 'position', label: 'CAGED', disabled: false },
                           { id: 'box', label: 'Box', disabled: !boxViewSupported },
+                          { id: 'pentDiagonal', label: 'Diagonal', disabled: !pentDiagonalSupported },
                           { id: 'threeNps', label: '3NPS', disabled: !threeNpsSupported },
                           { id: 'diagonal', label: 'Pathway', disabled: !diagonalSupported },
                         ] as { id: ScaleViewMode; label: string; disabled: boolean }[]).map(view => (
@@ -1434,6 +1435,32 @@ export function Dictionary() {
                         </>
                       )}
 
+                      {scaleViewMode === 'pentDiagonal' && pentDiagonalSupported && (
+                        <>
+                          <div className="flex gap-3 flex-wrap">
+                            {pentDiagonalCells.map((cell, i) => (
+                              <label key={i} className="flex items-center gap-2 text-xs font-medium text-brand-ink cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={pentDiagonalVisibleCells.has(i)}
+                                  onChange={() => {
+                                    setPentDiagonalVisibleCells(prev => {
+                                      const next = new Set(prev);
+                                      if (next.has(i)) next.delete(i); else next.add(i);
+                                      return next;
+                                    });
+                                  }}
+                                />
+                                {cell.label}
+                              </label>
+                            ))}
+                          </div>
+                          <p className="text-[10px] text-brand-secondary/70 leading-tight">
+                            Diagonal view: three connected two-string cells that run diagonally up the neck, each one full octave of the pentatonic scale.
+                          </p>
+                        </>
+                      )}
+
                       {scaleViewMode === 'full' && (
                         <p className="text-[10px] text-brand-secondary/70 leading-tight">
                           Full Neck view: shows all note locations for the selected scale across the visible fretboard.
@@ -1443,6 +1470,12 @@ export function Dictionary() {
                       {!boxViewSupported && (
                         <p className="text-[10px] text-brand-secondary/70 leading-tight">
                           Box view currently supports Minor Pentatonic, Major Pentatonic, Minor Blues, and Major Blues.
+                        </p>
+                      )}
+
+                      {!pentDiagonalSupported && (
+                        <p className="text-[10px] text-brand-secondary/70 leading-tight">
+                          Diagonal view is currently available for Minor Pentatonic and Major Pentatonic.
                         </p>
                       )}
 
@@ -2080,7 +2113,7 @@ export function Dictionary() {
                 <>
                   <div className="w-full" onMouseEnter={initAudio}>
                      <Fretboard
-                        fretsNum={15}
+                        fretsNum={pentDiagonalFretsNum}
                         chord={mode === 'chords' ? scaffoldedChord : (mode === 'identify' ? { name: 'Identified', frets: identifiedFrets, fingers: identifiedFrets.map(f => (f === -1 ? -1 : 0)) as Finger[] } : undefined)}
                         showNoteNames={!(mode === 'chords' && scaffoldLevel === 1)}
                         scale={mode === 'scales' ? displayedScale ?? undefined : undefined}
