@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { cn } from '@/src/lib/utils';
 import { Fretboard } from '@/src/components/Fretboard';
-import { generateScalePattern, COMMON_SCALES, ALL_NOTES, generateDiagonalPentatonic, OPEN_STRING_MIDI, type DiagonalCell } from '@/src/data/guitarData';
+import { generateScalePattern, COMMON_SCALES, ALL_NOTES, generateDiagonalPentatonic, OPEN_STRING_MIDI } from '@/src/data/guitarData';
 import { initAudio, playNote } from '@/src/lib/audio';
 import type { Note } from '@/src/types';
 import { STANDARD_TUNING } from '@/src/types';
