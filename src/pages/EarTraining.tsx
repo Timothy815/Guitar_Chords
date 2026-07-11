@@ -4,10 +4,10 @@ import { Volume2, ChevronDown, ChevronUp, Headphones, Check } from 'lucide-react
 import confetti from 'canvas-confetti';
 import { cn } from '../lib/utils';
 import {
-  EarTrainingSettings, ChordRound, IntervalRound, FretboardRound, HuntResult, FretboardFocus, Round, SessionScore, StudyCard,
+  EarTrainingSettings, ChordRound, IntervalRound, IntervalPitchRound, FretboardRound, HuntResult, FretboardFocus, Round, SessionScore, StudyCard,
   DifficultyLevel, CHORD_TYPE_DEFS, INTERVAL_DEFS, DIFFICULTY_PRESETS,
   loadSettings, saveSettings, initialScore,
-  generateChordRound, generateIntervalRound, generateStudyDeck, generateFretboardRound,
+  generateChordRound, generateIntervalRound, generateIntervalPitchRound, generateStudyDeck, generateFretboardRound,
   buildFretboardNotePool, makeFretboardRound, buildKeyboardNotePool,
   chordToNotes, playOptionAudio, playStudyCard,
   generateIntervalFretboardRound, IntervalFretboardRound,
@@ -75,6 +75,7 @@ export function EarTraining() {
   const [settings, setSettings] = useState<EarTrainingSettings>(loadSettings);
   const [difficulty, setDifficulty] = useState<DifficultyLevel>('Beginner');
   const [fretboardSubMode, setFretboardSubMode] = useState<'guess' | 'hunt' | 'sing' | 'singhunt'>('guess');
+  const [intervalSubMode, setIntervalSubMode] = useState<'choice' | 'findTone'>('choice');
   const [biasTally, setBiasTally] = useState({ sharp: 0, flat: 0, correct: 0 });
   const [fretboardFocus, setFretboardFocus] = useState<FretboardFocus>({});
   const [pianoView, setPianoView] = useState(false);
@@ -196,6 +197,8 @@ export function EarTraining() {
     audioUnlocked.current = true;
     if (r.kind === 'chord') {
       playStrum(chordToNotes((r as ChordRound).correct.chord), '2n');
+    } else if (r.kind === 'intervalPitch') {
+      playNote((r as IntervalPitchRound).rootNote, '2n');
     } else {
       const ir = r as IntervalRound;
       playNote(ir.correct.rootNote, '2n');
@@ -210,11 +213,12 @@ export function EarTraining() {
     }
   }, [round, playRoundAudio]);
 
-  function advanceRound(s: EarTrainingSettings = settings, focusOverride?: FretboardFocus, pianoViewOverride?: boolean) {
+  function advanceRound(s: EarTrainingSettings = settings, focusOverride?: FretboardFocus, pianoViewOverride?: boolean, intervalSubModeOverride?: 'choice' | 'findTone') {
     const activeFocus = focusOverride ?? fretboardFocus;
     const effectiveMode = s.mode === 'plan' && activeLadder
       ? SKILL_LADDERS.find((l: SkillLadder) => l.id === activeLadder)!.mode
       : s.mode;
+    const effectiveIntervalSubMode = intervalSubModeOverride ?? intervalSubMode;
     let r: Round;
     if (effectiveMode === 'fretboard') {
       const activePianoView = pianoViewOverride !== undefined ? pianoViewOverride : pianoView;
@@ -252,6 +256,8 @@ export function EarTraining() {
       r = Math.random() < 0.5
         ? generateChordRound(s.activeChordTypes)
         : generateIntervalRound(s.activeIntervals);
+    } else if (s.mode === 'interval' && effectiveIntervalSubMode === 'findTone') {
+      r = generateIntervalPitchRound(s.activeIntervals);
     } else {
       r = makeRound({ ...s, mode: effectiveMode }, difficulty, activeFocus);
     }
@@ -264,7 +270,17 @@ export function EarTraining() {
   function handleModeChange(mode: 'chord' | 'interval') {
     const next = { ...settings, mode };
     setSettings(next);
-    advanceRound(next);
+    if (mode === 'interval') {
+      setIntervalSubMode('choice');
+      advanceRound(next, undefined, undefined, 'choice');
+    } else {
+      advanceRound(next);
+    }
+  }
+
+  function handleIntervalSubModeChange(mode: 'choice' | 'findTone') {
+    setIntervalSubMode(mode);
+    advanceRound(settings, undefined, undefined, mode);
   }
 
   function handleStudyMode() {
@@ -577,10 +593,14 @@ export function EarTraining() {
 
     const isCorrect = round.kind === 'chord'
       ? (round as ChordRound).options[index].displayLabel === (round as ChordRound).correct.displayLabel
+      : round.kind === 'intervalPitch'
+      ? index === (round as IntervalPitchRound).correctSemitones
       : (round as IntervalRound).options[index].label === (round as IntervalRound).correct.label;
 
     const typeKey = round.kind === 'chord'
       ? (round as ChordRound).correct.typeLabel
+      : round.kind === 'intervalPitch'
+      ? (round as IntervalPitchRound).correctLabel
       : (round as IntervalRound).correct.label;
 
     const newCorrect = score.correct + (isCorrect ? 1 : 0);
@@ -616,6 +636,15 @@ export function EarTraining() {
         date: new Date().toISOString().slice(0, 10),
         label: ir.correct.label,
         rootNote: ir.correct.rootNote,
+        correct: isCorrect,
+        responseTimeMs,
+      }]);
+    } else if (round.kind === 'intervalPitch') {
+      const pr = round as IntervalPitchRound;
+      appendIntervalEntries([{
+        date: new Date().toISOString().slice(0, 10),
+        label: pr.correctLabel,
+        rootNote: pr.rootNote,
         correct: isCorrect,
         responseTimeMs,
       }]);
@@ -680,12 +709,14 @@ export function EarTraining() {
 
   function getOptionLabel(index: number): string {
     if (round.kind === 'chord') return (round as ChordRound).options[index].displayLabel;
+    if (round.kind === 'intervalPitch') return '';
     return (round as IntervalRound).options[index].shortLabel;
   }
 
   function getOptionCount(): number {
     if (round.kind === 'chord') return (round as ChordRound).options.length;
     if (round.kind === 'interval') return (round as IntervalRound).options.length;
+    if (round.kind === 'intervalPitch') return 13;
     return 4;
   }
 
@@ -693,6 +724,9 @@ export function EarTraining() {
     if (round.kind === 'chord') {
       const r = round as ChordRound;
       return r.options[index].displayLabel === r.correct.displayLabel;
+    }
+    if (round.kind === 'intervalPitch') {
+      return index === (round as IntervalPitchRound).correctSemitones;
     }
     const r = round as IntervalRound;
     return r.options[index].label === r.correct.label;
@@ -1813,8 +1847,48 @@ export function EarTraining() {
                 </button>
               </div>
 
+              {/* Multiple Choice | Find the Tone sub-mode toggle — Interval mode only */}
+              {settings.mode === 'interval' && (
+                <div className="flex justify-center">
+                  <div className="flex rounded-lg border border-brand-line overflow-hidden text-xs">
+                    <button
+                      onClick={() => handleIntervalSubModeChange('choice')}
+                      className={cn(
+                        'px-3 py-1.5 font-medium transition-colors',
+                        intervalSubMode === 'choice' ? 'bg-brand-primary text-white' : 'text-brand-secondary hover:bg-brand-sidebar',
+                      )}
+                    >
+                      Multiple Choice
+                    </button>
+                    <button
+                      onClick={() => handleIntervalSubModeChange('findTone')}
+                      className={cn(
+                        'px-3 py-1.5 font-medium transition-colors',
+                        intervalSubMode === 'findTone' ? 'bg-brand-primary text-white' : 'text-brand-secondary hover:bg-brand-sidebar',
+                      )}
+                    >
+                      Find the Tone
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Target interval prompt — Find the Tone only */}
+              {round.kind === 'intervalPitch' && (
+                <p className="text-center text-sm font-medium text-brand-ink">
+                  Find the {(round as IntervalPitchRound).correctLabel}
+                </p>
+              )}
+
               {/* Answer options */}
-              <div className={cn('grid gap-2', round.kind === 'interval' ? 'grid-cols-4 sm:grid-cols-5' : 'grid-cols-2 gap-3')}>
+              <div
+                className={cn(
+                  'gap-2',
+                  round.kind === 'intervalPitch' && 'flex flex-wrap justify-center',
+                  round.kind === 'interval' && 'grid grid-cols-4 sm:grid-cols-5',
+                  round.kind === 'chord' && 'grid grid-cols-2 gap-3',
+                )}
+              >
                 {Array.from({ length: getOptionCount() }, (_, i) => {
                   const answered = selected !== null;
                   const correct = isOptionCorrect(i);
@@ -1827,8 +1901,10 @@ export function EarTraining() {
                       onClick={() => handleTentative(i)}
                       disabled={answered}
                       className={cn(
-                        'rounded-lg border-2 font-medium transition-colors text-center leading-snug',
-                        round.kind === 'interval' ? 'p-2 text-xs' : 'p-4 text-sm',
+                        'border-2 font-medium transition-colors text-center leading-snug',
+                        round.kind === 'intervalPitch' ? 'w-9 h-9 rounded-full text-[10px]' : 'rounded-lg',
+                        round.kind === 'interval' && 'p-2 text-xs',
+                        round.kind === 'chord' && 'p-4 text-sm',
                         !answered && !hasTentative && 'border-brand-line hover:border-brand-primary hover:bg-brand-sidebar cursor-pointer text-brand-ink',
                         !answered && isTentative && 'border-brand-primary bg-brand-primary/10 cursor-pointer text-brand-ink',
                         !answered && hasTentative && !isTentative && 'border-brand-line cursor-pointer text-brand-ink opacity-60 hover:opacity-90',
@@ -1842,6 +1918,13 @@ export function EarTraining() {
                   );
                 })}
               </div>
+
+              {/* Reveal caption — Find the Tone only, after grading */}
+              {round.kind === 'intervalPitch' && selected !== null && (
+                <p className="text-center text-xs text-brand-secondary">
+                  Correct answer: {(round as IntervalPitchRound).correctNote}
+                </p>
+              )}
 
               {/* Confirm button — appears after tentative pick */}
               {tentative !== null && selected === null && (
