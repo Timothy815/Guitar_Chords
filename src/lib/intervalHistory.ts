@@ -6,6 +6,7 @@ export interface IntervalHistoryEntry {
   rootNote: string;
   correct: boolean;
   responseTimeMs: number;
+  skill?: 'match' | 'name'; // Find the Tone only — which half of the round this entry scores
 }
 
 export function loadIntervalHistory(): IntervalHistoryEntry[] {

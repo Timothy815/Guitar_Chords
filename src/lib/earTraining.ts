@@ -22,6 +22,8 @@ export interface EarTrainingSettings {
   activeIntervals: string[];
   settingsPanelOpen: boolean;
   melodySettings: MelodySettings;
+  intervalDirection: 'asc' | 'desc' | 'both';
+  intervalPlayHarmonic: boolean;
 }
 
 export interface ChordAnswer {
@@ -68,9 +70,9 @@ export interface IntervalRound {
 export interface IntervalPitchRound {
   kind: 'intervalPitch';
   rootNote: string;
-  correctSemitones: number; // 0-12, index into the 13 ascending candidate buttons
+  direction: 'asc' | 'desc'; // which way the 13 candidate dots count from rootNote
+  correctSemitones: number; // 0-12, index into the 13 candidate buttons
   correctLabel: string;     // e.g. "Perfect 5th" — target prompt and score/history key
-  correctNote: string;      // e.g. "D3" — actual note name, shown in the post-grading reveal caption
 }
 
 export interface FretboardRound {
@@ -187,6 +189,8 @@ export const DEFAULT_SETTINGS: EarTrainingSettings = {
   activeIntervals: ['Unison', 'Perfect 4th', 'Perfect 5th', 'Octave'],
   settingsPanelOpen: true,
   melodySettings: { rootKey: 'random', bpm: 80, showFirstNote: true },
+  intervalDirection: 'both',
+  intervalPlayHarmonic: false,
 };
 
 // Chord type classification — order matters: most specific patterns first.
@@ -244,7 +248,7 @@ function pickRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function shuffle<T>(arr: T[]): T[] {
+export function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -294,13 +298,16 @@ const INTERVAL_ROOTS: string[] = [
 ];
 
 // Add semitones to a note string like "E3" → result at correct octave.
-function addSemitones(noteStr: string, semitones: number): string {
+// Handles negative semitones (descending intervals) — JS `%` can return a
+// negative result for a negative operand, so the extra `+ 12) % 12` wraps
+// it back into range before indexing ALL_NOTES.
+export function addSemitones(noteStr: string, semitones: number): string {
   const match = noteStr.match(/^([A-G]#?)(\d)$/);
   if (!match) return noteStr;
   const note = match[1] as Note;
   const octave = parseInt(match[2]);
   const idx = ALL_NOTES.indexOf(note);
-  const newIdx = (idx + semitones) % 12;
+  const newIdx = ((idx + semitones) % 12 + 12) % 12;
   const octaveShift = Math.floor((idx + semitones) / 12);
   return `${ALL_NOTES[newIdx]}${octave + octaveShift}`;
 }
@@ -331,17 +338,22 @@ export function generateIntervalRound(activeIntervals: string[]): IntervalRound 
   return { kind: 'interval', correct, options: shuffle(options) };
 }
 
-export function generateIntervalPitchRound(activeIntervals: string[]): IntervalPitchRound {
+export function generateIntervalPitchRound(
+  activeIntervals: string[],
+  directionSetting: 'asc' | 'desc' | 'both',
+): IntervalPitchRound {
   const activeDefs = INTERVAL_DEFS.filter(d => activeIntervals.includes(d.label));
   const correctDef = pickRandom(activeDefs);
   const rootNote = pickRandom(INTERVAL_ROOTS);
+  const direction: 'asc' | 'desc' =
+    directionSetting === 'both' ? (Math.random() < 0.5 ? 'asc' : 'desc') : directionSetting;
 
   return {
     kind: 'intervalPitch',
     rootNote,
+    direction,
     correctSemitones: correctDef.semitones,
     correctLabel: correctDef.label,
-    correctNote: addSemitones(rootNote, correctDef.semitones),
   };
 }
 
@@ -370,7 +382,8 @@ export async function playOptionAudio(round: Round, index: number): Promise<void
     playStrum(chordToNotes(cr.options[index].chord), '2n');
   } else if (round.kind === 'intervalPitch') {
     const pr = round as IntervalPitchRound;
-    playNote(addSemitones(pr.rootNote, index), '2n');
+    const semitones = pr.direction === 'asc' ? index : -index;
+    playNote(addSemitones(pr.rootNote, semitones), '2n');
   } else {
     const ir = round as IntervalRound;
     const opt = ir.options[index];
