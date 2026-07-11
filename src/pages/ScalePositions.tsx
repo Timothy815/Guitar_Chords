@@ -5,6 +5,7 @@ import { generateScalePattern, COMMON_SCALES, ALL_NOTES, generateDiagonalPentato
 import { initAudio, playNote } from '@/src/lib/audio';
 import type { Note } from '@/src/types';
 import { STANDARD_TUNING } from '@/src/types';
+import { getBluesBoxPattern } from '@/src/lib/bluesBoxPatterns';
 
 // Five CAGED box positions. startOff is semitones relative to root fret on low E.
 // E-shape: root sits at the bottom of the box (-1 fret below root)
@@ -56,10 +57,18 @@ export function ScalePositions() {
   const rootFret = (rootNoteIdx - lowENoteIdx + 12) % 12;
 
   const box = CAGED_BOXES[positionIdx];
-  let startFret = rootFret + box.startOff;
+  const strictBluesPattern = getBluesBoxPattern(scaleDef.name, positionIdx);
+  const relativeFrets = strictBluesPattern?.flat() ?? [];
+  const boxStartOff = relativeFrets.length ? Math.min(...relativeFrets) : box.startOff;
+  const boxEndOff = relativeFrets.length ? Math.max(...relativeFrets) : box.startOff + BOX_SPAN;
+  let octaveShift = 0;
+  while (rootFret + octaveShift + boxStartOff < 0) octaveShift += 12;
+  while (rootFret + octaveShift + boxStartOff > 11) octaveShift -= 12;
+  const positionedRootFret = rootFret + octaveShift;
+  let startFret = positionedRootFret + boxStartOff;
   if (startFret < 0) startFret = 0;
   if (startFret > 11) startFret = startFret % 12;
-  const endFret = startFret + BOX_SPAN;
+  const endFret = startFret + (boxEndOff - boxStartOff);
   const fretRange: [number, number] = [startFret, endFret];
   const fretsNum = Math.max(12, endFret + 1);
 
@@ -70,6 +79,13 @@ export function ScalePositions() {
   // and open B string are both B3), we keep only the lowest-fret occurrence so the
   // player sees the correct position-box fingering with no doubled notes.
   const scalePositions = useMemo(() => {
+    if (strictBluesPattern) {
+      const positions = new Set<string>();
+      strictBluesPattern.forEach((frets, stringIdx) => {
+        frets.forEach(relativeFret => positions.add(`${stringIdx}-${positionedRootFret + relativeFret}`));
+      });
+      return positions;
+    }
     const candidates: { s: number; f: number; midi: number }[] = [];
     for (let s = 0; s < 6; s++) {
       const openMidi = OPEN_STRING_MIDI[s];
@@ -89,7 +105,7 @@ export function ScalePositions() {
       if (!seen.has(midi)) { seen.add(midi); positions.add(`${s}-${f}`); }
     }
     return positions;
-  }, [pattern, startFret, endFret]);
+  }, [pattern, startFret, endFret, strictBluesPattern, positionedRootFret]);
 
   const diagonalCells = useMemo(
     () => generateDiagonalPentatonic(root, scaleDef),
@@ -116,6 +132,17 @@ export function ScalePositions() {
 
   // Collect unique pitches in the box window, sorted low→high.
   const getBoxNotes = useCallback((): Array<[string, number]> => {
+    if (strictBluesPattern) {
+      const notes: Array<[string, number]> = [];
+      strictBluesPattern.forEach((frets, stringIdx) => {
+        const openIdx = ALL_NOTES.indexOf(STANDARD_TUNING.notes[stringIdx] as Note);
+        frets.forEach(relativeFret => {
+          const fret = positionedRootFret + relativeFret;
+          notes.push([ALL_NOTES[(openIdx + fret) % 12], OPEN_STRING_MIDI[stringIdx] + fret]);
+        });
+      });
+      return notes.sort((a, b) => a[1] - b[1]);
+    }
     const seen = new Set<number>();
     const notes: Array<[string, number]> = [];
     for (let s = 0; s < 6; s++) {
@@ -129,7 +156,7 @@ export function ScalePositions() {
       }
     }
     return notes.sort((a, b) => a[1] - b[1]);
-  }, [pattern, startFret, endFret]);
+  }, [pattern, startFret, endFret, strictBluesPattern, positionedRootFret]);
 
   const getDiagonalNotes = useCallback((): Array<[string, number]> => {
     const notes: Array<[string, number]> = [];
