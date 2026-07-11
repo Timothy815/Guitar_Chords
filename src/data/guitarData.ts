@@ -135,6 +135,23 @@ export interface DiagonalCell {
 // Diagonal two-string-pair pentatonic pattern: 3 cells (E-A, D-G, B-E), each one
 // full octave of a 5-note scale (3 notes on the lower string, 2 on the upper).
 // Only valid for exactly-5-note scales; returns [] otherwise.
+// The 3-notes-then-string-change shape only frets evenly when the starting
+// note begins two consecutive whole-tone steps (true for Major Pentatonic's
+// root, false for Minor Pentatonic's, whose root starts with a minor-third
+// jump). Every pentatonic scale has exactly one scale tone where a
+// whole-tone/whole-tone run begins — find it and anchor the pitch-walk there
+// instead of at the user-facing root, so the fingering stays ergonomic for
+// any 5-note scale without special-casing by name.
+function findDiagonalAnchorOffset(intervals: number[]): number {
+  const n = intervals.length;
+  for (let i = 0; i < n; i++) {
+    const gap1 = (intervals[(i + 1) % n] - intervals[i] + 12) % 12;
+    const gap2 = (intervals[(i + 2) % n] - intervals[(i + 1) % n] + 12) % 12;
+    if (gap1 === 2 && gap2 === 2) return intervals[i];
+  }
+  return 0;
+}
+
 export function generateDiagonalPentatonic(
   root: Note,
   scaleDef: { intervals: number[] },
@@ -144,11 +161,16 @@ export function generateDiagonalPentatonic(
   const rootIdx = ALL_NOTES.indexOf(root);
   const lowEIdx = ALL_NOTES.indexOf('E');
   const rootFret = (rootIdx - lowEIdx + 12) % 12;
-  const startMidi = OPEN_STRING_MIDI[0] + rootFret;
+
+  const anchorOffset = findDiagonalAnchorOffset(scaleDef.intervals);
+  const anchorIntervals = scaleDef.intervals
+    .map(interval => (interval - anchorOffset + 12) % 12)
+    .sort((a, b) => a - b);
+  const startMidi = OPEN_STRING_MIDI[0] + rootFret + anchorOffset;
 
   const pitches: number[] = [];
   for (let octave = 0; octave < 3; octave++) {
-    for (const interval of scaleDef.intervals) {
+    for (const interval of anchorIntervals) {
       pitches.push(startMidi + interval + 12 * octave);
     }
   }
