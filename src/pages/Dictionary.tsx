@@ -4,7 +4,7 @@ import { Chord as TonalChord } from '@tonaljs/tonal';
 import { Fretboard } from '../components/Fretboard';
 import { IntervalFretboard } from '../components/IntervalFretboard';
 import { PianoKeyboard } from '../components/PianoKeyboard';
-import { COMMON_CHORDS, COMMON_SCALES, generateScalePattern, ALL_NOTES, ScaleCategory } from '../data/guitarData';
+import { COMMON_CHORDS, COMMON_SCALES, generateScalePattern, generateDiagonalPentatonic, ALL_NOTES, ScaleCategory } from '../data/guitarData';
 import { playStrum, playArpeggio, getFretNote, initAudio, playNote, setEffects } from '../lib/audio';
 import { Volume2, ListMusic, Printer, ChevronDown, ChevronUp } from 'lucide-react';
 import { ChordShape, Note, TUNINGS, Tuning, Finger } from '../types';
@@ -152,7 +152,7 @@ const MAJOR_BLUES_BOX_PATTERNS: Record<string, RelativeBoxPattern> = {
   box4: [[7, 9], [7, 9], [6, 9], [6, 7, 9], [7, 9], [7, 9]],
   box5: [[9, 12], [9, 10, 11], [9, 11], [9, 11], [9, 12], [9, 12]],
 };
-type ScaleViewMode = 'full' | 'position' | 'box' | 'threeNps' | 'diagonal';
+type ScaleViewMode = 'full' | 'position' | 'box' | 'pentDiagonal' | 'threeNps' | 'diagonal';
 type ScaleOverlayMode = 'all' | 'roots' | 'chordTones' | 'arpeggio';
 
 function getStrictBoxPattern(scaleName: string, boxId: string): RelativeBoxPattern | null {
@@ -329,6 +329,7 @@ export function Dictionary() {
   const [scaleBoxSelection, setScaleBoxSelection] = useState<string>('box1');
   const [scaleThreeNpsSelection, setScaleThreeNpsSelection] = useState<string>('p1');
   const [scaleDiagonalSelection, setScaleDiagonalSelection] = useState<string>('d1');
+  const [pentDiagonalVisibleCells, setPentDiagonalVisibleCells] = useState<Set<number>>(new Set([0, 1, 2]));
   const [playingNotes, setPlayingNotes] = useState<Set<string>>(new Set());
   const [identifiedFrets, setIdentifiedFrets] = useState<number[]>([-1,-1,-1,-1,-1,-1]);
   const [addedToast, setAddedToast] = useState<string | null>(null);
@@ -504,6 +505,7 @@ export function Dictionary() {
   const boxViewSupported = boxFamily !== null;
   const threeNpsSupported = (activeScaleBase?.intervals.length ?? 0) === 7;
   const diagonalSupported = (activeScaleBase?.intervals.length ?? 0) === 7;
+  const pentDiagonalSupported = (activeScaleBase?.intervals.length ?? 0) === 5;
   const scaleOverlayIntervals = useMemo<number[]>(() => {
     const intervals = activeScaleBase?.intervals ?? [];
     if (scaleOverlayMode === 'all') return intervals;
@@ -725,13 +727,16 @@ export function Dictionary() {
     if (scaleViewMode === 'box' && !boxViewSupported) {
       setScaleViewMode('full');
     }
+    if (scaleViewMode === 'pentDiagonal' && !pentDiagonalSupported) {
+      setScaleViewMode('full');
+    }
     if (scaleViewMode === 'threeNps' && !threeNpsSupported) {
       setScaleViewMode('full');
     }
     if (scaleViewMode === 'diagonal' && !diagonalSupported) {
       setScaleViewMode('full');
     }
-  }, [boxViewSupported, diagonalSupported, scaleViewMode, threeNpsSupported]);
+  }, [boxViewSupported, diagonalSupported, pentDiagonalSupported, scaleViewMode, threeNpsSupported]);
 
   useEffect(() => {
     if (!isStandardTuning && mode === 'chords') {
