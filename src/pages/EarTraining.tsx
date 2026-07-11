@@ -683,6 +683,12 @@ export function EarTraining() {
     return (round as IntervalRound).options[index].label;
   }
 
+  function getOptionCount(): number {
+    if (round.kind === 'chord') return (round as ChordRound).options.length;
+    if (round.kind === 'interval') return (round as IntervalRound).options.length;
+    return 4;
+  }
+
   function isOptionCorrect(index: number): boolean {
     if (round.kind === 'chord') {
       const r = round as ChordRound;
@@ -1499,7 +1505,7 @@ export function EarTraining() {
                   </button>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  {Array.from({ length: 4 }, (_, i) => {
+                  {Array.from({ length: getOptionCount() }, (_, i) => {
                     const answered = selected !== null;
                     const correct = isOptionCorrect(i);
                     const isSelected = selected === i;
@@ -1808,7 +1814,7 @@ export function EarTraining() {
 
               {/* Answer options — 2×2 grid */}
               <div className="grid grid-cols-2 gap-3">
-                {Array.from({ length: 4 }, (_, i) => {
+                {Array.from({ length: getOptionCount() }, (_, i) => {
                   const answered = selected !== null;
                   const correct = isOptionCorrect(i);
                   const isSelected = selected === i;

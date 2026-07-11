@@ -307,19 +307,16 @@ export function generateIntervalRound(activeIntervals: string[]): IntervalRound 
     topNote: addSemitones(rootNote, correctDef.semitones),
   };
 
-  // Prefer distractors from active set; fall back to full pool only when active < 4.
-  const distractorSource = activeDefs.length >= 4 ? activeDefs : INTERVAL_DEFS;
-  const distractorPool = shuffle(
-    distractorSource.filter(d => d.semitones !== correctDef.semitones)
-  );
-  const distractors: IntervalAnswer[] = distractorPool.slice(0, 3).map(def => ({
+  // Every active interval becomes an option, not just a random subset — with
+  // more intervals enabled, the round gets harder instead of staying at 4 choices.
+  const options: IntervalAnswer[] = activeDefs.map(def => ({
     semitones: def.semitones,
     label: def.label,
     rootNote,
     topNote: addSemitones(rootNote, def.semitones),
   }));
 
-  return { kind: 'interval', correct, options: shuffle([correct, ...distractors]) };
+  return { kind: 'interval', correct, options: shuffle(options) };
 }
 
 export function loadSettings(): EarTrainingSettings {
