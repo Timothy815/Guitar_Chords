@@ -121,3 +121,51 @@ export function generateScalePattern(rootNote: Note, scaleDef: {name: string, in
     intervals: scaleDef.intervals
   };
 }
+
+// MIDI pitch of each open string: E2 A2 D3 G3 B3 E4 (stringIdx 0 = low E)
+export const OPEN_STRING_MIDI = [40, 45, 50, 55, 59, 64];
+
+export interface DiagonalCell {
+  label: string;
+  lowerString: number;
+  upperString: number;
+  positions: { stringIdx: number; fret: number; note: Note }[];
+}
+
+// Diagonal two-string-pair pentatonic pattern: 3 cells (E-A, D-G, B-E), each one
+// full octave of a 5-note scale (3 notes on the lower string, 2 on the upper).
+// Only valid for exactly-5-note scales; returns [] otherwise.
+export function generateDiagonalPentatonic(
+  root: Note,
+  scaleDef: { intervals: number[] },
+): DiagonalCell[] {
+  if (scaleDef.intervals.length !== 5) return [];
+
+  const rootIdx = ALL_NOTES.indexOf(root);
+  const lowEIdx = ALL_NOTES.indexOf('E');
+  const rootFret = (rootIdx - lowEIdx + 12) % 12;
+  const startMidi = OPEN_STRING_MIDI[0] + rootFret;
+
+  const pitches: number[] = [];
+  for (let octave = 0; octave < 3; octave++) {
+    for (const interval of scaleDef.intervals) {
+      pitches.push(startMidi + interval + 12 * octave);
+    }
+  }
+
+  const pairLabels = ['E–A', 'D–G', 'B–E'];
+  const cells: DiagonalCell[] = [];
+  for (let n = 0; n < 3; n++) {
+    const chunk = pitches.slice(n * 5, n * 5 + 5);
+    const lowerString = n * 2;
+    const upperString = n * 2 + 1;
+    const positions = chunk.map((pitch, i) => {
+      const stringIdx = i < 3 ? lowerString : upperString;
+      const fret = pitch - OPEN_STRING_MIDI[stringIdx];
+      const note = ALL_NOTES[pitch % 12];
+      return { stringIdx, fret, note };
+    });
+    cells.push({ label: `Cell ${n + 1} (${pairLabels[n]})`, lowerString, upperString, positions });
+  }
+  return cells;
+}
