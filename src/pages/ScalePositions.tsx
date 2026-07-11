@@ -47,6 +47,7 @@ export function ScalePositions() {
   const [visibleCells, setVisibleCells] = useState<Set<number>>(new Set([0, 1, 2]));
 
   const scaleDef = COMMON_SCALES[scaleIdx];
+  const diagonalSupported = scaleDef.intervals.length === 5;
 
   // Find root's fret on low E, then offset to the chosen CAGED box window.
   // High boxes (> fret 11) wrap an octave down so they stay on a playable neck region.
@@ -175,10 +176,10 @@ export function ScalePositions() {
   }
 
   function handleViewModeChange(mode: ViewMode) {
+    if (mode === 'diagonal' && !diagonalSupported) return;
     setViewMode(mode);
     if (mode === 'diagonal') {
       setDrillMode('free-explore');
-      if (scaleDef.intervals.length !== 5) setScaleIdx(0);
     }
   }
 
@@ -229,21 +230,32 @@ export function ScalePositions() {
 
       {/* View mode toggle */}
       <div className="flex gap-2">
-        {(['box', 'diagonal'] as ViewMode[]).map(m => (
-          <button
-            key={m}
-            onClick={() => handleViewModeChange(m)}
-            className={cn(
-              'px-4 py-2 rounded-lg text-sm font-medium border transition-colors',
-              viewMode === m
-                ? 'bg-brand-primary text-white border-brand-primary'
-                : 'border-brand-line text-brand-ink hover:border-brand-primary/60',
-            )}
-          >
-            {m === 'box' ? 'Box' : 'Diagonal'}
-          </button>
-        ))}
+        {(['box', 'diagonal'] as ViewMode[]).map(m => {
+          const disabled = m === 'diagonal' && !diagonalSupported;
+          return (
+            <button
+              key={m}
+              onClick={() => handleViewModeChange(m)}
+              disabled={disabled}
+              className={cn(
+                'px-4 py-2 rounded-lg text-sm font-medium border transition-colors',
+                viewMode === m
+                  ? 'bg-brand-primary text-white border-brand-primary'
+                  : 'border-brand-line text-brand-ink hover:border-brand-primary/60',
+                disabled && 'opacity-40 cursor-not-allowed hover:border-brand-line',
+              )}
+            >
+              {m === 'box' ? 'Box' : 'Diagonal'}
+            </button>
+          );
+        })}
       </div>
+
+      {!diagonalSupported && (
+        <p className="text-[10px] text-brand-secondary/70 leading-tight">
+          Diagonal view is currently available for Minor Pentatonic and Major Pentatonic.
+        </p>
+      )}
 
       {/* Mode tabs (box view only — drill/quiz is CAGED-box-specific) */}
       {viewMode === 'box' && (
