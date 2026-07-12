@@ -13,6 +13,7 @@ import { addChordToActiveProgression } from '@/src/lib/progressionUtils';
 import { TheoryReference } from '../components/TheoryReference';
 import { STANDARD_TUNING } from '../types';
 import { getBluesBoxPattern } from '../lib/bluesBoxPatterns';
+import { getIonianCagedPattern } from '../lib/ionianCagedPatterns';
 
 function getNavigationChords(tonalName: string): ChordShape[] {
   const base = tonalName.split('/')[0];
@@ -159,6 +160,18 @@ function getStrictBoxPattern(scaleName: string, boxId: string): RelativeBoxPatte
 
 function getBluesPositionAnchor(scaleName: string, rootFret: number) {
   const offsets = Array.from({ length: 5 }, (_, index) => getBluesBoxPattern(scaleName, index)?.flat() ?? []).flat();
+  if (offsets.length === 0) return rootFret;
+  let anchorFret = rootFret;
+  while (anchorFret + Math.min(...offsets) < 0) anchorFret += 12;
+  return anchorFret;
+}
+
+function getStrictCagedPattern(scaleName: string, positionIndex: number) {
+  return getBluesBoxPattern(scaleName, positionIndex) ?? getIonianCagedPattern(scaleName, positionIndex);
+}
+
+function getCagedPositionAnchor(scaleName: string, rootFret: number) {
+  const offsets = Array.from({ length: 5 }, (_, index) => getStrictCagedPattern(scaleName, index)?.flat() ?? []).flat();
   if (offsets.length === 0) return rootFret;
   let anchorFret = rootFret;
   while (anchorFret + Math.min(...offsets) < 0) anchorFret += 12;
@@ -565,12 +578,12 @@ export function Dictionary() {
     const rootNoteIdx = ALL_NOTES.indexOf(selectedKey);
     const rootFret = (rootNoteIdx - lowENoteIdx + 12) % 12;
     return SCALE_POSITION_BOXES.map((box, positionIndex) => {
-      const strictBluesPattern = activeScaleBase
-        ? getBluesBoxPattern(activeScaleBase.name, positionIndex)
+      const strictCagedPattern = activeScaleBase
+        ? getStrictCagedPattern(activeScaleBase.name, positionIndex)
         : null;
-      if (strictBluesPattern) {
-        const anchorFret = getBluesPositionAnchor(activeScaleBase!.name, rootFret);
-        const offsets = strictBluesPattern.flat();
+      if (strictCagedPattern) {
+        const anchorFret = getCagedPositionAnchor(activeScaleBase!.name, rootFret);
+        const offsets = strictCagedPattern.flat();
         const minFret = anchorFret + Math.min(...offsets);
         const maxFret = anchorFret + Math.max(...offsets);
         return {
@@ -594,13 +607,13 @@ export function Dictionary() {
   const strictScalePositionPositions = useMemo(() => {
     if (scaleViewMode !== 'position' || !activeScaleBase) return undefined;
     const positionIndex = SCALE_POSITION_BOXES.findIndex(box => box.id === scalePositionSelection);
-    const pattern = getBluesBoxPattern(activeScaleBase.name, positionIndex);
+    const pattern = getStrictCagedPattern(activeScaleBase.name, positionIndex);
     if (!pattern) return undefined;
 
     const lowENoteIdx = ALL_NOTES.indexOf(STANDARD_TUNING.notes[0] as Note);
     const rootNoteIdx = ALL_NOTES.indexOf(selectedKey);
     const rootFret = (rootNoteIdx - lowENoteIdx + 12) % 12;
-    const anchorFret = getBluesPositionAnchor(activeScaleBase.name, rootFret);
+    const anchorFret = getCagedPositionAnchor(activeScaleBase.name, rootFret);
     const offsets = pattern.flat();
 
     const positions = new Set<string>();
