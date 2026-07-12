@@ -1,11 +1,11 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { cn } from '@/src/lib/utils';
 import { Fretboard } from '@/src/components/Fretboard';
 import { generateScalePattern, COMMON_SCALES, ALL_NOTES, generateDiagonalPentatonic, OPEN_STRING_MIDI } from '@/src/data/guitarData';
 import { initAudio, playNote } from '@/src/lib/audio';
 import type { Note } from '@/src/types';
 import { STANDARD_TUNING } from '@/src/types';
-import { getCagedScaleAnchor, getCagedScalePattern, supportsCagedScale } from '@/src/lib/cagedScalePatterns';
+import { getCagedScaleAnchor, getCagedScalePattern, getCagedScaleRepeat, findShapeAnchors, supportsCagedScale } from '@/src/lib/cagedScalePatterns';
 
 // Five CAGED box positions. startOff is semitones relative to root fret on low E.
 // E-shape: root sits at the bottom of the box (-1 fret below root)
@@ -14,14 +14,23 @@ import { getCagedScaleAnchor, getCagedScalePattern, supportsCagedScale } from '@
 // A-shape: root on A string one octave up, box starts 7 above root (5th)
 // G-shape: root on E strings, box starts 9 above root (wraps to open end of neck)
 const CAGED_BOXES = [
-  { label: 'Position 1 (E-shape)', startOff: -1 },
-  { label: 'Position 2 (D-shape)', startOff: 2 },
-  { label: 'Position 3 (C-shape)', startOff: 4 },
-  { label: 'Position 4 (A-shape)', startOff: 7 },
-  { label: 'Position 5 (G-shape)', startOff: 9 },
+  { id: 'pos1', label: 'Position 1 (E-shape)', startOff: -1 },
+  { id: 'pos2', label: 'Position 2 (D-shape)', startOff: 2 },
+  { id: 'pos3', label: 'Position 3 (C-shape)', startOff: 4 },
+  { id: 'pos4', label: 'Position 4 (A-shape)', startOff: 7 },
+  { id: 'pos5', label: 'Position 5 (G-shape)', startOff: 9 },
 ];
 
 const BOX_SPAN = 4;
+
+type PositionOption = {
+  id: string;
+  shapeLabel: string;
+  label: string;
+  range: [number, number];
+  pattern: readonly (readonly number[])[] | null;
+  anchorFret: number;
+};
 
 const DIATONIC_MODES = [
   { name: 'Ionian (Major)', degree: 1 },
@@ -39,7 +48,7 @@ type ViewMode = 'box' | 'diagonal';
 export function ScalePositions() {
   const [root, setRoot] = useState<Note>('G');
   const [scaleIdx, setScaleIdx] = useState(0);
-  const [positionIdx, setPositionIdx] = useState(0);
+  const [selectedPositionId, setSelectedPositionId] = useState('pos1');
   const [drillMode, setDrillMode] = useState<DrillMode>('free-explore');
   const [quizOptions, setQuizOptions] = useState<string[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -56,23 +65,75 @@ export function ScalePositions() {
   const rootNoteIdx = ALL_NOTES.indexOf(root);
   const rootFret = (rootNoteIdx - lowENoteIdx + 12) % 12;
 
-  const box = CAGED_BOXES[positionIdx];
-  const strictCagedPattern = getCagedScalePattern(scaleDef.name, positionIdx);
-  const relativeFrets = strictCagedPattern?.flat() ?? [];
-  const boxStartOff = relativeFrets.length ? Math.min(...relativeFrets) : box.startOff;
-  const boxEndOff = relativeFrets.length ? Math.max(...relativeFrets) : box.startOff + BOX_SPAN;
-  let octaveShift = 0;
-  while (rootFret + octaveShift + boxStartOff < 0) octaveShift += 12;
-  while (rootFret + octaveShift + boxStartOff > 11) octaveShift -= 12;
-  const positionedRootFret = strictCagedPattern
-    ? getCagedScaleAnchor(scaleDef.name, rootFret)
-    : rootFret + octaveShift;
-  let startFret = positionedRootFret + boxStartOff;
-  if (startFret < 0) startFret = 0;
-  if (!strictCagedPattern && startFret > 11) startFret = startFret % 12;
-  const endFret = startFret + (boxEndOff - boxStartOff);
-  const fretRange: [number, number] = [startFret, endFret];
-  const fretsNum = Math.max(12, endFret + 1);
+  const isSymmetric = cagedSupported && getCagedScaleRepeat(scaleDef.name) < 12;
+
+  const positionOptions = useMemo<PositionOption[]>(() => {
+    if (!cagedSupported) return [];
+    const repeatSemitones = getCagedScaleRepeat(scaleDef.name);
+    if (repeatSemitones < 12) {
+      const pattern = getCagedScalePattern(scaleDef.name, 0);
+      if (!pattern) return [];
+      const baseAnchor = getCagedScaleAnchor(scaleDef.name, rootFret);
+      const offsets = pattern.flat();
+      return findShapeAnchors(pattern, baseAnchor, repeatSemitones).map((anchorFret, index) => {
+        const minFret = anchorFret + Math.min(...offsets);
+        const maxFret = anchorFret + Math.max(...offsets);
+        return {
+          id: `sym${index + 1}`,
+          shapeLabel: `Position ${index + 1}`,
+          label: `Position ${index + 1} (${minFret}-${maxFret})`,
+          range: [minFret, maxFret] as [number, number],
+          pattern,
+          anchorFret,
+        };
+      });
+    }
+    return CAGED_BOXES.flatMap((box, boxIndex) => {
+      const pattern = getCagedScalePattern(scaleDef.name, boxIndex);
+      if (pattern) {
+        const anchorFret = getCagedScaleAnchor(scaleDef.name, rootFret);
+        const offsets = pattern.flat();
+        return findShapeAnchors(pattern, anchorFret, 12).map((alt, altIndex) => {
+          const minFret = alt + Math.min(...offsets);
+          const maxFret = alt + Math.max(...offsets);
+          return {
+            id: altIndex === 0 ? box.id : `${box.id}-alt${altIndex}`,
+            shapeLabel: box.label,
+            label: `${box.label} (${minFret}-${maxFret})`,
+            range: [minFret, maxFret] as [number, number],
+            pattern,
+            anchorFret: alt,
+          };
+        });
+      }
+      let startFret = rootFret + box.startOff;
+      if (startFret < 0) startFret = 0;
+      if (startFret > 11) startFret = startFret % 12;
+      const endFret = startFret + BOX_SPAN;
+      return [{
+        id: box.id,
+        shapeLabel: box.label,
+        label: `${box.label} (${startFret}-${endFret})`,
+        range: [startFret, endFret] as [number, number],
+        pattern: null,
+        anchorFret: startFret,
+      }];
+    });
+  }, [cagedSupported, scaleDef, rootFret]);
+
+  const selectedOption = useMemo(
+    () => positionOptions.find(o => o.id === selectedPositionId) ?? positionOptions[0],
+    [positionOptions, selectedPositionId],
+  );
+
+  useEffect(() => {
+    if (positionOptions.length && !positionOptions.some(o => o.id === selectedPositionId)) {
+      setSelectedPositionId(positionOptions[0].id);
+    }
+  }, [positionOptions, selectedPositionId]);
+
+  const fretRange: [number, number] = selectedOption ? selectedOption.range : [0, BOX_SPAN];
+  const fretsNum = Math.max(12, fretRange[1] + 1);
 
   const pattern = generateScalePattern(root, scaleDef);
 
@@ -81,18 +142,19 @@ export function ScalePositions() {
   // and open B string are both B3), we keep only the lowest-fret occurrence so the
   // player sees the correct position-box fingering with no doubled notes.
   const scalePositions = useMemo(() => {
-    if (strictCagedPattern) {
+    if (selectedOption?.pattern) {
       const positions = new Set<string>();
-      strictCagedPattern.forEach((frets, stringIdx) => {
-        frets.forEach(relativeFret => positions.add(`${stringIdx}-${positionedRootFret + relativeFret}`));
+      selectedOption.pattern.forEach((frets, stringIdx) => {
+        frets.forEach(relativeFret => positions.add(`${stringIdx}-${selectedOption.anchorFret + relativeFret}`));
       });
       return positions;
     }
+    const [rangeStart, rangeEnd] = fretRange;
     const candidates: { s: number; f: number; midi: number }[] = [];
     for (let s = 0; s < 6; s++) {
       const openMidi = OPEN_STRING_MIDI[s];
       const openNoteIdx = ALL_NOTES.indexOf(STANDARD_TUNING.notes[s] as Note);
-      for (let f = startFret; f <= endFret; f++) {
+      for (let f = rangeStart; f <= rangeEnd; f++) {
         const name = ALL_NOTES[(openNoteIdx + f) % 12];
         if (pattern.notes.includes(name as Note)) {
           candidates.push({ s, f, midi: openMidi + f });
@@ -107,7 +169,7 @@ export function ScalePositions() {
       if (!seen.has(midi)) { seen.add(midi); positions.add(`${s}-${f}`); }
     }
     return positions;
-  }, [pattern, startFret, endFret, strictCagedPattern, positionedRootFret]);
+  }, [pattern, fretRange, selectedOption]);
 
   const diagonalCells = useMemo(
     () => generateDiagonalPentatonic(root, scaleDef),
@@ -134,22 +196,23 @@ export function ScalePositions() {
 
   // Collect unique pitches in the box window, sorted low→high.
   const getBoxNotes = useCallback((): Array<[string, number]> => {
-    if (strictCagedPattern) {
+    if (selectedOption?.pattern) {
       const notes: Array<[string, number]> = [];
-      strictCagedPattern.forEach((frets, stringIdx) => {
+      selectedOption.pattern.forEach((frets, stringIdx) => {
         const openIdx = ALL_NOTES.indexOf(STANDARD_TUNING.notes[stringIdx] as Note);
         frets.forEach(relativeFret => {
-          const fret = positionedRootFret + relativeFret;
+          const fret = selectedOption.anchorFret + relativeFret;
           notes.push([ALL_NOTES[(openIdx + fret) % 12], OPEN_STRING_MIDI[stringIdx] + fret]);
         });
       });
       return notes.sort((a, b) => a[1] - b[1]);
     }
+    const [rangeStart, rangeEnd] = fretRange;
     const seen = new Set<number>();
     const notes: Array<[string, number]> = [];
     for (let s = 0; s < 6; s++) {
       const openIdx = ALL_NOTES.indexOf(STANDARD_TUNING.notes[s] as Note);
-      for (let f = startFret; f <= endFret; f++) {
+      for (let f = rangeStart; f <= rangeEnd; f++) {
         const name = ALL_NOTES[(openIdx + f) % 12];
         if (pattern.notes.includes(name as Note)) {
           const pitch = OPEN_STRING_MIDI[s] + f;
@@ -158,7 +221,7 @@ export function ScalePositions() {
       }
     }
     return notes.sort((a, b) => a[1] - b[1]);
-  }, [pattern, startFret, endFret, strictCagedPattern, positionedRootFret]);
+  }, [pattern, fretRange, selectedOption]);
 
   const getDiagonalNotes = useCallback((): Array<[string, number]> => {
     const notes: Array<[string, number]> = [];
@@ -186,14 +249,14 @@ export function ScalePositions() {
   }, [viewMode, getBoxNotes, getDiagonalNotes]);
 
   function startDrill() {
-    const newIdx = Math.floor(Math.random() * 5);
+    const newIdx = Math.floor(Math.random() * CAGED_BOXES.length);
     const correct = CAGED_BOXES[newIdx].label;
     const shuffled = CAGED_BOXES
       .filter((_, i) => i !== newIdx)
       .map(b => b.label)
       .sort(() => Math.random() - 0.5)
       .slice(0, 3);
-    setPositionIdx(newIdx);
+    setSelectedPositionId(CAGED_BOXES[newIdx].id);
     setQuizOptions([correct, ...shuffled].sort(() => Math.random() - 0.5));
     setCorrectAnswer(correct);
     setSelected(null);
@@ -289,7 +352,9 @@ export function ScalePositions() {
       {/* Mode tabs (box view only — drill/quiz is CAGED-box-specific) */}
       {viewMode === 'box' && cagedSupported && (
         <div className="flex gap-2">
-          {(['free-explore', 'identify-position'] as DrillMode[]).map(m => (
+          {(['free-explore', 'identify-position'] as DrillMode[])
+            .filter(m => m !== 'identify-position' || !isSymmetric)
+            .map(m => (
             <button
               key={m}
               onClick={() => { setDrillMode(m); setSelected(null); if (m !== 'free-explore') startDrill(); }}
@@ -309,18 +374,18 @@ export function ScalePositions() {
       {/* Position selector (box mode, free-explore only) */}
       {viewMode === 'box' && cagedSupported && drillMode === 'free-explore' && (
         <div className="flex gap-2 flex-wrap">
-          {CAGED_BOXES.map((b, i) => (
+          {positionOptions.map(option => (
             <button
-              key={i}
-              onClick={() => setPositionIdx(i)}
+              key={option.id}
+              onClick={() => setSelectedPositionId(option.id)}
               className={cn(
                 'px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
-                positionIdx === i
+                selectedPositionId === option.id
                   ? 'bg-brand-primary text-white border-brand-primary'
                   : 'border-brand-line text-brand-ink hover:border-brand-primary/60',
               )}
             >
-              {b.label}
+              {option.label}
             </button>
           ))}
         </div>
@@ -359,12 +424,7 @@ export function ScalePositions() {
         <div className="flex items-center justify-between">
           <p className="text-sm font-medium text-brand-ink">
             {viewMode === 'box' ? (
-              <>
-                {root} {scaleDef.name} — {CAGED_BOXES[positionIdx].label}
-                {drillMode === 'free-explore' && (
-                  <span className="text-brand-secondary ml-2 text-xs">(frets {fretRange[0]}–{fretRange[1]})</span>
-                )}
-              </>
+              <>{root} {scaleDef.name} — {selectedOption?.label ?? ''}</>
             ) : (
               <>{root} {scaleDef.name} — Diagonal Pattern</>
             )}
