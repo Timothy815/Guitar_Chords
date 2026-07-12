@@ -556,7 +556,23 @@ export function Dictionary() {
     const lowENoteIdx = ALL_NOTES.indexOf(STANDARD_TUNING.notes[0] as Note);
     const rootNoteIdx = ALL_NOTES.indexOf(selectedKey);
     const rootFret = (rootNoteIdx - lowENoteIdx + 12) % 12;
-    return SCALE_POSITION_BOXES.map(box => {
+    return SCALE_POSITION_BOXES.map((box, positionIndex) => {
+      const strictBluesPattern = activeScaleBase
+        ? getBluesBoxPattern(activeScaleBase.name, positionIndex)
+        : null;
+      if (strictBluesPattern) {
+        let anchorFret = rootFret;
+        const offsets = strictBluesPattern.flat();
+        let minFret = anchorFret + Math.min(...offsets);
+        let maxFret = anchorFret + Math.max(...offsets);
+        while (minFret < 0) { anchorFret += 12; minFret += 12; maxFret += 12; }
+        while (maxFret > 15 && minFret - 12 >= 0) { anchorFret -= 12; minFret -= 12; maxFret -= 12; }
+        return {
+          id: box.id,
+          label: `${box.label} (${minFret}-${maxFret})`,
+          range: [minFret, maxFret] as [number, number],
+        };
+      }
       let startFret = rootFret + box.startOff;
       if (startFret < 0) startFret = 0;
       if (startFret > 11) startFret = startFret % 12;
@@ -567,7 +583,29 @@ export function Dictionary() {
         range: [startFret, endFret] as [number, number],
       };
     });
-  }, [selectedKey]);
+  }, [activeScaleBase, selectedKey]);
+
+  const strictScalePositionPositions = useMemo(() => {
+    if (scaleViewMode !== 'position' || !activeScaleBase) return undefined;
+    const positionIndex = SCALE_POSITION_BOXES.findIndex(box => box.id === scalePositionSelection);
+    const pattern = getBluesBoxPattern(activeScaleBase.name, positionIndex);
+    if (!pattern) return undefined;
+
+    const lowENoteIdx = ALL_NOTES.indexOf(STANDARD_TUNING.notes[0] as Note);
+    const rootNoteIdx = ALL_NOTES.indexOf(selectedKey);
+    let anchorFret = (rootNoteIdx - lowENoteIdx + 12) % 12;
+    const offsets = pattern.flat();
+    let minFret = anchorFret + Math.min(...offsets);
+    let maxFret = anchorFret + Math.max(...offsets);
+    while (minFret < 0) { anchorFret += 12; minFret += 12; maxFret += 12; }
+    while (maxFret > 15 && minFret - 12 >= 0) { anchorFret -= 12; minFret -= 12; maxFret -= 12; }
+
+    const positions = new Set<string>();
+    pattern.forEach((stringOffsets, stringIdx) => {
+      stringOffsets.forEach(offset => positions.add(`${stringIdx}-${anchorFret + offset}`));
+    });
+    return positions;
+  }, [activeScaleBase, scalePositionSelection, scaleViewMode, selectedKey]);
 
   const scaleBoxOptions = useMemo(() => {
     if (!boxViewSupported) return [];
@@ -667,16 +705,18 @@ export function Dictionary() {
     return set;
   }, [pentDiagonalCells, pentDiagonalVisibleCells, scaleViewMode]);
   const activeStrictScalePositions = useMemo(() => {
+    if (scaleViewMode === 'position') return strictScalePositionPositions;
     if (scaleViewMode === 'box') return strictScaleBoxPositions;
     if (scaleViewMode === 'pentDiagonal') return strictScalePentDiagonalPositions;
     if (scaleViewMode === 'threeNps') return strictScaleThreeNpsPositions;
     if (scaleViewMode === 'diagonal') return strictScaleDiagonalPositions;
     return undefined;
-  }, [scaleViewMode, strictScaleBoxPositions, strictScalePentDiagonalPositions, strictScaleThreeNpsPositions, strictScaleDiagonalPositions]);
+  }, [scaleViewMode, strictScalePositionPositions, strictScaleBoxPositions, strictScalePentDiagonalPositions, strictScaleThreeNpsPositions, strictScaleDiagonalPositions]);
 
   const scaleFretRange = useMemo<number[]>(() => {
     if (scaleViewMode === 'full') return [];
     if (scaleViewMode === 'position') {
+      if (strictScalePositionPositions) return [];
       const match = scalePositionOptions.find(option => option.id === scalePositionSelection);
       return match ? [match.range[0], match.range[1]] : [];
     }
@@ -697,7 +737,7 @@ export function Dictionary() {
       return match ? [match.range[0], match.range[1]] : [];
     }
     return [];
-  }, [scaleBoxOptions, scaleBoxSelection, scaleDiagonalOptions, scaleDiagonalSelection, scalePositionOptions, scalePositionSelection, scaleThreeNpsOptions, scaleThreeNpsSelection, scaleViewMode, strictScaleBoxPositions, strictScaleDiagonalPositions, strictScaleThreeNpsPositions]);
+  }, [scaleBoxOptions, scaleBoxSelection, scaleDiagonalOptions, scaleDiagonalSelection, scalePositionOptions, scalePositionSelection, scaleThreeNpsOptions, scaleThreeNpsSelection, scaleViewMode, strictScalePositionPositions, strictScaleBoxPositions, strictScaleDiagonalPositions, strictScaleThreeNpsPositions]);
 
   const pentDiagonalFretsNum = useMemo(() => {
     if (scaleViewMode !== 'pentDiagonal' || !strictScalePentDiagonalPositions || strictScalePentDiagonalPositions.size === 0) return 15;
