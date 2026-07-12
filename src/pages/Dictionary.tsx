@@ -157,6 +157,14 @@ function getStrictBoxPattern(scaleName: string, boxId: string): RelativeBoxPatte
   }
 }
 
+function getBluesPositionAnchor(scaleName: string, rootFret: number) {
+  const offsets = Array.from({ length: 5 }, (_, index) => getBluesBoxPattern(scaleName, index)?.flat() ?? []).flat();
+  if (offsets.length === 0) return rootFret;
+  let anchorFret = rootFret;
+  while (anchorFret + Math.min(...offsets) < 0) anchorFret += 12;
+  return anchorFret;
+}
+
 function getAbsolutePitch(note: Note, octave: number) {
   return octave * 12 + ALL_NOTES.indexOf(note);
 }
@@ -561,12 +569,10 @@ export function Dictionary() {
         ? getBluesBoxPattern(activeScaleBase.name, positionIndex)
         : null;
       if (strictBluesPattern) {
-        let anchorFret = rootFret;
+        const anchorFret = getBluesPositionAnchor(activeScaleBase!.name, rootFret);
         const offsets = strictBluesPattern.flat();
-        let minFret = anchorFret + Math.min(...offsets);
-        let maxFret = anchorFret + Math.max(...offsets);
-        while (minFret < 0) { anchorFret += 12; minFret += 12; maxFret += 12; }
-        while (maxFret > 15 && minFret - 12 >= 0) { anchorFret -= 12; minFret -= 12; maxFret -= 12; }
+        const minFret = anchorFret + Math.min(...offsets);
+        const maxFret = anchorFret + Math.max(...offsets);
         return {
           id: box.id,
           label: `${box.label} (${minFret}-${maxFret})`,
@@ -593,12 +599,9 @@ export function Dictionary() {
 
     const lowENoteIdx = ALL_NOTES.indexOf(STANDARD_TUNING.notes[0] as Note);
     const rootNoteIdx = ALL_NOTES.indexOf(selectedKey);
-    let anchorFret = (rootNoteIdx - lowENoteIdx + 12) % 12;
+    const rootFret = (rootNoteIdx - lowENoteIdx + 12) % 12;
+    const anchorFret = getBluesPositionAnchor(activeScaleBase.name, rootFret);
     const offsets = pattern.flat();
-    let minFret = anchorFret + Math.min(...offsets);
-    let maxFret = anchorFret + Math.max(...offsets);
-    while (minFret < 0) { anchorFret += 12; minFret += 12; maxFret += 12; }
-    while (maxFret > 15 && minFret - 12 >= 0) { anchorFret -= 12; minFret -= 12; maxFret -= 12; }
 
     const positions = new Set<string>();
     pattern.forEach((stringOffsets, stringIdx) => {
@@ -616,12 +619,11 @@ export function Dictionary() {
     return familyBoxes.map(box => {
       const strictPattern = activeScaleBase ? getStrictBoxPattern(activeScaleBase.name, box.id) : null;
       if (strictPattern) {
-        let anchorFret = rootFret;
+        let anchorFret = getBluesPositionAnchor(activeScaleBase!.name, rootFret);
         const allOffsets = strictPattern.flat();
         let minFret = Math.min(...allOffsets.map(o => anchorFret + o));
         let maxFret = Math.max(...allOffsets.map(o => anchorFret + o));
         while (minFret < 0) { anchorFret += 12; minFret += 12; maxFret += 12; }
-        while (maxFret > 15 && minFret - 12 >= 0) { anchorFret -= 12; minFret -= 12; maxFret -= 12; }
         return {
           id: box.id,
           label: `${box.label} (${minFret}-${maxFret})`,
@@ -646,7 +648,8 @@ export function Dictionary() {
 
     const lowENoteIdx = ALL_NOTES.indexOf(STANDARD_TUNING.notes[0] as Note);
     const rootNoteIdx = ALL_NOTES.indexOf(selectedKey);
-    let anchorFret = (rootNoteIdx - lowENoteIdx + 12) % 12;
+    const rootFret = (rootNoteIdx - lowENoteIdx + 12) % 12;
+    let anchorFret = getBluesPositionAnchor(activeScaleBase.name, rootFret);
     const allOffsets = pattern.flat();
     let minFret = Math.min(...allOffsets.map(offset => anchorFret + offset));
     let maxFret = Math.max(...allOffsets.map(offset => anchorFret + offset));
@@ -655,11 +658,6 @@ export function Dictionary() {
       anchorFret += 12;
       minFret += 12;
       maxFret += 12;
-    }
-    while (maxFret > 15 && minFret - 12 >= 0) {
-      anchorFret -= 12;
-      minFret -= 12;
-      maxFret -= 12;
     }
 
     const positions = new Set<string>();
@@ -739,11 +737,11 @@ export function Dictionary() {
     return [];
   }, [scaleBoxOptions, scaleBoxSelection, scaleDiagonalOptions, scaleDiagonalSelection, scalePositionOptions, scalePositionSelection, scaleThreeNpsOptions, scaleThreeNpsSelection, scaleViewMode, strictScalePositionPositions, strictScaleBoxPositions, strictScaleDiagonalPositions, strictScaleThreeNpsPositions]);
 
-  const pentDiagonalFretsNum = useMemo(() => {
-    if (scaleViewMode !== 'pentDiagonal' || !strictScalePentDiagonalPositions || strictScalePentDiagonalPositions.size === 0) return 15;
-    const frets = [...strictScalePentDiagonalPositions].map(p => parseInt(p.split('-')[1], 10));
+  const scaleFretsNum = useMemo(() => {
+    if (!activeStrictScalePositions || activeStrictScalePositions.size === 0) return 15;
+    const frets = [...activeStrictScalePositions].map(p => parseInt(p.split('-')[1], 10));
     return Math.max(15, Math.max(...frets) + 1);
-  }, [scaleViewMode, strictScalePentDiagonalPositions]);
+  }, [activeStrictScalePositions]);
 
   // When viewing a box/position with only a fretRange (no explicit strict positions), deduplicate
   // notes by MIDI pitch so the same pitch never appears twice in one box (G string fret+4 = B string open).
@@ -2140,7 +2138,7 @@ export function Dictionary() {
                 <>
                   <div className="w-full" onMouseEnter={initAudio}>
                      <Fretboard
-                        fretsNum={pentDiagonalFretsNum}
+                        fretsNum={scaleFretsNum}
                         chord={mode === 'chords' ? scaffoldedChord : (mode === 'identify' ? { name: 'Identified', frets: identifiedFrets, fingers: identifiedFrets.map(f => (f === -1 ? -1 : 0)) as Finger[] } : undefined)}
                         showNoteNames={!(mode === 'chords' && scaffoldLevel === 1)}
                         scale={mode === 'scales' ? displayedScale ?? undefined : undefined}
