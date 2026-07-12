@@ -13,7 +13,7 @@ import { addChordToActiveProgression } from '@/src/lib/progressionUtils';
 import { TheoryReference } from '../components/TheoryReference';
 import { STANDARD_TUNING } from '../types';
 import { getBluesBoxPattern } from '../lib/bluesBoxPatterns';
-import { getCagedScaleAnchor, getCagedScalePattern, supportsCagedScale } from '../lib/cagedScalePatterns';
+import { getCagedScaleAnchor, getCagedScalePattern, getCagedScaleRepeat, findShapeAnchors, supportsCagedScale } from '../lib/cagedScalePatterns';
 
 function getNavigationChords(tonalName: string): ChordShape[] {
   const base = tonalName.split('/')[0];
@@ -126,6 +126,14 @@ const MAJOR_FAMILY_BOXES = [
   { id: 'box5', label: 'Box 5', startOff: 7, span: 2 },
 ] as const;
 type RelativeBoxPattern = readonly (readonly number[])[];
+type ScalePositionOption = {
+  id: string;
+  shapeLabel: string;
+  label: string;
+  range: [number, number];
+  pattern: readonly (readonly number[])[] | null;
+  anchorFret: number;
+};
 const MINOR_PENTATONIC_BOX_PATTERNS: Record<string, RelativeBoxPattern> = {
   box1: [[0, 3], [0, 2], [0, 2], [0, 2], [0, 3], [0, 3]],
   box2: [[3, 5], [2, 5], [2, 5], [2, 4], [3, 5], [3, 5]],
@@ -562,115 +570,129 @@ export function Dictionary() {
     };
   }, [activeScale, activeScaleBase, displayedScale, scaleOverlayMode, selectedKey]);
 
-  const scalePositionOptions = useMemo(() => {
+  const scalePositionOptions = useMemo<ScalePositionOption[]>(() => {
+    if (!activeScaleBase) return [];
     const lowENoteIdx = ALL_NOTES.indexOf(STANDARD_TUNING.notes[0] as Note);
     const rootNoteIdx = ALL_NOTES.indexOf(selectedKey);
     const rootFret = (rootNoteIdx - lowENoteIdx + 12) % 12;
-    return SCALE_POSITION_BOXES.map((box, positionIndex) => {
-      const strictCagedPattern = activeScaleBase
-        ? getCagedScalePattern(activeScaleBase.name, positionIndex)
-        : null;
-      if (strictCagedPattern) {
-        const anchorFret = getCagedScaleAnchor(activeScaleBase!.name, rootFret);
-        const offsets = strictCagedPattern.flat();
+
+    const repeatSemitones = getCagedScaleRepeat(activeScaleBase.name);
+    if (repeatSemitones < 12) {
+      const pattern = getCagedScalePattern(activeScaleBase.name, 0);
+      if (!pattern) return [];
+      const baseAnchor = getCagedScaleAnchor(activeScaleBase.name, rootFret);
+      const offsets = pattern.flat();
+      return findShapeAnchors(pattern, baseAnchor, repeatSemitones).map((anchorFret, index) => {
         const minFret = anchorFret + Math.min(...offsets);
         const maxFret = anchorFret + Math.max(...offsets);
         return {
-          id: box.id,
-          label: `${box.label} (${minFret}-${maxFret})`,
+          id: `sym${index + 1}`,
+          shapeLabel: `Position ${index + 1}`,
+          label: `Position ${index + 1} (${minFret}-${maxFret})`,
           range: [minFret, maxFret] as [number, number],
+          pattern,
+          anchorFret,
         };
+      });
+    }
+
+    return SCALE_POSITION_BOXES.flatMap((box, positionIndex) => {
+      const strictCagedPattern = getCagedScalePattern(activeScaleBase.name, positionIndex);
+      if (strictCagedPattern) {
+        const anchorFret = getCagedScaleAnchor(activeScaleBase.name, rootFret);
+        const offsets = strictCagedPattern.flat();
+        return findShapeAnchors(strictCagedPattern, anchorFret, 12).map((alt, altIndex) => {
+          const minFret = alt + Math.min(...offsets);
+          const maxFret = alt + Math.max(...offsets);
+          return {
+            id: altIndex === 0 ? box.id : `${box.id}-alt${altIndex}`,
+            shapeLabel: box.label,
+            label: `${box.label} (${minFret}-${maxFret})`,
+            range: [minFret, maxFret] as [number, number],
+            pattern: strictCagedPattern,
+            anchorFret: alt,
+          };
+        });
       }
       let startFret = rootFret + box.startOff;
       if (startFret < 0) startFret = 0;
       if (startFret > 11) startFret = startFret % 12;
       const endFret = startFret + SCALE_BOX_SPAN;
-      return {
+      return [{
         id: box.id,
+        shapeLabel: box.label,
         label: `${box.label} (${startFret}-${endFret})`,
         range: [startFret, endFret] as [number, number],
-      };
+        pattern: null,
+        anchorFret: startFret,
+      }];
     });
   }, [activeScaleBase, selectedKey]);
 
   const strictScalePositionPositions = useMemo(() => {
-    if (scaleViewMode !== 'position' || !activeScaleBase) return undefined;
-    const positionIndex = SCALE_POSITION_BOXES.findIndex(box => box.id === scalePositionSelection);
-    const pattern = getCagedScalePattern(activeScaleBase.name, positionIndex);
-    if (!pattern) return undefined;
-
-    const lowENoteIdx = ALL_NOTES.indexOf(STANDARD_TUNING.notes[0] as Note);
-    const rootNoteIdx = ALL_NOTES.indexOf(selectedKey);
-    const rootFret = (rootNoteIdx - lowENoteIdx + 12) % 12;
-    const anchorFret = getCagedScaleAnchor(activeScaleBase.name, rootFret);
-    const offsets = pattern.flat();
-
+    if (scaleViewMode !== 'position') return undefined;
+    const option = scalePositionOptions.find(o => o.id === scalePositionSelection);
+    if (!option?.pattern) return undefined;
     const positions = new Set<string>();
-    pattern.forEach((stringOffsets, stringIdx) => {
-      stringOffsets.forEach(offset => positions.add(`${stringIdx}-${anchorFret + offset}`));
+    option.pattern.forEach((stringOffsets, stringIdx) => {
+      stringOffsets.forEach(offset => positions.add(`${stringIdx}-${option.anchorFret + offset}`));
     });
     return positions;
-  }, [activeScaleBase, scalePositionSelection, scaleViewMode, selectedKey]);
+  }, [scalePositionOptions, scalePositionSelection, scaleViewMode]);
 
-  const scaleBoxOptions = useMemo(() => {
-    if (!boxViewSupported) return [];
+  const scaleBoxOptions = useMemo<ScalePositionOption[]>(() => {
+    if (!boxViewSupported || !activeScaleBase) return [];
     const lowENoteIdx = ALL_NOTES.indexOf(STANDARD_TUNING.notes[0] as Note);
     const rootNoteIdx = ALL_NOTES.indexOf(selectedKey);
     const rootFret = (rootNoteIdx - lowENoteIdx + 12) % 12;
     const familyBoxes = boxFamily === 'majorFamily' ? MAJOR_FAMILY_BOXES : MINOR_FAMILY_BOXES;
-    return familyBoxes.map(box => {
-      const strictPattern = activeScaleBase ? getStrictBoxPattern(activeScaleBase.name, box.id) : null;
+    return familyBoxes.flatMap(box => {
+      const strictPattern = getStrictBoxPattern(activeScaleBase.name, box.id);
       if (strictPattern) {
-        let anchorFret = getBluesPositionAnchor(activeScaleBase!.name, rootFret);
+        let anchorFret = getBluesPositionAnchor(activeScaleBase.name, rootFret);
         const allOffsets = strictPattern.flat();
-        let minFret = Math.min(...allOffsets.map(o => anchorFret + o));
-        let maxFret = Math.max(...allOffsets.map(o => anchorFret + o));
-        while (minFret < 0) { anchorFret += 12; minFret += 12; maxFret += 12; }
-        return {
-          id: box.id,
-          label: `${box.label} (${minFret}-${maxFret})`,
-          range: [minFret, maxFret] as [number, number],
-        };
+        const minOffset = Math.min(...allOffsets);
+        while (anchorFret + minOffset < 0) anchorFret += 12;
+        return findShapeAnchors(strictPattern, anchorFret, 12).map((alt, altIndex) => {
+          const minFret = Math.min(...allOffsets.map(o => alt + o));
+          const maxFret = Math.max(...allOffsets.map(o => alt + o));
+          return {
+            id: altIndex === 0 ? box.id : `${box.id}-alt${altIndex}`,
+            shapeLabel: box.label,
+            label: `${box.label} (${minFret}-${maxFret})`,
+            range: [minFret, maxFret] as [number, number],
+            pattern: strictPattern,
+            anchorFret: alt,
+          };
+        });
       }
       let startFret = rootFret + box.startOff;
       if (startFret < 0) startFret += 12;
       if (startFret > 14) startFret -= 12;
       const endFret = startFret + box.span;
-      return {
+      return [{
         id: box.id,
+        shapeLabel: box.label,
         label: `${box.label} (${startFret}-${endFret})`,
         range: [startFret, endFret] as [number, number],
-      };
+        pattern: null,
+        anchorFret: startFret,
+      }];
     });
   }, [activeScaleBase, boxFamily, boxViewSupported, selectedKey]);
   const strictScaleBoxPositions = useMemo(() => {
-    if (scaleViewMode !== 'box' || !activeScaleBase) return undefined;
-    const pattern = getStrictBoxPattern(activeScaleBase.name, scaleBoxSelection);
-    if (!pattern) return undefined;
-
-    const lowENoteIdx = ALL_NOTES.indexOf(STANDARD_TUNING.notes[0] as Note);
-    const rootNoteIdx = ALL_NOTES.indexOf(selectedKey);
-    const rootFret = (rootNoteIdx - lowENoteIdx + 12) % 12;
-    let anchorFret = getBluesPositionAnchor(activeScaleBase.name, rootFret);
-    const allOffsets = pattern.flat();
-    let minFret = Math.min(...allOffsets.map(offset => anchorFret + offset));
-    let maxFret = Math.max(...allOffsets.map(offset => anchorFret + offset));
-
-    while (minFret < 0) {
-      anchorFret += 12;
-      minFret += 12;
-      maxFret += 12;
-    }
-
+    if (scaleViewMode !== 'box') return undefined;
+    const option = scaleBoxOptions.find(o => o.id === scaleBoxSelection);
+    if (!option?.pattern) return undefined;
     const positions = new Set<string>();
-    pattern.forEach((stringOffsets, stringIdx) => {
+    option.pattern.forEach((stringOffsets, stringIdx) => {
       stringOffsets.forEach(offset => {
-        const fret = anchorFret + offset;
-        if (fret >= 0 && fret <= 15) positions.add(`${stringIdx}-${fret}`);
+        const fret = option.anchorFret + offset;
+        if (fret >= 0) positions.add(`${stringIdx}-${fret}`);
       });
     });
     return positions;
-  }, [activeScaleBase, scaleBoxSelection, scaleViewMode, selectedKey]);
+  }, [scaleBoxOptions, scaleBoxSelection, scaleViewMode]);
   const scaleThreeNpsOptions = useMemo(() => {
     if (!threeNpsSupported || !activeScaleBase) return [];
     return activeScaleBase.intervals
@@ -1362,7 +1384,7 @@ export function Dictionary() {
                       <div className="flex gap-1 flex-wrap">
                         {([
                           { id: 'full', label: 'Full Neck', disabled: false },
-                          { id: 'position', label: 'CAGED', disabled: !cagedViewSupported },
+                          { id: 'position', label: activeScaleBase && getCagedScaleRepeat(activeScaleBase.name) < 12 ? 'Positions' : 'CAGED', disabled: !cagedViewSupported },
                           { id: 'box', label: 'Box', disabled: !boxViewSupported },
                           { id: 'pentDiagonal', label: 'Diagonal', disabled: !pentDiagonalSupported },
                           { id: 'threeNps', label: '3NPS', disabled: !threeNpsSupported },
@@ -1399,7 +1421,9 @@ export function Dictionary() {
                             ))}
                           </select>
                           <p className="text-[10px] text-brand-secondary/70 leading-tight">
-                            CAGED view: root-relative neck regions organized by connected chord-shape positions.
+                            {activeScaleBase && getCagedScaleRepeat(activeScaleBase.name) < 12
+                              ? 'Positions view: one symmetric shape, slid across the neck by its repeat interval.'
+                              : 'CAGED view: root-relative neck regions organized by connected chord-shape positions.'}
                           </p>
                         </>
                       )}
