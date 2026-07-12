@@ -2,17 +2,17 @@ export type BluesBoxPattern = readonly (readonly number[])[];
 
 const MINOR_BLUES: Record<string, BluesBoxPattern> = {
   box1: [[0, 3], [0, 1, 2], [0, 2], [0, 2, 3], [0, 3], [0, 3]],
-  box2: [[3, 5], [2, 5], [2, 5], [2, 3, 4], [3, 5], [3, 5]],
+  box2: [[3, 5, 6], [2, 5], [2, 5], [2, 3, 4], [3, 5], [3, 5, 6]],
   box3: [[5, 6, 7], [5, 7], [5, 7, 8], [4, 7], [5, 8], [5, 6, 7]],
-  box4: [[7, 10], [7, 10], [7, 8, 9], [7, 9], [8, 10], [7, 10]],
-  box5: [[10, 12], [10, 12], [9, 12], [9, 12], [10, 11, 12], [10, 12]],
+  box4: [[7, 10], [7, 10], [7, 8, 9], [7, 9], [8, 10, 11], [7, 10]],
+  box5: [[10, 12], [10, 12, 13], [9, 12], [9, 12], [10, 11, 12], [10, 12]],
 };
 
 const MAJOR_BLUES: Record<string, BluesBoxPattern> = {
-  box1: [[0, 2], [-1, 2], [-1, 2], [-1, 0, 1], [0, 2], [0, 2]],
+  box1: [[0, 2, 3], [-1, 2], [-1, 2], [-1, 0, 1], [0, 2], [0, 2, 3]],
   box2: [[2, 3, 4], [2, 4], [2, 4, 5], [1, 4], [2, 5], [2, 3, 4]],
-  box3: [[4, 7], [4, 7], [4, 5, 6], [4, 6], [5, 7], [4, 7]],
-  box4: [[7, 9], [7, 9], [6, 9], [6, 9], [7, 8, 9], [7, 9]],
+  box3: [[4, 7], [4, 7], [4, 5, 6], [4, 6], [5, 7, 8], [4, 7]],
+  box4: [[7, 9], [7, 9, 10], [6, 9], [6, 9], [7, 8, 9], [7, 9]],
   box5: [[9, 12], [9, 10, 11], [9, 11], [9, 11, 12], [9, 12], [9, 12]],
 };
 
@@ -37,6 +37,23 @@ function validatePatterns(name: string, patterns: Record<string, BluesBoxPattern
         }
       });
     });
+  }
+
+  // Each blue note is a connector shared by two neighboring CAGED boxes.
+  // The fifth-to-first comparison crosses the 12-fret octave boundary.
+  const blueInterval = name === 'Minor Blues' ? 6 : 3;
+  const bluePositions = (pattern: BluesBoxPattern, octaveShift = 0) => new Set(
+    pattern.flatMap((frets, stringIndex) => frets
+      .filter(fret => (STRING_OFFSETS[stringIndex] + fret + 24) % 12 === blueInterval)
+      .map(fret => `${stringIndex}-${fret + octaveShift}`)),
+  );
+  for (let boxIndex = 1; boxIndex <= 5; boxIndex++) {
+    const current = bluePositions(patterns[`box${boxIndex}`]);
+    const nextIndex = boxIndex === 5 ? 1 : boxIndex + 1;
+    const next = bluePositions(patterns[`box${nextIndex}`], boxIndex === 5 ? 12 : 0);
+    if (![...current].some(position => next.has(position))) {
+      throw new Error(`${name} boxes ${boxIndex} and ${nextIndex} must share a blue-note connector`);
+    }
   }
 }
 
