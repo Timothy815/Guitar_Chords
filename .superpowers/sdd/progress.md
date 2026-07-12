@@ -215,3 +215,7 @@ Task 1: complete (commits 3432e7d..c02f56a, review clean)
 Task 2: complete (commits c02f56a..c95d36d, review clean)
 Final whole-branch review: APPROVED, ready to merge (commits 3432e7d..c95d36d, 2 commits)
 Minor finding fixed post-review: unused `type DiagonalCell` import removed (commit 4899bf8)
+
+## Scale Position Audit
+**Plan:** docs/superpowers/plans/2026-07-12-scale-position-audit.md
+- [x] Task 1: symmetricScalePatterns.ts + Task 2: findShapeAnchors/getCagedScaleRepeat/symmetric routing — landed together in a single commit (implementer for Task 2 found Task 1's file missing and authored it inline). Commit 0788212 (parent 5e6f74c). Review clean (spec ✅, quality approved, build-time assertions independently re-derived).
