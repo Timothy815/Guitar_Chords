@@ -1,8 +1,29 @@
 import { getBluesBoxPattern } from './bluesBoxPatterns';
 import { getIonianCagedPattern, getIonianParentRootFret } from './ionianCagedPatterns';
 import { getMinorFamilyCagedPattern, getMinorFamilyParentRootFret } from './minorFamilyCagedPatterns';
+import { getSymmetricScalePattern, getSymmetricScaleRepeat } from './symmetricScalePatterns';
 
 const STRING_OFFSETS = [0, 5, 10, 15, 19, 24] as const;
+
+export function findShapeAnchors(
+  pattern: readonly (readonly number[])[],
+  baseAnchor: number,
+  repeatSemitones: number,
+  bounds: { min: number; max: number } = { min: 0, max: 24 },
+): number[] {
+  const offsets = pattern.flat();
+  const minOffset = offsets.length ? Math.min(...offsets) : 0;
+  const maxOffset = offsets.length ? Math.max(...offsets) : 0;
+  const fits = (anchor: number) => anchor + minOffset >= bounds.min && anchor + maxOffset <= bounds.max;
+  const anchors = new Set<number>([baseAnchor]);
+  for (let anchor = baseAnchor - repeatSemitones; fits(anchor); anchor -= repeatSemitones) anchors.add(anchor);
+  for (let anchor = baseAnchor + repeatSemitones; fits(anchor); anchor += repeatSemitones) anchors.add(anchor);
+  return [...anchors].sort((a, b) => a - b);
+}
+
+export function getCagedScaleRepeat(scaleName: string): number {
+  return getSymmetricScaleRepeat(scaleName) ?? 12;
+}
 
 function getPentatonicPattern(scaleName: string, positionIndex: number) {
   const bluesName = scaleName === 'Minor Pentatonic' ? 'Minor Blues'
@@ -17,6 +38,8 @@ function getPentatonicPattern(scaleName: string, positionIndex: number) {
 }
 
 export function getCagedScalePattern(scaleName: string, positionIndex: number) {
+  const symmetricPattern = getSymmetricScalePattern(scaleName);
+  if (symmetricPattern) return positionIndex === 0 ? symmetricPattern : null;
   return getPentatonicPattern(scaleName, positionIndex)
     ?? getBluesBoxPattern(scaleName, positionIndex)
     ?? getIonianCagedPattern(scaleName, positionIndex)
