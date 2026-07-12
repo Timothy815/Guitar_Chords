@@ -39,7 +39,9 @@ const SCALE_INTERVALS: Record<string, readonly number[]> = {
 };
 
 for (const [name, patterns] of Object.entries(PATTERNS)) {
-  const modalRootFromParent = name === 'Phrygian Dominant' ? 7 : 9;
+  // Templates are stored relative to the natural-minor parent-major origin:
+  // A harmonic minor is offset 9 from C; its mode V, E Phrygian Dominant, is offset 4 from C.
+  const modalRootFromParent = name === 'Phrygian Dominant' ? 4 : 9;
   patterns.forEach((pattern, positionIndex) => pattern.forEach((frets, stringIndex) => frets.forEach(fret => {
     const interval = mod12(STRING_OFFSETS[stringIndex] + fret - modalRootFromParent);
     if (!SCALE_INTERVALS[name].includes(interval)) {
@@ -64,6 +66,6 @@ export function getMinorFamilyCagedPattern(scaleName: string, positionIndex: num
 
 export function getMinorFamilyParentRootFret(scaleName: string, modalRootFret: number) {
   if (scaleName === 'Harmonic Minor' || scaleName === 'Melodic Minor') return mod12(modalRootFret - 9);
-  if (scaleName === 'Phrygian Dominant') return mod12(modalRootFret - 7);
+  if (scaleName === 'Phrygian Dominant') return mod12(modalRootFret - 4);
   return modalRootFret;
 }
