@@ -988,11 +988,16 @@ export function Dictionary() {
       const tempo = arpeggioTempoRef.current;
       const minFret = range.length === 2 ? range[0] : 0;
       const maxFret = range.length === 2 ? range[1] : 15;
+      const OPEN_STRING_MIDI = [40, 45, 50, 55, 59, 64];
       const scaleNotes: { stringIdx: number; fretIdx: number; note: string }[] = [];
+      const seenMidi = new Set<number>();
       for (let s = 0; s < 6; s++) {
         for (let f = minFret; f <= maxFret; f++) {
           const noteStr = getFretNote(s, f);
           if (currentScale.notes.includes(noteStr.replace(/[0-9]/g, '') as any)) {
+            const midi = OPEN_STRING_MIDI[s] + f;
+            if (seenMidi.has(midi)) continue;
+            seenMidi.add(midi);
             scaleNotes.push({ stringIdx: s, fretIdx: f, note: noteStr });
           }
         }
