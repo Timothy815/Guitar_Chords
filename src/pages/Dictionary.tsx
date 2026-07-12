@@ -13,7 +13,7 @@ import { addChordToActiveProgression } from '@/src/lib/progressionUtils';
 import { TheoryReference } from '../components/TheoryReference';
 import { STANDARD_TUNING } from '../types';
 import { getBluesBoxPattern } from '../lib/bluesBoxPatterns';
-import { getIonianCagedPattern } from '../lib/ionianCagedPatterns';
+import { getCagedScaleAnchor, getCagedScalePattern, supportsCagedScale } from '../lib/cagedScalePatterns';
 
 function getNavigationChords(tonalName: string): ChordShape[] {
   const base = tonalName.split('/')[0];
@@ -160,18 +160,6 @@ function getStrictBoxPattern(scaleName: string, boxId: string): RelativeBoxPatte
 
 function getBluesPositionAnchor(scaleName: string, rootFret: number) {
   const offsets = Array.from({ length: 5 }, (_, index) => getBluesBoxPattern(scaleName, index)?.flat() ?? []).flat();
-  if (offsets.length === 0) return rootFret;
-  let anchorFret = rootFret;
-  while (anchorFret + Math.min(...offsets) < 0) anchorFret += 12;
-  return anchorFret;
-}
-
-function getStrictCagedPattern(scaleName: string, positionIndex: number) {
-  return getBluesBoxPattern(scaleName, positionIndex) ?? getIonianCagedPattern(scaleName, positionIndex);
-}
-
-function getCagedPositionAnchor(scaleName: string, rootFret: number) {
-  const offsets = Array.from({ length: 5 }, (_, index) => getStrictCagedPattern(scaleName, index)?.flat() ?? []).flat();
   if (offsets.length === 0) return rootFret;
   let anchorFret = rootFret;
   while (anchorFret + Math.min(...offsets) < 0) anchorFret += 12;
@@ -513,6 +501,7 @@ export function Dictionary() {
   const boxViewSupported = boxFamily !== null;
   const threeNpsSupported = (activeScaleBase?.intervals.length ?? 0) === 7;
   const diagonalSupported = (activeScaleBase?.intervals.length ?? 0) === 7;
+  const cagedViewSupported = Boolean(activeScaleBase && supportsCagedScale(activeScaleBase.name));
   const pentDiagonalSupported = (activeScaleBase?.intervals.length ?? 0) === 5;
   const scaleOverlayIntervals = useMemo<number[]>(() => {
     const intervals = activeScaleBase?.intervals ?? [];
@@ -579,10 +568,10 @@ export function Dictionary() {
     const rootFret = (rootNoteIdx - lowENoteIdx + 12) % 12;
     return SCALE_POSITION_BOXES.map((box, positionIndex) => {
       const strictCagedPattern = activeScaleBase
-        ? getStrictCagedPattern(activeScaleBase.name, positionIndex)
+        ? getCagedScalePattern(activeScaleBase.name, positionIndex)
         : null;
       if (strictCagedPattern) {
-        const anchorFret = getCagedPositionAnchor(activeScaleBase!.name, rootFret);
+        const anchorFret = getCagedScaleAnchor(activeScaleBase!.name, rootFret);
         const offsets = strictCagedPattern.flat();
         const minFret = anchorFret + Math.min(...offsets);
         const maxFret = anchorFret + Math.max(...offsets);
@@ -607,13 +596,13 @@ export function Dictionary() {
   const strictScalePositionPositions = useMemo(() => {
     if (scaleViewMode !== 'position' || !activeScaleBase) return undefined;
     const positionIndex = SCALE_POSITION_BOXES.findIndex(box => box.id === scalePositionSelection);
-    const pattern = getStrictCagedPattern(activeScaleBase.name, positionIndex);
+    const pattern = getCagedScalePattern(activeScaleBase.name, positionIndex);
     if (!pattern) return undefined;
 
     const lowENoteIdx = ALL_NOTES.indexOf(STANDARD_TUNING.notes[0] as Note);
     const rootNoteIdx = ALL_NOTES.indexOf(selectedKey);
     const rootFret = (rootNoteIdx - lowENoteIdx + 12) % 12;
-    const anchorFret = getCagedPositionAnchor(activeScaleBase.name, rootFret);
+    const anchorFret = getCagedScaleAnchor(activeScaleBase.name, rootFret);
     const offsets = pattern.flat();
 
     const positions = new Set<string>();
@@ -783,6 +772,9 @@ export function Dictionary() {
   }, [displayedScale, scaleFretRange, activeStrictScalePositions]);
 
   useEffect(() => {
+    if (scaleViewMode === 'position' && !cagedViewSupported) {
+      setScaleViewMode('full');
+    }
     if (scaleViewMode === 'box' && !boxViewSupported) {
       setScaleViewMode('full');
     }
@@ -795,7 +787,7 @@ export function Dictionary() {
     if (scaleViewMode === 'diagonal' && !diagonalSupported) {
       setScaleViewMode('full');
     }
-  }, [boxViewSupported, diagonalSupported, pentDiagonalSupported, scaleViewMode, threeNpsSupported]);
+  }, [boxViewSupported, cagedViewSupported, diagonalSupported, pentDiagonalSupported, scaleViewMode, threeNpsSupported]);
 
   useEffect(() => {
     if (!isStandardTuning && mode === 'chords') {
@@ -1370,7 +1362,7 @@ export function Dictionary() {
                       <div className="flex gap-1 flex-wrap">
                         {([
                           { id: 'full', label: 'Full Neck', disabled: false },
-                          { id: 'position', label: 'CAGED', disabled: false },
+                          { id: 'position', label: 'CAGED', disabled: !cagedViewSupported },
                           { id: 'box', label: 'Box', disabled: !boxViewSupported },
                           { id: 'pentDiagonal', label: 'Diagonal', disabled: !pentDiagonalSupported },
                           { id: 'threeNps', label: '3NPS', disabled: !threeNpsSupported },

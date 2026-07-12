@@ -5,7 +5,7 @@ import { generateScalePattern, COMMON_SCALES, ALL_NOTES, generateDiagonalPentato
 import { initAudio, playNote } from '@/src/lib/audio';
 import type { Note } from '@/src/types';
 import { STANDARD_TUNING } from '@/src/types';
-import { getBluesBoxPattern } from '@/src/lib/bluesBoxPatterns';
+import { getCagedScaleAnchor, getCagedScalePattern, supportsCagedScale } from '@/src/lib/cagedScalePatterns';
 
 // Five CAGED box positions. startOff is semitones relative to root fret on low E.
 // E-shape: root sits at the bottom of the box (-1 fret below root)
@@ -49,25 +49,27 @@ export function ScalePositions() {
 
   const scaleDef = COMMON_SCALES[scaleIdx];
   const diagonalSupported = scaleDef.intervals.length === 5;
+  const cagedSupported = supportsCagedScale(scaleDef.name);
 
-  // Find root's fret on low E, then offset to the chosen CAGED box window.
-  // High boxes (> fret 11) wrap an octave down so they stay on a playable neck region.
+  // Find the tonic on low E, then use the scale's validated parent/CAGED anchor.
   const lowENoteIdx = ALL_NOTES.indexOf(STANDARD_TUNING.notes[0] as Note);
   const rootNoteIdx = ALL_NOTES.indexOf(root);
   const rootFret = (rootNoteIdx - lowENoteIdx + 12) % 12;
 
   const box = CAGED_BOXES[positionIdx];
-  const strictBluesPattern = getBluesBoxPattern(scaleDef.name, positionIdx);
-  const relativeFrets = strictBluesPattern?.flat() ?? [];
+  const strictCagedPattern = getCagedScalePattern(scaleDef.name, positionIdx);
+  const relativeFrets = strictCagedPattern?.flat() ?? [];
   const boxStartOff = relativeFrets.length ? Math.min(...relativeFrets) : box.startOff;
   const boxEndOff = relativeFrets.length ? Math.max(...relativeFrets) : box.startOff + BOX_SPAN;
   let octaveShift = 0;
   while (rootFret + octaveShift + boxStartOff < 0) octaveShift += 12;
   while (rootFret + octaveShift + boxStartOff > 11) octaveShift -= 12;
-  const positionedRootFret = rootFret + octaveShift;
+  const positionedRootFret = strictCagedPattern
+    ? getCagedScaleAnchor(scaleDef.name, rootFret)
+    : rootFret + octaveShift;
   let startFret = positionedRootFret + boxStartOff;
   if (startFret < 0) startFret = 0;
-  if (startFret > 11) startFret = startFret % 12;
+  if (!strictCagedPattern && startFret > 11) startFret = startFret % 12;
   const endFret = startFret + (boxEndOff - boxStartOff);
   const fretRange: [number, number] = [startFret, endFret];
   const fretsNum = Math.max(12, endFret + 1);
@@ -79,9 +81,9 @@ export function ScalePositions() {
   // and open B string are both B3), we keep only the lowest-fret occurrence so the
   // player sees the correct position-box fingering with no doubled notes.
   const scalePositions = useMemo(() => {
-    if (strictBluesPattern) {
+    if (strictCagedPattern) {
       const positions = new Set<string>();
-      strictBluesPattern.forEach((frets, stringIdx) => {
+      strictCagedPattern.forEach((frets, stringIdx) => {
         frets.forEach(relativeFret => positions.add(`${stringIdx}-${positionedRootFret + relativeFret}`));
       });
       return positions;
@@ -105,7 +107,7 @@ export function ScalePositions() {
       if (!seen.has(midi)) { seen.add(midi); positions.add(`${s}-${f}`); }
     }
     return positions;
-  }, [pattern, startFret, endFret, strictBluesPattern, positionedRootFret]);
+  }, [pattern, startFret, endFret, strictCagedPattern, positionedRootFret]);
 
   const diagonalCells = useMemo(
     () => generateDiagonalPentatonic(root, scaleDef),
@@ -132,9 +134,9 @@ export function ScalePositions() {
 
   // Collect unique pitches in the box window, sorted low→high.
   const getBoxNotes = useCallback((): Array<[string, number]> => {
-    if (strictBluesPattern) {
+    if (strictCagedPattern) {
       const notes: Array<[string, number]> = [];
-      strictBluesPattern.forEach((frets, stringIdx) => {
+      strictCagedPattern.forEach((frets, stringIdx) => {
         const openIdx = ALL_NOTES.indexOf(STANDARD_TUNING.notes[stringIdx] as Note);
         frets.forEach(relativeFret => {
           const fret = positionedRootFret + relativeFret;
@@ -156,7 +158,7 @@ export function ScalePositions() {
       }
     }
     return notes.sort((a, b) => a[1] - b[1]);
-  }, [pattern, startFret, endFret, strictBluesPattern, positionedRootFret]);
+  }, [pattern, startFret, endFret, strictCagedPattern, positionedRootFret]);
 
   const getDiagonalNotes = useCallback((): Array<[string, number]> => {
     const notes: Array<[string, number]> = [];
@@ -285,7 +287,7 @@ export function ScalePositions() {
       )}
 
       {/* Mode tabs (box view only — drill/quiz is CAGED-box-specific) */}
-      {viewMode === 'box' && (
+      {viewMode === 'box' && cagedSupported && (
         <div className="flex gap-2">
           {(['free-explore', 'identify-position'] as DrillMode[]).map(m => (
             <button
@@ -305,7 +307,7 @@ export function ScalePositions() {
       )}
 
       {/* Position selector (box mode, free-explore only) */}
-      {viewMode === 'box' && drillMode === 'free-explore' && (
+      {viewMode === 'box' && cagedSupported && drillMode === 'free-explore' && (
         <div className="flex gap-2 flex-wrap">
           {CAGED_BOXES.map((b, i) => (
             <button
@@ -346,8 +348,14 @@ export function ScalePositions() {
         </div>
       )}
 
+      {viewMode === 'box' && !cagedSupported && (
+        <div className="rounded-lg border border-brand-line bg-brand-surface p-4 text-sm text-brand-secondary">
+          {scaleDef.name} does not have five CAGED chord-shape positions. Use Full Neck in Dictionary for an accurate note map.
+        </div>
+      )}
+
       {/* Fretboard */}
-      <div className="space-y-2">
+      {(viewMode !== 'box' || cagedSupported) && <div className="space-y-2">
         <div className="flex items-center justify-between">
           <p className="text-sm font-medium text-brand-ink">
             {viewMode === 'box' ? (
@@ -384,7 +392,7 @@ export function ScalePositions() {
             />
           )}
         </div>
-      </div>
+      </div>}
 
       {/* Quiz area */}
       {drillMode === 'identify-position' && quizOptions.length > 0 && (

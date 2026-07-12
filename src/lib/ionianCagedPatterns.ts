@@ -35,7 +35,22 @@ for (let positionIndex = 0; positionIndex < IONIAN_CAGED.length; positionIndex++
   }
 }
 
+const MODE_PARENT_DEGREES: Record<string, number> = {
+  'Major (Ionian)': 0,
+  Dorian: 2,
+  Phrygian: 4,
+  Lydian: 5,
+  Mixolydian: 7,
+  'Natural Minor (Aeolian)': 9,
+  Locrian: 11,
+};
+
 export function getIonianCagedPattern(scaleName: string, positionIndex: number): IonianCagedPattern | null {
-  if (scaleName !== 'Major (Ionian)') return null;
+  if (!(scaleName in MODE_PARENT_DEGREES)) return null;
   return IONIAN_CAGED[positionIndex] ?? null;
+}
+
+export function getIonianParentRootFret(scaleName: string, modalRootFret: number) {
+  const degree = MODE_PARENT_DEGREES[scaleName];
+  return degree === undefined ? modalRootFret : (modalRootFret - degree + 12) % 12;
 }
