@@ -132,6 +132,13 @@ export function ScalePositions() {
     }
   }, [positionOptions, selectedPositionId]);
 
+  useEffect(() => {
+    if (isSymmetric && drillMode !== 'free-explore') {
+      setDrillMode('free-explore');
+      setQuizOptions([]);
+    }
+  }, [isSymmetric, drillMode]);
+
   const fretRange: [number, number] = selectedOption ? selectedOption.range : [0, BOX_SPAN];
   const fretsNum = Math.max(12, fretRange[1] + 1);
 
