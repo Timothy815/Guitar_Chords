@@ -76,8 +76,9 @@ export function EarTraining() {
   const [difficulty, setDifficulty] = useState<DifficultyLevel>('Beginner');
   const [fretboardSubMode, setFretboardSubMode] = useState<'guess' | 'hunt' | 'sing' | 'singhunt'>('guess');
   const [intervalSubMode, setIntervalSubMode] = useState<'choice' | 'findTone'>('choice');
-  const [phase, setPhase] = useState<'match' | 'name'>('match');
-  const [matchPick, setMatchPick] = useState<number | null>(null);
+  const [phase, setPhase] = useState<'root' | 'target' | 'name'>('root');
+  const [rootPick, setRootPick] = useState<number | null>(null);
+  const [targetPick, setTargetPick] = useState<number | null>(null);
   const [biasTally, setBiasTally] = useState({ sharp: 0, flat: 0, correct: 0 });
   const [fretboardFocus, setFretboardFocus] = useState<FretboardFocus>({});
   const [pianoView, setPianoView] = useState(false);
@@ -287,8 +288,9 @@ export function EarTraining() {
     }
     setSelected(null);
     setTentative(null);
-    setPhase('match');
-    setMatchPick(null);
+    setPhase('root');
+    setRootPick(null);
+    setTargetPick(null);
     setRound(r);
     roundStartTimeRef.current = Date.now();
   }
@@ -622,8 +624,8 @@ export function EarTraining() {
   function handleTentative(i: number) {
     if (selected !== null) return;
     setTentative(i);
-    // Phase B (naming) options are interval-name buttons, not pitches — the
-    // sound was already established in Phase A, so no audio plays on click.
+    // Phase C (naming) options are interval-name buttons, not pitches — the
+    // sound was already established in Phases A & B, so no audio plays on click.
     if (round.kind === 'intervalPitch' && phase === 'name') return;
     playOptionAudio(round, i).catch(() => {});
   }
@@ -699,16 +701,17 @@ export function EarTraining() {
   }
 
   // Find the Tone grading — kept separate from the chord/interval branch
-  // above because an intervalPitch round grades twice against the same
-  // round object: once for the Phase A pitch match, once for Phase B naming.
+  // above because an intervalPitch round grades three times against the same
+  // round object: Phase A (root), Phase B (target), Phase C (naming).
   // (intervalPitch rounds never occur in Plan mode — see advanceRound — so
   // there is no SKILL_LADDERS advancement check here.)
   function handleIntervalPitchSelect(pr: IntervalPitchRound, index: number) {
     const responseTimeMs = Date.now() - roundStartTimeRef.current;
 
-    if (phase === 'match') {
-      const isCorrect = index === pr.correctSemitones;
-      const typeKey = `${pr.correctLabel} (match)`;
+    if (phase === 'root') {
+      // Phase A: Find the root note (always index 0 = unison)
+      const isCorrect = index === 0;
+      const typeKey = `${pr.correctLabel} (root)`;
 
       setScore(prev => ({
         correct: prev.correct + (isCorrect ? 1 : 0),
@@ -729,11 +732,46 @@ export function EarTraining() {
         rootNote: pr.rootNote,
         correct: isCorrect,
         responseTimeMs,
-        skill: 'match',
+        skill: 'root',
+      }]);
+
+      setRootPick(index);
+      setPhase('target');
+      setTentative(null);
+      setSelected(null);
+      roundStartTimeRef.current = Date.now();
+      return;
+    }
+
+    if (phase === 'target') {
+      // Phase B: Find the target note
+      const isCorrect = index === pr.correctSemitones;
+      const typeKey = `${pr.correctLabel} (target)`;
+
+      setScore(prev => ({
+        correct: prev.correct + (isCorrect ? 1 : 0),
+        total: prev.total + 1,
+        streak: isCorrect ? prev.streak + 1 : 0,
+        byType: {
+          ...prev.byType,
+          [typeKey]: {
+            correct: (prev.byType[typeKey]?.correct ?? 0) + (isCorrect ? 1 : 0),
+            total: (prev.byType[typeKey]?.total ?? 0) + 1,
+          },
+        },
+      }));
+
+      appendIntervalEntries([{
+        date: new Date().toISOString().slice(0, 10),
+        label: pr.correctLabel,
+        rootNote: pr.rootNote,
+        correct: isCorrect,
+        responseTimeMs,
+        skill: 'target',
       }]);
 
       playMatchReveal(pr, settings.intervalPlayHarmonic);
-      setMatchPick(index);
+      setTargetPick(index);
       setPhase('name');
       setTentative(null);
       setSelected(null);
@@ -741,7 +779,7 @@ export function EarTraining() {
       return;
     }
 
-    // phase === 'name'
+    // phase === 'name' (Phase C)
     setSelected(index);
     const isCorrect = findTonePhaseBOptions[index]?.label === pr.correctLabel;
     const typeKey = `${pr.correctLabel} (name)`;
@@ -839,9 +877,9 @@ export function EarTraining() {
     }
     if (round.kind === 'intervalPitch') {
       const pr = round as IntervalPitchRound;
-      return phase === 'name'
-        ? findTonePhaseBOptions[index]?.label === pr.correctLabel
-        : index === pr.correctSemitones;
+      if (phase === 'root') return index === 0;
+      if (phase === 'target') return index === pr.correctSemitones;
+      return findTonePhaseBOptions[index]?.label === pr.correctLabel;
     }
     const r = round as IntervalRound;
     return r.options[index].label === r.correct.label;
@@ -2031,15 +2069,14 @@ export function EarTraining() {
                 </div>
               )}
 
-              {/* Phase A / Phase B prompt — Find the Tone only */}
+              {/* Phase A / B / C prompts — Find the Tone only */}
               {round.kind === 'intervalPitch' && (
                 <div className="text-center space-y-1">
                   <p className="text-sm font-medium text-brand-ink">
-                    {phase === 'match' ? 'Listen, then find the matching tone' : 'Now name it'}
+                    {phase === 'root' && 'Listen, then find the root note (first note)'}
+                    {phase === 'target' && 'Now find the second note'}
+                    {phase === 'name' && 'Now name the interval'}
                   </p>
-                  {phase === 'match' && (
-                    <p className="text-xs text-brand-secondary">Root: {(round as IntervalPitchRound).rootNote}</p>
-                  )}
                 </div>
               )}
 
@@ -2047,7 +2084,7 @@ export function EarTraining() {
               <div
                 className={cn(
                   'gap-2',
-                  round.kind === 'intervalPitch' && phase === 'match' && 'flex flex-wrap justify-center',
+                  round.kind === 'intervalPitch' && (phase === 'root' || phase === 'target') && 'flex flex-wrap justify-center',
                   (round.kind === 'interval' || (round.kind === 'intervalPitch' && phase === 'name')) && 'grid grid-cols-4 sm:grid-cols-5',
                   round.kind === 'chord' && 'grid grid-cols-2 gap-3',
                 )}
@@ -2065,7 +2102,7 @@ export function EarTraining() {
                       disabled={answered}
                       className={cn(
                         'border-2 font-medium transition-colors text-center leading-snug',
-                        round.kind === 'intervalPitch' && phase === 'match' ? 'w-9 h-9 rounded-full text-[10px]' : 'rounded-lg',
+                        round.kind === 'intervalPitch' && (phase === 'root' || phase === 'target') ? 'w-9 h-9 rounded-full text-[10px]' : 'rounded-lg',
                         (round.kind === 'interval' || (round.kind === 'intervalPitch' && phase === 'name')) && 'p-2 text-xs',
                         round.kind === 'chord' && 'p-4 text-sm',
                         !answered && !hasTentative && 'border-brand-line hover:border-brand-primary hover:bg-brand-sidebar cursor-pointer text-brand-ink',
@@ -2082,32 +2119,63 @@ export function EarTraining() {
                 })}
               </div>
 
-              {/* Phase A recap — shown throughout Phase B: all 13 dots revealed
-                  with note names, correct one green, the user's Phase A pick
-                  (if wrong) red. Static, independent of the interactive
-                  Phase B options grid above/below it. */}
-              {round.kind === 'intervalPitch' && phase === 'name' && (
-                <div className="flex flex-wrap justify-center gap-2">
-                  {Array.from({ length: 13 }, (_, i) => {
-                    const pr = round as IntervalPitchRound;
-                    const semitones = pr.direction === 'asc' ? i : -i;
-                    const noteLabel = addSemitones(pr.rootNote, semitones);
-                    const isCorrectDot = i === pr.correctSemitones;
-                    const wasPicked = matchPick === i;
-                    return (
-                      <div
-                        key={i}
-                        className={cn(
-                          'w-9 h-9 rounded-full border-2 flex items-center justify-center text-center leading-snug text-[10px] font-medium',
-                          isCorrectDot && 'border-green-500 bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300',
-                          !isCorrectDot && wasPicked && 'border-red-500 bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300',
-                          !isCorrectDot && !wasPicked && 'border-brand-line text-brand-secondary opacity-50',
-                        )}
-                      >
-                        {noteLabel}
+              {/* Phase recaps — show previous phase results as static reference */}
+              {round.kind === 'intervalPitch' && (phase === 'target' || phase === 'name') && (
+                <div className="space-y-3">
+                  {/* Phase A (root) recap — shown during Phase B & C */}
+                  <div>
+                    <p className="text-xs text-brand-secondary text-center mb-2">Phase A: Root note you selected</p>
+                    <div className="flex flex-wrap justify-center gap-2">
+                      {Array.from({ length: 13 }, (_, i) => {
+                        const pr = round as IntervalPitchRound;
+                        const semitones = pr.direction === 'asc' ? i : -i;
+                        const noteLabel = addSemitones(pr.rootNote, semitones);
+                        const isCorrectRoot = i === 0;
+                        const wasRootPick = rootPick === i;
+                        return (
+                          <div
+                            key={i}
+                            className={cn(
+                              'w-9 h-9 rounded-full border-2 flex items-center justify-center text-center leading-snug text-[10px] font-medium',
+                              isCorrectRoot && 'border-green-500 bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300',
+                              !isCorrectRoot && wasRootPick && 'border-red-500 bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300',
+                              !isCorrectRoot && !wasRootPick && 'border-brand-line text-brand-secondary opacity-50',
+                            )}
+                          >
+                            {noteLabel}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  {/* Phase B (target) recap — shown during Phase C only */}
+                  {phase === 'name' && (
+                    <div>
+                      <p className="text-xs text-brand-secondary text-center mb-2">Phase B: Target note you selected</p>
+                      <div className="flex flex-wrap justify-center gap-2">
+                        {Array.from({ length: 13 }, (_, i) => {
+                          const pr = round as IntervalPitchRound;
+                          const semitones = pr.direction === 'asc' ? i : -i;
+                          const noteLabel = addSemitones(pr.rootNote, semitones);
+                          const isCorrectTarget = i === pr.correctSemitones;
+                          const wasTargetPick = targetPick === i;
+                          return (
+                            <div
+                              key={i}
+                              className={cn(
+                                'w-9 h-9 rounded-full border-2 flex items-center justify-center text-center leading-snug text-[10px] font-medium',
+                                isCorrectTarget && 'border-green-500 bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300',
+                                !isCorrectTarget && wasTargetPick && 'border-red-500 bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300',
+                                !isCorrectTarget && !wasTargetPick && 'border-brand-line text-brand-secondary opacity-50',
+                              )}
+                            >
+                              {noteLabel}
+                            </div>
+                          );
+                        })}
                       </div>
-                    );
-                  })}
+                    </div>
+                  )}
                 </div>
               )}
 
