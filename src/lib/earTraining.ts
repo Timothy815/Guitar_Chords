@@ -24,6 +24,7 @@ export interface EarTrainingSettings {
   melodySettings: MelodySettings;
   intervalDirection: 'asc' | 'desc' | 'both';
   intervalPlayHarmonic: boolean;
+  playOpenStringReference: boolean;
 }
 
 export interface ChordAnswer {
@@ -191,6 +192,7 @@ export const DEFAULT_SETTINGS: EarTrainingSettings = {
   melodySettings: { rootKey: 'random', bpm: 80, showFirstNote: true },
   intervalDirection: 'both',
   intervalPlayHarmonic: false,
+  playOpenStringReference: false,
 };
 
 // Chord type classification — order matters: most specific patterns first.
@@ -503,8 +505,32 @@ export function getCorrectPositions(targetNote: string, fretsNum: number): Set<s
   return positions;
 }
 
-export async function playFretboardRound(round: FretboardRound): Promise<void> {
+export async function playFretboardRound(round: FretboardRound, playOpenStringReference = false): Promise<void> {
   await initAudio();
+
+  if (playOpenStringReference) {
+    // Find a valid string/fret position for the target note
+    let referenceString: number | null = null;
+    for (let stringIdx = 0; stringIdx < 6; stringIdx++) {
+      for (let fret = 0; fret <= round.fretsNum; fret++) {
+        if (getFretNote(stringIdx, fret) === round.targetNote) {
+          referenceString = stringIdx;
+          break;
+        }
+      }
+      if (referenceString !== null) break;
+    }
+
+    if (referenceString !== null) {
+      // Play open string → target note
+      const openStringNote = getFretNote(referenceString, 0);
+      playNote(openStringNote, '2n');
+      setTimeout(() => playNote(round.targetNote, '2n'), 400);
+      return;
+    }
+  }
+
+  // Default: just play the target note
   playNote(round.targetNote, '2n');
 }
 

@@ -23,6 +23,7 @@ interface FretboardTrainerProps {
   singMode?: boolean;
   sessionAvgSemitones?: number;
   sessionAvgTaps?: number;
+  playOpenStringReference?: boolean;
   onComplete: (wasCorrect: boolean, huntResult?: HuntResult) => void;
 }
 
@@ -39,6 +40,7 @@ export function FretboardTrainer({
   singMode,
   sessionAvgSemitones,
   sessionAvgTaps,
+  playOpenStringReference = false,
   onComplete,
 }: FretboardTrainerProps) {
   // Shared state (Guess + Hunt)
@@ -80,11 +82,11 @@ export function FretboardTrainer({
       initAudio()
         .then(() => {
           playNote(droneNote, '2n');
-          setTimeout(() => playFretboardRound(round).catch(() => {}), 600);
+          setTimeout(() => playFretboardRound(round, playOpenStringReference).catch(() => {}), 600);
         })
         .catch(() => {});
     } else {
-      playFretboardRound(round).catch(() => {});
+      playFretboardRound(round, playOpenStringReference).catch(() => {});
     }
     // droneMode and droneNote intentionally omitted from deps: effect must only
     // fire when a new round starts, not when the user adjusts drone settings mid-round.
@@ -258,7 +260,7 @@ export function FretboardTrainer({
           )}
         </p>
         <button
-          onClick={() => playFretboardRound(round).catch(() => {})}
+          onClick={() => playFretboardRound(round, playOpenStringReference).catch(() => {})}
           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-primary text-white text-sm font-medium hover:bg-brand-primary/90 transition-colors"
         >
           <Volume2 size={16} /> Replay

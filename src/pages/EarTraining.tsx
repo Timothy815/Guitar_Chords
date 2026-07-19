@@ -1116,6 +1116,28 @@ export function EarTraining() {
               </div>
             )}
 
+            {/* Open String Reference — fretboard mode only */}
+            {settings.mode === 'fretboard' && (
+              <div className="pt-2 border-t border-brand-line">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={settings.playOpenStringReference}
+                    onChange={e => {
+                      const next = { ...settings, playOpenStringReference: e.target.checked };
+                      setSettings(next);
+                      saveSettings(next);
+                    }}
+                    className="w-4 h-4 rounded border-brand-line text-brand-primary focus:ring-brand-primary focus:ring-offset-0"
+                  />
+                  <span className="text-sm text-brand-ink">Play open string reference</span>
+                </label>
+                <p className="text-xs text-brand-secondary mt-1 ml-6">
+                  Hear open string → target note (teaches intervals)
+                </p>
+              </div>
+            )}
+
             {/* Type / interval checkboxes */}
             {settings.mode === 'study' ? (
               <>
@@ -1673,6 +1695,7 @@ export function EarTraining() {
                   onFocusChange={handleFocusChange}
                   droneNote={droneNote}
                   droneMode={droneMode}
+                  playOpenStringReference={settings.playOpenStringReference}
                   sessionAvgSemitones={fretboardSubMode === 'hunt' || fretboardSubMode === 'singhunt' ? sessionAvgSemitones : undefined}
                   sessionAvgTaps={fretboardSubMode === 'hunt' || fretboardSubMode === 'singhunt' ? sessionAvgTaps : undefined}
                   onComplete={handleFretboardComplete}
@@ -1819,6 +1842,7 @@ export function EarTraining() {
                   onFocusChange={handleFocusChange}
                   droneNote={droneNote}
                   droneMode={droneMode}
+                  playOpenStringReference={settings.playOpenStringReference}
                   sessionAvgSemitones={fretboardSubMode === 'hunt' || fretboardSubMode === 'singhunt' ? sessionAvgSemitones : undefined}
                   sessionAvgTaps={fretboardSubMode === 'hunt' || fretboardSubMode === 'singhunt' ? sessionAvgTaps : undefined}
                   onComplete={handleFretboardComplete}
