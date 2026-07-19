@@ -383,7 +383,10 @@ export async function playOptionAudio(round: Round, index: number): Promise<void
   } else if (round.kind === 'intervalPitch') {
     const pr = round as IntervalPitchRound;
     const semitones = pr.direction === 'asc' ? index : -index;
-    playNote(addSemitones(pr.rootNote, semitones), '2n');
+    const targetNote = addSemitones(pr.rootNote, semitones);
+    // Play root → clicked target for direct comparison with the original interval
+    playNote(pr.rootNote, '2n');
+    setTimeout(() => playNote(targetNote, '2n'), 400);
   } else {
     const ir = round as IntervalRound;
     const opt = ir.options[index];
