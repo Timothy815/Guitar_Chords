@@ -200,7 +200,11 @@ export function EarTraining() {
     if (r.kind === 'chord') {
       playStrum(chordToNotes((r as ChordRound).correct.chord), '2n');
     } else if (r.kind === 'intervalPitch') {
-      playNote((r as IntervalPitchRound).rootNote, '2n');
+      const pr = r as IntervalPitchRound;
+      const semitones = pr.direction === 'asc' ? pr.correctSemitones : -pr.correctSemitones;
+      const targetNote = addSemitones(pr.rootNote, semitones);
+      playNote(pr.rootNote, '2n');
+      setTimeout(() => playNote(targetNote, '2n'), 400);
     } else {
       const ir = r as IntervalRound;
       playNote(ir.correct.rootNote, '2n');
