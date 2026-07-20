@@ -18,7 +18,7 @@ import { FretboardTrainer } from '../components/FretboardTrainer';
 import { PianoTrainer } from '../components/PianoTrainer';
 import { FretboardFocusSelector } from '../components/FretboardFocusSelector';
 import { LadderId, LadderStage, SkillLadder, SKILL_LADDERS, PlanProgress, loadPlanProgress, savePlanProgress, isMixedUnlocked } from '../lib/planProgress';
-import { HuntHistoryEntry, appendHuntEntries, loadHuntHistory } from '../lib/huntHistory';
+import { HuntHistoryEntry, appendHuntEntries, loadHuntHistory, calculateHuntTrends } from '../lib/huntHistory';
 import {
   ChordHistoryEntry,
   appendChordEntries,
@@ -2250,25 +2250,126 @@ export function EarTraining() {
             </p>
 
             {settings.mode === 'fretboard' ? (
-              weakNotes.length > 0 && (
-                <table className="w-full text-sm border-collapse">
-                  <thead>
-                    <tr className="border-b border-brand-line text-left">
-                      <th className="pb-1.5 font-medium text-brand-secondary">Note</th>
-                      <th className="pb-1.5 font-medium text-brand-secondary text-right">Wrong</th>
-                      <th className="pb-1.5 font-medium text-brand-secondary text-right">Attempted</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {weakNotes.map(({ note, wrong, total }) => (
-                      <tr key={note} className="border-b border-brand-line/40">
-                        <td className="py-1.5 text-brand-ink">{note.replace(/\d$/, '')}</td>
-                        <td className="py-1.5 text-right text-red-500 font-medium">{wrong}</td>
-                        <td className="py-1.5 text-right text-brand-secondary">{total}</td>
+              huntSessionRounds.length >= 3 ? (() => {
+                // Calculate hunt trends
+                const today = new Date().toISOString().slice(0, 10);
+                const currentEntries: HuntHistoryEntry[] = huntSessionRounds.map((r, i) => ({
+                  date: today,
+                  note: 'A', // placeholder, not used for aggregation
+                  octave: 4,
+                  firstTapSemitones: r.firstTapSemitones,
+                  tapCount: r.tapCount,
+                  fretMin: fretboardFocus.fretMin ?? 0,
+                  fretMax: fretboardFocus.fretMax ?? 12,
+                }));
+
+                const allHistory = loadHuntHistory();
+                const trends = calculateHuntTrends(currentEntries, allHistory);
+
+                if (!trends) return null;
+
+                const getTrendIcon = (trend: 'improving' | 'stable' | 'declining') =>
+                  trend === 'improving' ? '↓' :
+                  trend === 'declining' ? '↑' :
+                  '→';
+
+                const getTrendColor = (trend: 'improving' | 'stable' | 'declining') =>
+                  trend === 'improving' ? 'text-green-500' :
+                  trend === 'declining' ? 'text-red-500' :
+                  'text-brand-secondary';
+
+                const isPersonalBestSemi = trends.current.avgSemitones === trends.personalBest.semitones;
+                const isPersonalBestTaps = trends.current.avgTaps === trends.personalBest.taps;
+
+                return (
+                  <div className="space-y-3">
+                    {/* Current session stats with trends */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="p-3 rounded-lg bg-brand-sidebar border border-brand-line">
+                        <p className="text-xs text-brand-secondary mb-1">Avg Semitones</p>
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-2xl font-bold text-brand-ink">
+                            {trends.current.avgSemitones.toFixed(1)}
+                          </span>
+                          <span className={cn('text-lg font-medium', getTrendColor(trends.semitoneTrend))}>
+                            {getTrendIcon(trends.semitoneTrend)}
+                          </span>
+                          {isPersonalBestSemi && (
+                            <span className="text-xs text-yellow-500 font-medium">PB!</span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="p-3 rounded-lg bg-brand-sidebar border border-brand-line">
+                        <p className="text-xs text-brand-secondary mb-1">Avg Taps</p>
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-2xl font-bold text-brand-ink">
+                            {trends.current.avgTaps.toFixed(1)}
+                          </span>
+                          <span className={cn('text-lg font-medium', getTrendColor(trends.tapTrend))}>
+                            {getTrendIcon(trends.tapTrend)}
+                          </span>
+                          {isPersonalBestTaps && (
+                            <span className="text-xs text-yellow-500 font-medium">PB!</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Comparison to previous session */}
+                    {trends.previous && (
+                      <div className="p-3 rounded-lg bg-brand-sidebar/50 border border-brand-line/50">
+                        <p className="text-xs font-semibold text-brand-secondary mb-2">vs. Last Session ({trends.previous.date})</p>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <span className="text-brand-secondary">Semitones: </span>
+                            <span className="text-brand-ink font-medium">{trends.previous.avgSemitones.toFixed(1)}</span>
+                          </div>
+                          <div>
+                            <span className="text-brand-secondary">Taps: </span>
+                            <span className="text-brand-ink font-medium">{trends.previous.avgTaps.toFixed(1)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Personal bests */}
+                    <div className="p-3 rounded-lg bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-900/50">
+                      <p className="text-xs font-semibold text-yellow-700 dark:text-yellow-300 mb-2">Personal Bests</p>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <span className="text-yellow-600 dark:text-yellow-400">Semitones: </span>
+                          <span className="text-yellow-700 dark:text-yellow-300 font-bold">{trends.personalBest.semitones.toFixed(1)}</span>
+                        </div>
+                        <div>
+                          <span className="text-yellow-600 dark:text-yellow-400">Taps: </span>
+                          <span className="text-yellow-700 dark:text-yellow-300 font-bold">{trends.personalBest.taps.toFixed(1)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })() : (
+                weakNotes.length > 0 && (
+                  <table className="w-full text-sm border-collapse">
+                    <thead>
+                      <tr className="border-b border-brand-line text-left">
+                        <th className="pb-1.5 font-medium text-brand-secondary">Note</th>
+                        <th className="pb-1.5 font-medium text-brand-secondary text-right">Wrong</th>
+                        <th className="pb-1.5 font-medium text-brand-secondary text-right">Attempted</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {weakNotes.map(({ note, wrong, total }) => (
+                        <tr key={note} className="border-b border-brand-line/40">
+                          <td className="py-1.5 text-brand-ink">{note.replace(/\d$/, '')}</td>
+                          <td className="py-1.5 text-right text-red-500 font-medium">{wrong}</td>
+                          <td className="py-1.5 text-right text-brand-secondary">{total}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )
               )
             ) : (
               Object.keys(score.byType).length > 0 && (() => {

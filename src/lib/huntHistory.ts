@@ -64,3 +64,121 @@ export function parseFromCsv(csv: string): HuntHistoryEntry[] {
   }
   return entries;
 }
+
+export interface HuntSession {
+  date: string;
+  avgSemitones: number;
+  avgTaps: number;
+  count: number;
+  focusKey: string; // e.g. "0-12" or "E-string"
+}
+
+/**
+ * Aggregate hunt history into session summaries by date and focus area.
+ * Focus key is derived from fretMin/fretMax or can be customized.
+ */
+export function aggregateHuntSessions(entries: HuntHistoryEntry[]): HuntSession[] {
+  const sessionMap: Record<string, { totalSemitones: number; totalTaps: number; count: number }> = {};
+
+  for (const entry of entries) {
+    const focusKey = `${entry.fretMin}-${entry.fretMax}`;
+    const sessionKey = `${entry.date}|${focusKey}`;
+
+    if (!sessionMap[sessionKey]) {
+      sessionMap[sessionKey] = { totalSemitones: 0, totalTaps: 0, count: 0 };
+    }
+
+    sessionMap[sessionKey].totalSemitones += entry.firstTapSemitones;
+    sessionMap[sessionKey].totalTaps += entry.tapCount;
+    sessionMap[sessionKey].count++;
+  }
+
+  return Object.entries(sessionMap)
+    .map(([sessionKey, data]) => {
+      const [date, focusKey] = sessionKey.split('|');
+      return {
+        date,
+        avgSemitones: data.totalSemitones / data.count,
+        avgTaps: data.totalTaps / data.count,
+        count: data.count,
+        focusKey,
+      };
+    })
+    .sort((a, b) => b.date.localeCompare(a.date)); // Most recent first
+}
+
+export type TrendDirection = 'improving' | 'stable' | 'declining';
+
+export interface TrendComparison {
+  current: HuntSession;
+  previous: HuntSession | null;
+  semitoneTrend: TrendDirection;
+  tapTrend: TrendDirection;
+  personalBest: {
+    semitones: number;
+    taps: number;
+  };
+}
+
+/**
+ * Compare current session against previous sessions and calculate trends.
+ * Returns null if there's no current session data.
+ */
+export function calculateHuntTrends(
+  currentSessionEntries: HuntHistoryEntry[],
+  allHistory: HuntHistoryEntry[]
+): TrendComparison | null {
+  if (currentSessionEntries.length === 0) return null;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const focusKey = `${currentSessionEntries[0].fretMin}-${currentSessionEntries[0].fretMax}`;
+
+  // Calculate current session stats
+  const currentSemitones = currentSessionEntries.reduce((sum, e) => sum + e.firstTapSemitones, 0) / currentSessionEntries.length;
+  const currentTaps = currentSessionEntries.reduce((sum, e) => sum + e.tapCount, 0) / currentSessionEntries.length;
+
+  const current: HuntSession = {
+    date: today,
+    avgSemitones: currentSemitones,
+    avgTaps: currentTaps,
+    count: currentSessionEntries.length,
+    focusKey,
+  };
+
+  // Get all sessions for the same focus area
+  const sessions = aggregateHuntSessions(allHistory).filter(s => s.focusKey === focusKey && s.date !== today);
+
+  // Find previous session (most recent before today)
+  const previous = sessions[0] || null;
+
+  // Calculate trends (threshold: 0.2 for stable)
+  const semitoneDiff = previous ? currentSemitones - previous.avgSemitones : 0;
+  const tapDiff = previous ? currentTaps - previous.avgTaps : 0;
+
+  const semitoneTrend: TrendDirection =
+    !previous ? 'stable' :
+    semitoneDiff < -0.2 ? 'improving' :
+    semitoneDiff > 0.2 ? 'declining' :
+    'stable';
+
+  const tapTrend: TrendDirection =
+    !previous ? 'stable' :
+    tapDiff < -0.2 ? 'improving' :
+    tapDiff > 0.2 ? 'declining' :
+    'stable';
+
+  // Find personal bests
+  const allSemitones = [currentSemitones, ...sessions.map(s => s.avgSemitones)];
+  const allTaps = [currentTaps, ...sessions.map(s => s.avgTaps)];
+
+  return {
+    current,
+    previous,
+    semitoneTrend,
+    tapTrend,
+    personalBest: {
+      semitones: Math.min(...allSemitones),
+      taps: Math.min(...allTaps),
+    },
+  };
+}
