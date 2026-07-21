@@ -58,7 +58,7 @@ function makeRound(
 ): Round {
   if (s.mode === 'chord') return generateChordRound(s.activeChordTypes);
   if (s.mode === 'mixed') return Math.random() < 0.5 ? generateChordRound(s.activeChordTypes) : generateIntervalRound(s.activeIntervals);
-  if (s.mode === 'fretboard') return generateFretboardRound(difficulty, focus);
+  if (s.mode === 'fretboard') return generateFretboardRound(difficulty, focus, s.activeIntervals);
   return generateIntervalRound(s.activeIntervals);
 }
 
@@ -137,10 +137,10 @@ export function EarTraining() {
 
   const FRETS_FOR: Record<DifficultyLevel, number> = { Beginner: 6, Intermediate: 10, Advanced: 13 };
 
-  function nextFretboardNote(diff: DifficultyLevel, focus: FretboardFocus): string {
-    const key = `${diff}|${JSON.stringify(focus)}`;
+  function nextFretboardNote(diff: DifficultyLevel, focus: FretboardFocus, activeIntervals: string[] = []): string {
+    const key = `${diff}|${JSON.stringify(focus)}|${JSON.stringify(activeIntervals)}`;
     if (deckKeyRef.current !== key || deckRef.current.length === 0) {
-      const pool = buildFretboardNotePool(diff, focus);
+      const pool = buildFretboardNotePool(diff, focus, activeIntervals);
       const a: string[] = [];
       for (const note of pool) {
         const wrong = (score.byType[note]?.total ?? 0) - (score.byType[note]?.correct ?? 0);
@@ -253,7 +253,7 @@ export function EarTraining() {
         note = kbPool[Math.floor(Math.random() * kbPool.length)];
         r = makeFretboardRound(note, 13);
       } else {
-        note = nextFretboardNote(difficulty, activeFocus);
+        note = nextFretboardNote(difficulty, activeFocus, s.activeIntervals);
         r = makeFretboardRound(note, FRETS_FOR[difficulty]);
       }
     } else if (effectiveMode === 'rhythm') {
@@ -1192,9 +1192,14 @@ export function EarTraining() {
               </>
             ) : (
               <div>
-                <p className="text-xs font-semibold uppercase tracking-widest text-brand-secondary mb-2">
-                  {settings.mode === 'chord' ? 'Chord Types' : 'Intervals'}
+                <p className="text-xs font-semibold uppercase tracking-widest text-brand-secondary mb-1">
+                  {settings.mode === 'chord' ? 'Chord Types' : settings.mode === 'fretboard' ? 'Interval Filter' : 'Intervals'}
                 </p>
+                {settings.mode === 'fretboard' && (
+                  <p className="text-xs text-brand-secondary mb-2">
+                    Practice specific intervals from open strings (e.g., P5 = 7th fret)
+                  </p>
+                )}
                 <div className="flex flex-wrap gap-2">
                   {settings.mode === 'chord'
                     ? CHORD_TYPE_DEFS.map(def => {

@@ -429,17 +429,33 @@ export async function playStudyCard(card: StudyCard): Promise<void> {
   }
 }
 
-export function buildFretboardNotePool(difficulty: DifficultyLevel, focus: FretboardFocus = {}): string[] {
+export function buildFretboardNotePool(difficulty: DifficultyLevel, focus: FretboardFocus = {}, activeIntervals: string[] = []): string[] {
   const fretsMap: Record<DifficultyLevel, number> = { Beginner: 6, Intermediate: 10, Advanced: 13 };
   const fretsNum = fretsMap[difficulty];
   const pool = new Set<string>();
 
+  // Build set of active interval semitone values
+  const activeIntervalSemitones = new Set<number>();
+  if (activeIntervals.length > 0) {
+    for (const intervalLabel of activeIntervals) {
+      const def = INTERVAL_DEFS.find(d => d.label === intervalLabel);
+      if (def) activeIntervalSemitones.add(def.semitones);
+    }
+  }
+
   for (let s = 0; s < 6; s++) {
     if (focus.stringIdxs && focus.stringIdxs.length > 0 && !focus.stringIdxs.includes(s)) continue;
+
     for (let f = 0; f <= fretsNum; f++) {
       const fMin = focus.fretMin ?? 0;
       const fMax = focus.fretMax ?? fretsNum;
       if (f < fMin || f > fMax) continue;
+
+      // If intervals are specified, only include frets that match those intervals from open string
+      if (activeIntervalSemitones.size > 0 && !activeIntervalSemitones.has(f)) {
+        continue;
+      }
+
       const note = getFretNote(s, f);
       if (!note) continue;
       const octaveMatch = note.match(/(\d)$/);
@@ -487,10 +503,11 @@ export function makeFretboardRound(targetNote: string, fretsNum: number): Fretbo
 export function generateFretboardRound(
   difficulty: DifficultyLevel,
   focus: FretboardFocus = {},
+  activeIntervals: string[] = [],
 ): FretboardRound {
   const fretsMap: Record<DifficultyLevel, number> = { Beginner: 6, Intermediate: 10, Advanced: 13 };
   const fretsNum = fretsMap[difficulty];
-  const pool = buildFretboardNotePool(difficulty, focus);
+  const pool = buildFretboardNotePool(difficulty, focus, activeIntervals);
   const targetNote = pickRandom(pool);
   return { kind: 'fretboard', targetNote, fretsNum };
 }
