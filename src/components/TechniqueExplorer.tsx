@@ -94,10 +94,10 @@ export function TechniqueExplorer({ rootNote = 'A' }: TechniqueExplorerProps) {
           await playSlide(firstNote.note, secondNote.note, speed);
         } else if (technique === 'hammer') {
           // Hammer-on: pick first note, then rapid slide to second (no second pick)
-          await playSlide(firstNote.note, secondNote.note, 0.04); // Very fast slide = hammer sound
+          await playSlide(firstNote.note, secondNote.note, 0.06); // Fast slide = hammer sound
         } else if (technique === 'pulloff') {
           // Pull-off: pick second note, rapid slide down to first
-          await playSlide(secondNote.note, firstNote.note, 0.04); // Very fast slide down
+          await playSlide(secondNote.note, firstNote.note, 0.06); // Fast slide down
         } else if (technique === 'vibrato') {
           // Double stop with vibrato on second note
           playNote(firstNote.note, '2n');

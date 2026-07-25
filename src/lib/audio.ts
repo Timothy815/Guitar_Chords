@@ -265,8 +265,8 @@ function addSemitones(noteStr: string, semitones: number): string {
 }
 
 /**
- * Play a guitar bend: starts at startNote, then smoothly bends up by bendSemitones.
- * Uses Tone.js PitchShift for smooth pitch modulation.
+ * Play a guitar bend using rapid note triggering for smooth pitch change.
+ * Triggers many intermediate notes to simulate continuous pitch bend.
  *
  * @param startNote - Starting note (e.g., "E3")
  * @param bendSemitones - How many semitones to bend up (e.g., 2 for whole-step bend)
@@ -281,42 +281,35 @@ export async function playBend(
 ): Promise<void> {
   if (!isInitialized || !sampler) return;
 
-  // Create a temporary pitch shifter for this bend
-  const pitchShift = new Tone.PitchShift({
-    pitch: 0,
-    windowSize: 0.1,
-    delayTime: 0,
-    feedback: 0
-  }).connect(Tone.getDestination());
-  pitchShift.wet.value = 1.0;
+  const absSemitones = Math.abs(bendSemitones);
+  const direction = bendSemitones >= 0 ? 1 : -1;
 
-  // Disconnect sampler from normal chain and route through pitch shifter
-  sampler.disconnect();
-  sampler.connect(pitchShift);
+  // Use many small steps for smooth bend (about 30 steps per semitone)
+  const totalSteps = Math.max(20, Math.floor(absSemitones * 30));
+  const stepDuration = bendDuration / totalSteps;
+  const semitoneStep = (absSemitones / totalSteps) * direction;
 
-  // Play the note and schedule the bend
   const now = Tone.now();
-  sampler.triggerAttack(startNote, now);
 
-  // Use linearRamp for consistent bend speed (more realistic than exponential)
-  const pitchParam = pitchShift.pitch as any;
-  pitchParam.setValueAtTime(0, now + 0.05); // Start bend after pick attack
-  pitchParam.linearRampToValueAtTime(bendSemitones, now + 0.05 + bendDuration);
+  // Trigger each intermediate note
+  for (let i = 0; i <= totalSteps; i++) {
+    const currentSemitones = semitoneStep * i;
+    const currentNote = addSemitones(startNote, Math.round(currentSemitones * 100) / 100);
+    const time = now + (stepDuration * i);
+    const duration = stepDuration * 2; // Overlap notes for smoothness
 
-  await new Promise(resolve => setTimeout(resolve, (bendDuration + sustainDuration) * 1000 + 100));
+    sampler.triggerAttackRelease(currentNote, duration, time);
+  }
 
-  // Release and cleanup
-  sampler.triggerRelease(startNote);
+  // Final sustained note
+  const finalNote = addSemitones(startNote, Math.round(bendSemitones));
+  sampler.triggerAttackRelease(finalNote, sustainDuration, now + bendDuration);
 
-  await new Promise(resolve => setTimeout(resolve, 100));
-
-  sampler.disconnect();
-  sampler.connect(filterNode);
-  pitchShift.dispose();
+  await new Promise(resolve => setTimeout(resolve, (bendDuration + sustainDuration) * 1000));
 }
 
 /**
- * Play a slide from one note to another with smooth glissando.
+ * Play a slide using rapid chromatic note triggering.
  *
  * @param startNote - Starting note
  * @param endNote - Ending note
@@ -332,38 +325,34 @@ export async function playSlide(
   // Calculate semitone distance
   const startFreq = Tone.Frequency(startNote).toFrequency();
   const endFreq = Tone.Frequency(endNote).toFrequency();
-  const semitones = 12 * Math.log2(endFreq / startFreq);
+  const semitones = Math.round(12 * Math.log2(endFreq / startFreq));
 
-  // Create pitch shifter for slide
-  const pitchShift = new Tone.PitchShift({
-    pitch: 0,
-    windowSize: 0.1,
-    delayTime: 0,
-    feedback: 0
-  }).connect(Tone.getDestination());
-  pitchShift.wet.value = 1.0;
+  if (semitones === 0) {
+    playNote(startNote, '2n');
+    return;
+  }
 
-  sampler.disconnect();
-  sampler.connect(pitchShift);
+  const absSemitones = Math.abs(semitones);
+  const direction = semitones >= 0 ? 1 : -1;
 
-  // Play starting note and schedule smooth slide to end
+  // Chromatic slide - one note per semitone, with intermediate microtones
+  const stepsPerSemitone = 10; // More steps = smoother slide
+  const totalSteps = absSemitones * stepsPerSemitone;
+  const stepDuration = duration / totalSteps;
+  const semitoneStep = (semitones / totalSteps);
+
   const now = Tone.now();
-  sampler.triggerAttack(startNote, now);
 
-  // Use linearRampToValueAtTime for constant-speed slide
-  const pitchParam = pitchShift.pitch as any;
-  pitchParam.setValueAtTime(0, now + 0.02);
-  pitchParam.linearRampToValueAtTime(semitones, now + 0.02 + duration);
+  for (let i = 0; i <= totalSteps; i++) {
+    const currentSemitones = semitoneStep * i;
+    const currentNote = addSemitones(startNote, Math.round(currentSemitones * 100) / 100);
+    const time = now + (stepDuration * i);
+    const noteDuration = stepDuration * 2; // Overlap for smoothness
 
-  await new Promise(resolve => setTimeout(resolve, (duration + 0.2) * 1000));
+    sampler.triggerAttackRelease(currentNote, noteDuration, time);
+  }
 
-  sampler.triggerRelease(startNote);
-
-  await new Promise(resolve => setTimeout(resolve, 100));
-
-  sampler.disconnect();
-  sampler.connect(filterNode);
-  pitchShift.dispose();
+  await new Promise(resolve => setTimeout(resolve, duration * 1000 + 100));
 }
 
 /**
