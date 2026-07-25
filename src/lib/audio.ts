@@ -2,6 +2,7 @@ import * as Tone from 'tone';
 import { Note, STANDARD_TUNING, Tuning, ArpeggioPattern } from '../types';
 import type { RhythmRound } from './rhythmTraining';
 import { durationBeats, beatsPerMeasure } from './rhythmTraining';
+import { ALL_NOTES } from '../data/guitarData';
 
 let sampler: Tone.Sampler | null = null;
 let kickSynth: Tone.MembraneSynth;
@@ -246,6 +247,92 @@ export function startNote(noteInfo: string) {
 export function stopNote() {
   if (!isInitialized || !sampler) return;
   sampler.releaseAll();
+}
+
+/**
+ * Helper: Add semitones to a note string (e.g. "C4" + 2 → "D4")
+ */
+function addSemitones(noteStr: string, semitones: number): string {
+  const match = noteStr.match(/^([A-G]#?)(\d)$/);
+  if (!match) return noteStr;
+  const note = match[1] as Note;
+  const octave = parseInt(match[2]);
+  const idx = ALL_NOTES.indexOf(note);
+  if (idx === -1) return noteStr;
+  const newIdx = ((idx + semitones) % 12 + 12) % 12;
+  const octaveShift = Math.floor((idx + semitones) / 12);
+  return `${ALL_NOTES[newIdx]}${octave + octaveShift}`;
+}
+
+/**
+ * Play a guitar bend: starts at startNote, then smoothly bends up by bendSemitones.
+ * Uses rapid intermediate notes to simulate a continuous pitch bend.
+ *
+ * @param startNote - Starting note (e.g., "E3")
+ * @param bendSemitones - How many semitones to bend up (e.g., 2 for whole-step bend)
+ * @param bendDuration - Duration of the bend transition in seconds (e.g., 0.5)
+ * @param totalDuration - Total duration to sustain the note in seconds (e.g., 2.0)
+ */
+export async function playBend(
+  startNote: string,
+  bendSemitones: number,
+  bendDuration: number = 0.5,
+  totalDuration: number = 2.0
+): Promise<void> {
+  if (!isInitialized || !sampler) return;
+
+  // Play the initial note
+  playNote(startNote, `${totalDuration}n`);
+
+  // After a brief moment, start the bend
+  const bendStartDelay = 0.1; // seconds before bend starts
+  const steps = Math.max(6, Math.floor(bendSemitones * 3)); // More steps for smoother bend
+  const stepDuration = bendDuration / steps;
+
+  await new Promise(resolve => setTimeout(resolve, bendStartDelay * 1000));
+
+  // Play intermediate notes to simulate smooth bend
+  for (let i = 1; i <= steps; i++) {
+    const semitoneOffset = (bendSemitones * i) / steps;
+    const bentNote = addSemitones(startNote, Math.round(semitoneOffset));
+    const stepTime = Tone.now() + (i - 1) * stepDuration;
+    sampler.triggerAttackRelease(bentNote, `${stepDuration * 1.5}n`, stepTime);
+    await new Promise(resolve => setTimeout(resolve, stepDuration * 1000));
+  }
+}
+
+/**
+ * Play a slide from one note to another with smooth glissando.
+ *
+ * @param startNote - Starting note
+ * @param endNote - Ending note
+ * @param duration - Duration of the slide in seconds
+ */
+export async function playSlide(
+  startNote: string,
+  endNote: string,
+  duration: number = 0.3
+): Promise<void> {
+  if (!isInitialized || !sampler) return;
+
+  // Calculate semitone distance
+  const startFreq = Tone.Frequency(startNote).toFrequency();
+  const endFreq = Tone.Frequency(endNote).toFrequency();
+  const semitones = Math.round(12 * Math.log2(endFreq / startFreq));
+
+  // Play intermediate notes for smooth slide
+  const steps = Math.max(4, Math.abs(semitones) * 2);
+  const stepDuration = duration / steps;
+
+  for (let i = 0; i <= steps; i++) {
+    const semitoneOffset = (semitones * i) / steps;
+    const slidNote = addSemitones(startNote, Math.round(semitoneOffset));
+    const stepTime = Tone.now() + i * stepDuration;
+    sampler.triggerAttackRelease(slidNote, `${stepDuration * 1.2}n`, stepTime);
+    if (i < steps) {
+      await new Promise(resolve => setTimeout(resolve, stepDuration * 1000));
+    }
+  }
 }
 
 export function startDrone(noteStr: string): void {
