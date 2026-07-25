@@ -61,12 +61,23 @@ interface ScaleDef {
 }
 
 const SCALE_DEFS: ScaleDef[] = [
-  { name: 'Major (Ionian)',          steps: [0,2,4,5,7,9,11],  pattern: 'W  W  H  W  W  W  H',  description: 'Bright, happy — the foundation of Western harmony' },
-  { name: 'Natural Minor (Aeolian)', steps: [0,2,3,5,7,8,10],  pattern: 'W  H  W  W  H  W  W',  description: 'Sad, emotional — the basis for minor key music' },
-  { name: 'Harmonic Minor',          steps: [0,2,3,5,7,8,11],  pattern: 'W  H  W  W  H  A  H',  description: 'Raised 7th gives a classical, exotic feel' },
-  { name: 'Major Pentatonic',        steps: [0,2,4,7,9],        pattern: 'W  W  WH  W  WH',       description: '5-note — bright and singable, great over major chords' },
-  { name: 'Minor Pentatonic',        steps: [0,3,5,7,10],       pattern: 'WH  W  W  WH  W',       description: '5-note — the rock/blues workhorse' },
-  { name: 'Blues',                   steps: [0,3,5,6,7,10],     pattern: 'WH  W  H  H  WH  W',   description: 'Minor pentatonic + the ♭5 blue note' },
+  // ── Major family ──
+  { name: 'Major (Ionian)',          steps: [0,2,4,5,7,9,11],  pattern: 'W  W  H  W  W  W  H',     description: 'Bright, happy — the foundation of Western harmony' },
+  { name: 'Major Pentatonic',        steps: [0,2,4,7,9],        pattern: 'W  W  WH  W  WH',          description: '5-note — bright and singable, great over major chords' },
+  { name: 'Major Blues',             steps: [0,2,3,4,7,9],      pattern: 'W  H  H  WH  W  WH',       description: 'Major pentatonic + ♭3 blue note — swing, gospel feel' },
+
+  // ── Minor family ──
+  { name: 'Natural Minor (Aeolian)', steps: [0,2,3,5,7,8,10],  pattern: 'W  H  W  W  H  W  W',     description: 'Sad, emotional — the basis for minor key music' },
+  { name: 'Harmonic Minor',          steps: [0,2,3,5,7,8,11],  pattern: 'W  H  W  W  H  A  H',     description: 'Raised 7th gives a classical, exotic feel' },
+  { name: 'Melodic Minor',           steps: [0,2,3,5,7,9,11],  pattern: 'W  H  W  W  W  W  H',     description: 'Raised 6th & 7th — jazz improvisation favorite' },
+  { name: 'Minor Pentatonic',        steps: [0,3,5,7,10],       pattern: 'WH  W  W  WH  W',          description: '5-note — the rock/blues workhorse' },
+  { name: 'Minor Blues',             steps: [0,3,5,6,7,10],     pattern: 'WH  W  H  H  WH  W',      description: 'Minor pentatonic + ♭5 blue note — quintessential blues' },
+
+  // ── Exotic / Other ──
+  { name: 'Phrygian Dominant',       steps: [0,1,4,5,7,8,10],   pattern: 'H  A  H  W  H  W  W',     description: 'Spanish/flamenco sound — ♭2 with major 3rd' },
+  { name: 'Whole Tone',              steps: [0,2,4,6,8,10],     pattern: 'W  W  W  W  W  W',        description: 'All whole steps — dreamy, ambiguous, jazz/impressionist' },
+  { name: 'Diminished (Half-Whole)', steps: [0,1,3,4,6,7,9,10], pattern: 'H  W  H  W  H  W  H  W',  description: '8-note symmetrical — tense, jazzy, over dim7 chords' },
+  { name: 'Diminished (Whole-Half)', steps: [0,2,3,5,6,8,9,11], pattern: 'W  H  W  H  W  H  W  H',  description: '8-note symmetrical — dominant function, bebop/fusion' },
 ];
 
 // ─── Mode data ────────────────────────────────────────────────────────────────
