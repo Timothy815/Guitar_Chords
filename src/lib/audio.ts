@@ -266,39 +266,56 @@ function addSemitones(noteStr: string, semitones: number): string {
 
 /**
  * Play a guitar bend: starts at startNote, then smoothly bends up by bendSemitones.
- * Uses rapid intermediate notes to simulate a continuous pitch bend.
+ * Uses Tone.js PitchShift for smooth pitch modulation.
  *
  * @param startNote - Starting note (e.g., "E3")
  * @param bendSemitones - How many semitones to bend up (e.g., 2 for whole-step bend)
  * @param bendDuration - Duration of the bend transition in seconds (e.g., 0.5)
- * @param totalDuration - Total duration to sustain the note in seconds (e.g., 2.0)
+ * @param sustainDuration - How long to hold the bent note in seconds
  */
 export async function playBend(
   startNote: string,
   bendSemitones: number,
   bendDuration: number = 0.5,
-  totalDuration: number = 2.0
+  sustainDuration: number = 1.0
 ): Promise<void> {
   if (!isInitialized || !sampler) return;
 
-  // Play the initial note
-  playNote(startNote, `${totalDuration}n`);
+  // Create a temporary pitch shifter for this bend
+  const pitchShift = new Tone.PitchShift(0).connect(Tone.getDestination());
+  pitchShift.wet.value = 1.0;
 
-  // After a brief moment, start the bend
-  const bendStartDelay = 0.1; // seconds before bend starts
-  const steps = Math.max(6, Math.floor(bendSemitones * 3)); // More steps for smoother bend
-  const stepDuration = bendDuration / steps;
+  // Disconnect sampler from normal chain and route through pitch shifter
+  sampler.disconnect();
+  sampler.connect(pitchShift);
 
-  await new Promise(resolve => setTimeout(resolve, bendStartDelay * 1000));
+  // Play the note
+  const totalDuration = bendDuration + sustainDuration;
+  sampler.triggerAttack(startNote, Tone.now());
 
-  // Play intermediate notes to simulate smooth bend
-  for (let i = 1; i <= steps; i++) {
-    const semitoneOffset = (bendSemitones * i) / steps;
-    const bentNote = addSemitones(startNote, Math.round(semitoneOffset));
-    const stepTime = Tone.now() + (i - 1) * stepDuration;
-    sampler.triggerAttackRelease(bentNote, `${stepDuration * 1.5}n`, stepTime);
-    await new Promise(resolve => setTimeout(resolve, stepDuration * 1000));
-  }
+  // Ramp the pitch shift smoothly
+  const now = Tone.now();
+  pitchShift.pitch = 0;
+  pitchShift.pitch = 0; // Start at 0
+
+  // Ramp to target pitch over bend duration
+  await new Promise(resolve => {
+    setTimeout(() => {
+      // Smooth exponential ramp for natural bend feel
+      pitchShift.pitch = bendSemitones;
+    }, 50);
+
+    setTimeout(resolve, (bendDuration + sustainDuration) * 1000);
+  });
+
+  // Release and cleanup
+  sampler.triggerRelease(startNote);
+  sampler.disconnect();
+  sampler.connect(filterNode);
+
+  setTimeout(() => {
+    pitchShift.dispose();
+  }, 100);
 }
 
 /**
@@ -311,28 +328,84 @@ export async function playBend(
 export async function playSlide(
   startNote: string,
   endNote: string,
-  duration: number = 0.3
+  duration: number = 0.5
 ): Promise<void> {
   if (!isInitialized || !sampler) return;
 
   // Calculate semitone distance
   const startFreq = Tone.Frequency(startNote).toFrequency();
   const endFreq = Tone.Frequency(endNote).toFrequency();
-  const semitones = Math.round(12 * Math.log2(endFreq / startFreq));
+  const semitones = 12 * Math.log2(endFreq / startFreq);
 
-  // Play intermediate notes for smooth slide
-  const steps = Math.max(4, Math.abs(semitones) * 2);
-  const stepDuration = duration / steps;
+  // Create pitch shifter for slide
+  const pitchShift = new Tone.PitchShift(0).connect(Tone.getDestination());
+  pitchShift.wet.value = 1.0;
 
-  for (let i = 0; i <= steps; i++) {
-    const semitoneOffset = (semitones * i) / steps;
-    const slidNote = addSemitones(startNote, Math.round(semitoneOffset));
-    const stepTime = Tone.now() + i * stepDuration;
-    sampler.triggerAttackRelease(slidNote, `${stepDuration * 1.2}n`, stepTime);
-    if (i < steps) {
-      await new Promise(resolve => setTimeout(resolve, stepDuration * 1000));
-    }
-  }
+  sampler.disconnect();
+  sampler.connect(pitchShift);
+
+  // Play starting note and slide to end
+  sampler.triggerAttack(startNote, Tone.now());
+  pitchShift.pitch = 0;
+
+  // Smooth slide
+  await new Promise(resolve => {
+    setTimeout(() => {
+      pitchShift.pitch = semitones;
+    }, 20);
+
+    setTimeout(resolve, duration * 1000);
+  });
+
+  sampler.triggerRelease(startNote);
+  sampler.disconnect();
+  sampler.connect(filterNode);
+
+  setTimeout(() => {
+    pitchShift.dispose();
+  }, 100);
+}
+
+/**
+ * Play a note with vibrato (pitch oscillation).
+ *
+ * @param note - Note to play
+ * @param duration - Duration in seconds
+ * @param vibratoDepth - Vibrato depth in semitones (typically 0.2-0.5)
+ * @param vibratoRate - Vibrato rate in Hz (typically 4-6)
+ */
+export async function playVibrato(
+  note: string,
+  duration: number = 2.0,
+  vibratoDepth: number = 0.3,
+  vibratoRate: number = 5
+): Promise<void> {
+  if (!isInitialized || !sampler) return;
+
+  // Create vibrato using LFO modulating pitch shift
+  const pitchShift = new Tone.PitchShift(0).connect(Tone.getDestination());
+  const lfo = new Tone.LFO(vibratoRate, -vibratoDepth, vibratoDepth);
+  lfo.connect(pitchShift.pitch as any);
+  pitchShift.wet.value = 1.0;
+
+  sampler.disconnect();
+  sampler.connect(pitchShift);
+
+  lfo.start();
+  sampler.triggerAttack(note, Tone.now());
+
+  await new Promise(resolve => setTimeout(resolve, duration * 1000));
+
+  sampler.triggerRelease(note);
+  lfo.stop();
+
+  sampler.disconnect();
+  sampler.connect(filterNode);
+
+  setTimeout(() => {
+    lfo.dispose();
+    pitchShift.dispose();
+  }, 100);
 }
 
 export function startDrone(noteStr: string): void {

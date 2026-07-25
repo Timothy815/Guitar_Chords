@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Play, Volume2 } from 'lucide-react';
 import { Note } from '../types';
 import { ALL_NOTES } from '../data/guitarData';
-import { initAudio, playNote, getFretNote, playBend, playSlide } from '../lib/audio';
+import { initAudio, playNote, getFretNote, playBend, playSlide, playVibrato } from '../lib/audio';
 import { cn } from '../lib/utils';
 
 const INTERVALS = [
@@ -61,49 +61,42 @@ export function TechniqueExplorer({ rootNote = 'A' }: TechniqueExplorerProps) {
         playNote(lowerNote, '2n');
         playNote(upperNote, '2n');
       } else if (technique === 'bend') {
-        // Play lower note (pedal tone), then bend upper note
-        playNote(lowerNote, `${speed * 2}n`);
+        // Double stop with bend: play lower note (pedal), bend upper note
+        playNote(lowerNote, `${(speed + 1) * 2}n`);
 
-        // Start upper note and bend it up
+        // Small delay then bend the upper note
         setTimeout(async () => {
-          await playBend(upperNote, bendAmount, speed, speed * 2);
-        }, 100);
+          await playBend(upperNote, bendAmount, speed, speed);
+        }, 50);
       } else if (technique === 'slide') {
-        // Play lower note (pedal), then slide to upper note
-        playNote(lowerNote, '2n');
+        // Double stop with slide: pedal tone + slide into upper note
+        playNote(lowerNote, `${speed + 1}n`);
 
-        // Calculate start position (a few frets below upper note)
-        const slideStart = getFretNote(upperString, Math.max(0, fretPosition + intervalSemitones - 3));
+        // Calculate slide start position (3-4 frets below target)
+        const slideStartFret = Math.max(0, fretPosition + intervalSemitones - 3);
+        const slideStart = getFretNote(upperString, slideStartFret);
+
         setTimeout(async () => {
           await playSlide(slideStart, upperNote, speed);
-        }, 100);
+        }, 50);
       } else if (technique === 'hammer') {
-        // Hammer-on: play lower note, then hammer upper note
+        // Hammer-on: open or lower fret picked, then hammer to higher fret
         playNote(lowerNote, '2n');
 
-        // Hammer-on has a quick, percussive attack
+        // Quick hammer attack on upper note
         setTimeout(() => {
-          playNote(upperNote, '1n');
-        }, 150);
+          playNote(upperNote, '8n');
+        }, 180);
       } else if (technique === 'vibrato') {
-        // Play both notes with simulated vibrato (rapid micro-bends)
+        // Double stop with vibrato on upper note
         playNote(lowerNote, '2n');
 
-        // Vibrato: oscillate pitch slightly
-        const vibratoNote = upperNote;
         setTimeout(async () => {
-          playNote(vibratoNote, '2n');
-
-          // Simulate vibrato with small bends
-          for (let i = 0; i < 4; i++) {
-            setTimeout(() => {
-              playNote(vibratoNote, '4n');
-            }, i * 200 + 100);
-          }
-        }, 100);
+          await playVibrato(upperNote, 2.0, 0.3, 5);
+        }, 50);
       }
     } finally {
-      setTimeout(() => setIsPlaying(false), speed * 2000 + 1000);
+      setTimeout(() => setIsPlaying(false), Math.max(3000, speed * 2000 + 1000));
     }
   }
 
