@@ -282,7 +282,12 @@ export async function playBend(
   if (!isInitialized || !sampler) return;
 
   // Create a temporary pitch shifter for this bend
-  const pitchShift = new Tone.PitchShift(0).connect(Tone.getDestination());
+  const pitchShift = new Tone.PitchShift({
+    pitch: 0,
+    windowSize: 0.1,
+    delayTime: 0,
+    feedback: 0
+  }).connect(Tone.getDestination());
   pitchShift.wet.value = 1.0;
 
   // Disconnect sampler from normal chain and route through pitch shifter
@@ -293,21 +298,21 @@ export async function playBend(
   const now = Tone.now();
   sampler.triggerAttack(startNote, now);
 
-  // Use exponentialRampToValueAtTime for smooth, natural bend
+  // Use linearRamp for consistent bend speed (more realistic than exponential)
   const pitchParam = pitchShift.pitch as any;
-  pitchParam.setValueAtTime(0, now);
-  pitchParam.exponentialRampToValueAtTime(bendSemitones + 0.01, now + bendDuration); // +0.01 to avoid 0
+  pitchParam.setValueAtTime(0, now + 0.05); // Start bend after pick attack
+  pitchParam.linearRampToValueAtTime(bendSemitones, now + 0.05 + bendDuration);
 
-  await new Promise(resolve => setTimeout(resolve, (bendDuration + sustainDuration) * 1000));
+  await new Promise(resolve => setTimeout(resolve, (bendDuration + sustainDuration) * 1000 + 100));
 
   // Release and cleanup
   sampler.triggerRelease(startNote);
+
+  await new Promise(resolve => setTimeout(resolve, 100));
+
   sampler.disconnect();
   sampler.connect(filterNode);
-
-  setTimeout(() => {
-    pitchShift.dispose();
-  }, 100);
+  pitchShift.dispose();
 }
 
 /**
@@ -330,7 +335,12 @@ export async function playSlide(
   const semitones = 12 * Math.log2(endFreq / startFreq);
 
   // Create pitch shifter for slide
-  const pitchShift = new Tone.PitchShift(0).connect(Tone.getDestination());
+  const pitchShift = new Tone.PitchShift({
+    pitch: 0,
+    windowSize: 0.1,
+    delayTime: 0,
+    feedback: 0
+  }).connect(Tone.getDestination());
   pitchShift.wet.value = 1.0;
 
   sampler.disconnect();
@@ -342,18 +352,18 @@ export async function playSlide(
 
   // Use linearRampToValueAtTime for constant-speed slide
   const pitchParam = pitchShift.pitch as any;
-  pitchParam.setValueAtTime(0, now);
-  pitchParam.linearRampToValueAtTime(semitones, now + duration);
+  pitchParam.setValueAtTime(0, now + 0.02);
+  pitchParam.linearRampToValueAtTime(semitones, now + 0.02 + duration);
 
-  await new Promise(resolve => setTimeout(resolve, duration * 1000 + 100));
+  await new Promise(resolve => setTimeout(resolve, (duration + 0.2) * 1000));
 
   sampler.triggerRelease(startNote);
+
+  await new Promise(resolve => setTimeout(resolve, 100));
+
   sampler.disconnect();
   sampler.connect(filterNode);
-
-  setTimeout(() => {
-    pitchShift.dispose();
-  }, 100);
+  pitchShift.dispose();
 }
 
 /**

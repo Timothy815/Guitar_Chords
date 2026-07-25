@@ -21,7 +21,6 @@ export function TechniqueExplorer({ rootNote = 'A' }: TechniqueExplorerProps) {
   const [firstNote, setFirstNote] = useState<SelectedNote | null>(null);
   const [secondNote, setSecondNote] = useState<SelectedNote | null>(null);
   const [technique, setTechnique] = useState<TechniqueType>('static');
-  const [bendAmount, setBendAmount] = useState(2); // semitones
   const [speed, setSpeed] = useState(0.5); // seconds
   const [isPlaying, setIsPlaying] = useState(false);
 
@@ -47,6 +46,24 @@ export function TechniqueExplorer({ rootNote = 'A' }: TechniqueExplorerProps) {
     setSecondNote(null);
   }
 
+  // Helper: calculate semitone distance between two notes
+  function getSemitoneDistance(note1: string, note2: string): number {
+    const freq1 = 440 * Math.pow(2, (getMidiNumber(note1) - 69) / 12);
+    const freq2 = 440 * Math.pow(2, (getMidiNumber(note2) - 69) / 12);
+    return Math.round(12 * Math.log2(freq2 / freq1));
+  }
+
+  function getMidiNumber(note: string): number {
+    const noteMap: Record<string, number> = {
+      'C': 0, 'C#': 1, 'D': 2, 'D#': 3, 'E': 4, 'F': 5,
+      'F#': 6, 'G': 7, 'G#': 8, 'A': 9, 'A#': 10, 'B': 11
+    };
+    const match = note.match(/^([A-G]#?)(\d)$/);
+    if (!match) return 60;
+    const [, noteName, octave] = match;
+    return noteMap[noteName] + (parseInt(octave) + 1) * 12;
+  }
+
   async function playTechnique() {
     if (!firstNote) return;
 
@@ -63,40 +80,24 @@ export function TechniqueExplorer({ rootNote = 'A' }: TechniqueExplorerProps) {
         }
       } else {
         // Two note techniques
+        const semitoneDistance = getSemitoneDistance(firstNote.note, secondNote.note);
+
         if (technique === 'static') {
           // Play both notes simultaneously
           playNote(firstNote.note, '2n');
           playNote(secondNote.note, '2n');
         } else if (technique === 'bend') {
-          // Play first note, bend to second note
-          playNote(firstNote.note, `${(speed + 1) * 2}n`);
-
-          setTimeout(async () => {
-            await playBend(secondNote.note, bendAmount, speed, speed);
-          }, 50);
+          // Bend FIRST note UP to reach SECOND note's pitch
+          await playBend(firstNote.note, Math.abs(semitoneDistance), speed, speed);
         } else if (technique === 'slide') {
-          // Slide from first note to second note
-          playNote(firstNote.note, `${speed + 1}n`);
-
-          setTimeout(async () => {
-            await playSlide(firstNote.note, secondNote.note, speed);
-          }, 50);
+          // Slide from first note to second note (don't play first note separately)
+          await playSlide(firstNote.note, secondNote.note, speed);
         } else if (technique === 'hammer') {
-          // Hammer-on: pick first note, hammer to second note
-          playNote(firstNote.note, '16n');
-
-          setTimeout(() => {
-            stopNote();
-            playNote(secondNote.note, '4n');
-          }, 150);
+          // Hammer-on: pick first note, then rapid slide to second (no second pick)
+          await playSlide(firstNote.note, secondNote.note, 0.04); // Very fast slide = hammer sound
         } else if (technique === 'pulloff') {
-          // Pull-off: pick second note, pull off to first note
-          playNote(secondNote.note, '16n');
-
-          setTimeout(() => {
-            stopNote();
-            playNote(firstNote.note, '4n');
-          }, 150);
+          // Pull-off: pick second note, rapid slide down to first
+          await playSlide(secondNote.note, firstNote.note, 0.04); // Very fast slide down
         } else if (technique === 'vibrato') {
           // Double stop with vibrato on second note
           playNote(firstNote.note, '2n');
@@ -185,21 +186,7 @@ export function TechniqueExplorer({ rootNote = 'A' }: TechniqueExplorerProps) {
 
         {/* Technique Parameters */}
         {technique === 'bend' && (
-          <div className="space-y-3 p-4 border border-brand-line rounded-lg bg-brand-sidebar">
-            <div>
-              <label className="text-xs font-semibold text-brand-secondary block mb-2">
-                Bend Amount: {bendAmount} semitone{bendAmount !== 1 ? 's' : ''}
-              </label>
-              <input
-                type="range"
-                min="1"
-                max="3"
-                step="0.5"
-                value={bendAmount}
-                onChange={(e) => setBendAmount(parseFloat(e.target.value))}
-                className="w-full"
-              />
-            </div>
+          <div className="p-4 border border-brand-line rounded-lg bg-brand-sidebar">
             <div>
               <label className="text-xs font-semibold text-brand-secondary block mb-2">
                 Bend Speed: {speed.toFixed(1)}s
@@ -213,6 +200,11 @@ export function TechniqueExplorer({ rootNote = 'A' }: TechniqueExplorerProps) {
                 onChange={(e) => setSpeed(parseFloat(e.target.value))}
                 className="w-full"
               />
+              {firstNote && secondNote && (
+                <p className="text-xs text-brand-secondary mt-2">
+                  Will bend {Math.abs(getSemitoneDistance(firstNote.note, secondNote.note))} semitones
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -273,7 +265,7 @@ export function TechniqueExplorer({ rootNote = 'A' }: TechniqueExplorerProps) {
               {secondNote && technique === 'hammer' && `Pick ${firstNote.note}, hammer to ${secondNote.note}`}
               {secondNote && technique === 'pulloff' && `Pick ${secondNote.note}, pull off to ${firstNote.note}`}
               {secondNote && technique === 'slide' && `Slide from ${firstNote.note} to ${secondNote.note}`}
-              {secondNote && technique === 'bend' && `Play ${firstNote.note}, bend ${secondNote.note} up ${bendAmount} semitones`}
+              {secondNote && technique === 'bend' && `Bend from ${firstNote.note} up to ${secondNote.note} (${Math.abs(getSemitoneDistance(firstNote.note, secondNote.note))} semitones)`}
               {secondNote && technique === 'vibrato' && `Play ${firstNote.note}, add vibrato to ${secondNote.note}`}
             </p>
           </div>
