@@ -289,24 +289,16 @@ export async function playBend(
   sampler.disconnect();
   sampler.connect(pitchShift);
 
-  // Play the note
-  const totalDuration = bendDuration + sustainDuration;
-  sampler.triggerAttack(startNote, Tone.now());
-
-  // Ramp the pitch shift smoothly
+  // Play the note and schedule the bend
   const now = Tone.now();
-  pitchShift.pitch = 0;
-  pitchShift.pitch = 0; // Start at 0
+  sampler.triggerAttack(startNote, now);
 
-  // Ramp to target pitch over bend duration
-  await new Promise(resolve => {
-    setTimeout(() => {
-      // Smooth exponential ramp for natural bend feel
-      pitchShift.pitch = bendSemitones;
-    }, 50);
+  // Use exponentialRampToValueAtTime for smooth, natural bend
+  const pitchParam = pitchShift.pitch as any;
+  pitchParam.setValueAtTime(0, now);
+  pitchParam.exponentialRampToValueAtTime(bendSemitones + 0.01, now + bendDuration); // +0.01 to avoid 0
 
-    setTimeout(resolve, (bendDuration + sustainDuration) * 1000);
-  });
+  await new Promise(resolve => setTimeout(resolve, (bendDuration + sustainDuration) * 1000));
 
   // Release and cleanup
   sampler.triggerRelease(startNote);
@@ -344,18 +336,16 @@ export async function playSlide(
   sampler.disconnect();
   sampler.connect(pitchShift);
 
-  // Play starting note and slide to end
-  sampler.triggerAttack(startNote, Tone.now());
-  pitchShift.pitch = 0;
+  // Play starting note and schedule smooth slide to end
+  const now = Tone.now();
+  sampler.triggerAttack(startNote, now);
 
-  // Smooth slide
-  await new Promise(resolve => {
-    setTimeout(() => {
-      pitchShift.pitch = semitones;
-    }, 20);
+  // Use linearRampToValueAtTime for constant-speed slide
+  const pitchParam = pitchShift.pitch as any;
+  pitchParam.setValueAtTime(0, now);
+  pitchParam.linearRampToValueAtTime(semitones, now + duration);
 
-    setTimeout(resolve, duration * 1000);
-  });
+  await new Promise(resolve => setTimeout(resolve, duration * 1000 + 100));
 
   sampler.triggerRelease(startNote);
   sampler.disconnect();
@@ -371,20 +361,27 @@ export async function playSlide(
  *
  * @param note - Note to play
  * @param duration - Duration in seconds
- * @param vibratoDepth - Vibrato depth in semitones (typically 0.2-0.5)
+ * @param vibratoDepth - Vibrato depth in semitones (typically 0.5-1.5)
  * @param vibratoRate - Vibrato rate in Hz (typically 4-6)
  */
 export async function playVibrato(
   note: string,
   duration: number = 2.0,
-  vibratoDepth: number = 0.3,
-  vibratoRate: number = 5
+  vibratoDepth: number = 0.8,
+  vibratoRate: number = 5.5
 ): Promise<void> {
   if (!isInitialized || !sampler) return;
 
   // Create vibrato using LFO modulating pitch shift
   const pitchShift = new Tone.PitchShift(0).connect(Tone.getDestination());
-  const lfo = new Tone.LFO(vibratoRate, -vibratoDepth, vibratoDepth);
+  const lfo = new Tone.LFO({
+    frequency: vibratoRate,
+    min: -vibratoDepth,
+    max: vibratoDepth,
+    type: 'sine'
+  });
+
+  // Connect LFO to control pitch parameter (cast to any to bypass TS check)
   lfo.connect(pitchShift.pitch as any);
   pitchShift.wet.value = 1.0;
 

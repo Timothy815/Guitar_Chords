@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Play, Volume2 } from 'lucide-react';
 import { Note } from '../types';
 import { ALL_NOTES } from '../data/guitarData';
-import { initAudio, playNote, getFretNote, playBend, playSlide, playVibrato } from '../lib/audio';
+import { initAudio, playNote, getFretNote, playBend, playSlide, playVibrato, stopNote } from '../lib/audio';
 import { cn } from '../lib/utils';
 
 const INTERVALS = [
@@ -80,19 +80,20 @@ export function TechniqueExplorer({ rootNote = 'A' }: TechniqueExplorerProps) {
           await playSlide(slideStart, upperNote, speed);
         }, 50);
       } else if (technique === 'hammer') {
-        // Hammer-on: open or lower fret picked, then hammer to higher fret
-        playNote(lowerNote, '2n');
+        // Hammer-on: picked note, then hammer higher fret (first note stops)
+        playNote(lowerNote, '16n'); // Very short - gets cut off by hammer
 
-        // Quick hammer attack on upper note
+        // Hammer on upper note with slight delay
         setTimeout(() => {
-          playNote(upperNote, '8n');
-        }, 180);
+          stopNote(); // Cut off the first note
+          playNote(upperNote, '4n');
+        }, 150);
       } else if (technique === 'vibrato') {
         // Double stop with vibrato on upper note
         playNote(lowerNote, '2n');
 
         setTimeout(async () => {
-          await playVibrato(upperNote, 2.0, 0.3, 5);
+          await playVibrato(upperNote, 2.5, 0.8, 5.5);
         }, 50);
       }
     } finally {
