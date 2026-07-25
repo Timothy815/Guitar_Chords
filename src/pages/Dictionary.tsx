@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Chord as TonalChord } from '@tonaljs/tonal';
 import { Fretboard } from '../components/Fretboard';
 import { IntervalFretboard } from '../components/IntervalFretboard';
-import { TechniqueExplorer } from '../components/TechniqueExplorer';
 import { PianoKeyboard } from '../components/PianoKeyboard';
 import { COMMON_CHORDS, COMMON_SCALES, generateScalePattern, generateDiagonalPentatonic, ALL_NOTES, ScaleCategory } from '../data/guitarData';
 import { playStrum, playArpeggio, getFretNote, initAudio, playNote, setEffects } from '../lib/audio';
@@ -322,7 +321,7 @@ function formatOverlayDegree(interval: number) {
 export function Dictionary() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [mode, setMode] = useState<'chords' | 'scales' | 'identify' | 'intervals' | 'techniques' | 'theory'>('chords');
+  const [mode, setMode] = useState<'chords' | 'scales' | 'identify' | 'intervals' | 'theory'>('chords');
   const [currentTuning, setCurrentTuning] = useState<Tuning>(TUNINGS['Standard']);
   const isStandardTuning = currentTuning.name === 'Standard';
   const [selectedKey, setSelectedKey] = useState<Note>('C');
@@ -1273,12 +1272,6 @@ export function Dictionary() {
              Intervals
            </button>
            <button
-             onClick={() => setMode('techniques')}
-             className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${mode === 'techniques' ? 'bg-brand-surface text-brand-ink shadow-sm' : 'text-brand-secondary hover:text-brand-ink'}`}
-           >
-             Techniques
-           </button>
-           <button
              onClick={() => setMode('theory')}
              className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${mode === 'theory' ? 'bg-brand-surface text-brand-ink shadow-sm' : 'text-brand-secondary hover:text-brand-ink'}`}
            >
@@ -2175,8 +2168,6 @@ export function Dictionary() {
                     setMode('identify');
                   }}
                 />
-              ) : mode === 'techniques' ? (
-                <TechniqueExplorer rootNote={selectedKey} />
               ) : ((mode === 'chords' && activeChord) || (mode === 'scales' && activeScale) || mode === 'identify') ? (
                 <>
                   <div className="w-full" onMouseEnter={initAudio}>
