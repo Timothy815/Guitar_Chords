@@ -49,6 +49,7 @@ export function FretboardTrainer({
   const [isRevealing, setIsRevealing] = useState(false);
   const [noteRevealed, setNoteRevealed] = useState(false);
   const [locked, setLocked] = useState(true);
+  const [playbackMode, setPlaybackMode] = useState<'melodic' | 'harmonic' | 'both'>('both');
 
   // Hunt-only state
   const mouseDownFiredRef = useRef(false);
@@ -82,11 +83,11 @@ export function FretboardTrainer({
       initAudio()
         .then(() => {
           playNote(droneNote, '2n');
-          setTimeout(() => playFretboardRound(round, playOpenStringReference, focus).catch(() => {}), 600);
+          setTimeout(() => playFretboardRound(round, playOpenStringReference, focus, playbackMode).catch(() => {}), 600);
         })
         .catch(() => {});
     } else {
-      playFretboardRound(round, playOpenStringReference, focus).catch(() => {});
+      playFretboardRound(round, playOpenStringReference, focus, playbackMode).catch(() => {});
     }
     // droneMode and droneNote intentionally omitted from deps: effect must only
     // fire when a new round starts, not when the user adjusts drone settings mid-round.
@@ -260,7 +261,7 @@ export function FretboardTrainer({
           )}
         </p>
         <button
-          onClick={() => playFretboardRound(round, playOpenStringReference, focus).catch(() => {})}
+          onClick={() => playFretboardRound(round, playOpenStringReference, focus, playbackMode).catch(() => {})}
           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-primary text-white text-sm font-medium hover:bg-brand-primary/90 transition-colors"
         >
           <Volume2 size={16} /> Replay
@@ -275,6 +276,26 @@ export function FretboardTrainer({
               fretsNum={round.fretsNum}
               onChange={onFocusChange}
             />
+          )}
+          {playOpenStringReference && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-brand-secondary font-medium">Interval playback:</span>
+              <div className="flex gap-1">
+                {(['melodic', 'harmonic', 'both'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => setPlaybackMode(mode)}
+                    className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                      playbackMode === mode
+                        ? 'bg-brand-primary text-white'
+                        : 'border border-brand-line text-brand-secondary hover:border-brand-primary hover:text-brand-primary'
+                    }`}
+                  >
+                    {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
           <div className="flex items-center gap-2 justify-end">
             <button

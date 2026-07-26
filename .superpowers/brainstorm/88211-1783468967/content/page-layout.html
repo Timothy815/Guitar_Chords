@@ -1,0 +1,241 @@
+<h2>Page layout — where does everything live?</h2>
+<p class="subtitle">The page has two main areas: the triad explorer (fretboard + controls) and the progression builder. How should they be arranged?</p>
+
+<div class="cards">
+
+  <!-- Layout A: Explorer primary, progression docked below -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:14px;background:#1a1a2e;">
+      <div style="font-size:10px;color:#888;margin-bottom:6px;text-align:center;">Explorer on top · Progression docked at bottom</div>
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <!-- Top: key/chord controls -->
+        <div style="background:#252550;border-radius:5px;padding:6px 10px;display:flex;gap:8px;align-items:center;">
+          <span style="color:#e74c3c;font-size:10px;font-weight:bold;">Key: C</span>
+          <span style="color:#aaa;font-size:10px;">|</span>
+          <span style="color:#2980b9;font-size:10px;font-weight:bold;">Major ▾</span>
+          <span style="color:#aaa;font-size:10px;">|</span>
+          <span style="color:#888;font-size:10px;">Scale: Major ▾</span>
+          <span style="color:#27ae60;font-size:9px;background:#1a3a1a;padding:2px 6px;border-radius:8px;margin-left:auto;">Scale ON</span>
+        </div>
+        <!-- String group filter -->
+        <div style="background:#1e1e3a;border-radius:5px;padding:5px 10px;display:flex;gap:6px;">
+          <span style="background:#e74c3c;color:white;font-size:9px;padding:2px 8px;border-radius:10px;">All</span>
+          <span style="color:#666;font-size:9px;padding:2px 8px;">E·A·D</span>
+          <span style="color:#666;font-size:9px;padding:2px 8px;">A·D·G</span>
+          <span style="color:#666;font-size:9px;padding:2px 8px;">D·G·B</span>
+          <span style="color:#666;font-size:9px;padding:2px 8px;">G·B·E</span>
+        </div>
+        <!-- Fretboard -->
+        <div style="background:#2a1a0a;border-radius:5px;padding:8px;">
+          <svg width="100%" viewBox="0 0 300 75" xmlns="http://www.w3.org/2000/svg">
+            <rect x="18" y="6" width="3" height="62" fill="#ccc"/>
+            <line x1="54" y1="6" x2="54" y2="68" stroke="#555" stroke-width="1.2"/>
+            <line x1="90" y1="6" x2="90" y2="68" stroke="#555" stroke-width="1.2"/>
+            <line x1="126" y1="6" x2="126" y2="68" stroke="#555" stroke-width="1.2"/>
+            <line x1="162" y1="6" x2="162" y2="68" stroke="#555" stroke-width="1.2"/>
+            <line x1="198" y1="6" x2="198" y2="68" stroke="#555" stroke-width="1.2"/>
+            <line x1="234" y1="6" x2="234" y2="68" stroke="#555" stroke-width="1.2"/>
+            <line x1="270" y1="6" x2="270" y2="68" stroke="#555" stroke-width="1.2"/>
+            <line x1="18" y1="14" x2="295" y2="14" stroke="#aaa" stroke-width="1.8"/>
+            <line x1="18" y1="24" x2="295" y2="24" stroke="#aaa" stroke-width="1.6"/>
+            <line x1="18" y1="34" x2="295" y2="34" stroke="#aaa" stroke-width="1.4"/>
+            <line x1="18" y1="44" x2="295" y2="44" stroke="#aaa" stroke-width="1.2"/>
+            <line x1="18" y1="54" x2="295" y2="54" stroke="#aaa" stroke-width="1"/>
+            <line x1="18" y1="64" x2="295" y2="64" stroke="#aaa" stroke-width=".8"/>
+            <!-- Dimmed scale dots -->
+            <circle cx="54" cy="14" r="5" fill="#555" opacity=".6"/>
+            <circle cx="72" cy="24" r="5" fill="#555" opacity=".6"/>
+            <circle cx="90" cy="34" r="5" fill="#555" opacity=".6"/>
+            <circle cx="126" cy="44" r="5" fill="#555" opacity=".6"/>
+            <circle cx="162" cy="24" r="5" fill="#555" opacity=".6"/>
+            <circle cx="198" cy="54" r="5" fill="#555" opacity=".6"/>
+            <circle cx="234" cy="44" r="5" fill="#555" opacity=".6"/>
+            <!-- Bright triad dots -->
+            <circle cx="72" cy="14" r="6" fill="#e74c3c"/><text x="72" y="18" text-anchor="middle" font-size="7" fill="white">1</text>
+            <circle cx="90" cy="24" r="6" fill="#e74c3c"/><text x="90" y="28" text-anchor="middle" font-size="7" fill="white">5</text>
+            <circle cx="108" cy="34" r="6" fill="#e74c3c"/><text x="108" y="38" text-anchor="middle" font-size="7" fill="white">3</text>
+            <circle cx="162" cy="34" r="6" fill="#2980b9"/><text x="162" y="38" text-anchor="middle" font-size="7" fill="white">3</text>
+            <circle cx="144" cy="44" r="6" fill="#2980b9"/><text x="144" y="48" text-anchor="middle" font-size="7" fill="white">1</text>
+            <circle cx="162" cy="54" r="6" fill="#2980b9"/><text x="162" y="58" text-anchor="middle" font-size="7" fill="white">5</text>
+            <circle cx="234" cy="34" r="6" fill="#27ae60"/><text x="234" y="38" text-anchor="middle" font-size="7" fill="white">5</text>
+            <circle cx="216" cy="44" r="6" fill="#27ae60"/><text x="216" y="48" text-anchor="middle" font-size="7" fill="white">3</text>
+            <circle cx="234" cy="54" r="6" fill="#27ae60"/><text x="234" y="58" text-anchor="middle" font-size="7" fill="white">1</text>
+          </svg>
+        </div>
+        <!-- Progression docked at bottom -->
+        <div style="background:#1e1e1e;border:1px solid #333;border-radius:5px;padding:6px 10px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+            <span style="color:#888;font-size:9px;font-weight:bold;text-transform:uppercase;letter-spacing:.5px;">Progression</span>
+            <div style="display:flex;gap:4px;">
+              <span style="background:#e74c3c;color:white;font-size:9px;padding:2px 8px;border-radius:4px;">▶ Play</span>
+              <span style="background:#333;color:#aaa;font-size:9px;padding:2px 8px;border-radius:4px;">Import</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:4px;">
+            <div style="background:#252540;border:1px solid #e74c3c;border-radius:4px;padding:4px 8px;text-align:center;min-width:36px;">
+              <div style="color:#e74c3c;font-size:9px;font-weight:bold;">C</div>
+              <div style="color:#888;font-size:8px;">Maj</div>
+            </div>
+            <div style="background:#252540;border:1px solid #333;border-radius:4px;padding:4px 8px;text-align:center;min-width:36px;">
+              <div style="color:#ccc;font-size:9px;font-weight:bold;">Am</div>
+              <div style="color:#888;font-size:8px;">Min</div>
+            </div>
+            <div style="background:#252540;border:1px solid #333;border-radius:4px;padding:4px 8px;text-align:center;min-width:36px;">
+              <div style="color:#ccc;font-size:9px;font-weight:bold;">F</div>
+              <div style="color:#888;font-size:8px;">Maj</div>
+            </div>
+            <div style="background:#252540;border:1px solid #333;border-radius:4px;padding:4px 8px;text-align:center;min-width:36px;">
+              <div style="color:#ccc;font-size:9px;font-weight:bold;">G</div>
+              <div style="color:#888;font-size:8px;">Maj</div>
+            </div>
+            <div style="background:#1a1a1a;border:1px dashed #444;border-radius:4px;padding:4px 8px;text-align:center;min-width:36px;color:#555;font-size:14px;">+</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Explorer on top, progression docked below</h3>
+      <p>Fretboard takes the majority of vertical space. The progression builder lives as a compact strip along the bottom — always visible, never in the way. Click a chord in the strip to jump to it; hit Play to advance automatically. Clean, fretboard-first.</p>
+    </div>
+  </div>
+
+  <!-- Layout B: Side-by-side -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:14px;background:#1a1a2e;">
+      <div style="font-size:10px;color:#888;margin-bottom:6px;text-align:center;">Fretboard left · Progression panel right</div>
+      <div style="display:flex;gap:6px;">
+        <!-- Left: fretboard area -->
+        <div style="flex:1;display:flex;flex-direction:column;gap:4px;">
+          <div style="background:#252550;border-radius:5px;padding:5px 8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+            <span style="color:#e74c3c;font-size:9px;font-weight:bold;">C Maj</span>
+            <span style="color:#888;font-size:9px;">All ▾</span>
+            <span style="color:#27ae60;font-size:8px;background:#1a3a1a;padding:1px 5px;border-radius:8px;">Scale ON</span>
+          </div>
+          <div style="background:#2a1a0a;border-radius:5px;padding:6px;">
+            <svg width="100%" viewBox="0 0 180 70" xmlns="http://www.w3.org/2000/svg">
+              <rect x="10" y="5" width="2.5" height="60" fill="#ccc"/>
+              <line x1="32" y1="5" x2="32" y2="65" stroke="#555" stroke-width="1"/>
+              <line x1="54" y1="5" x2="54" y2="65" stroke="#555" stroke-width="1"/>
+              <line x1="76" y1="5" x2="76" y2="65" stroke="#555" stroke-width="1"/>
+              <line x1="98" y1="5" x2="98" y2="65" stroke="#555" stroke-width="1"/>
+              <line x1="120" y1="5" x2="120" y2="65" stroke="#555" stroke-width="1"/>
+              <line x1="142" y1="5" x2="142" y2="65" stroke="#555" stroke-width="1"/>
+              <line x1="164" y1="5" x2="164" y2="65" stroke="#555" stroke-width="1"/>
+              <line x1="10" y1="13" x2="175" y2="13" stroke="#aaa" stroke-width="1.6"/>
+              <line x1="10" y1="23" x2="175" y2="23" stroke="#aaa" stroke-width="1.4"/>
+              <line x1="10" y1="33" x2="175" y2="33" stroke="#aaa" stroke-width="1.2"/>
+              <line x1="10" y1="43" x2="175" y2="43" stroke="#aaa" stroke-width="1"/>
+              <line x1="10" y1="53" x2="175" y2="53" stroke="#aaa" stroke-width=".9"/>
+              <line x1="10" y1="63" x2="175" y2="63" stroke="#aaa" stroke-width=".8"/>
+              <circle cx="43" cy="13" r="5" fill="#e74c3c"/><text x="43" y="17" text-anchor="middle" font-size="7" fill="white">1</text>
+              <circle cx="43" cy="23" r="5" fill="#e74c3c"/><text x="43" y="27" text-anchor="middle" font-size="7" fill="white">5</text>
+              <circle cx="54" cy="33" r="5" fill="#e74c3c"/><text x="54" y="37" text-anchor="middle" font-size="7" fill="white">3</text>
+              <circle cx="98" cy="23" r="5" fill="#2980b9"/><text x="98" y="27" text-anchor="middle" font-size="7" fill="white">3</text>
+              <circle cx="87" cy="33" r="5" fill="#2980b9"/><text x="87" y="37" text-anchor="middle" font-size="7" fill="white">1</text>
+              <circle cx="98" cy="43" r="5" fill="#2980b9"/><text x="98" y="47" text-anchor="middle" font-size="7" fill="white">5</text>
+              <circle cx="142" cy="33" r="5" fill="#27ae60"/><text x="142" y="37" text-anchor="middle" font-size="7" fill="white">5</text>
+              <circle cx="131" cy="43" r="5" fill="#27ae60"/><text x="131" y="47" text-anchor="middle" font-size="7" fill="white">3</text>
+              <circle cx="142" cy="53" r="5" fill="#27ae60"/><text x="142" y="57" text-anchor="middle" font-size="7" fill="white">1</text>
+              <!-- dimmed scale -->
+              <circle cx="32" cy="13" r="4" fill="#444" opacity=".5"/>
+              <circle cx="65" cy="23" r="4" fill="#444" opacity=".5"/>
+              <circle cx="120" cy="43" r="4" fill="#444" opacity=".5"/>
+            </svg>
+          </div>
+        </div>
+        <!-- Right: progression panel -->
+        <div style="width:90px;background:#1e1e1e;border:1px solid #333;border-radius:5px;padding:6px;">
+          <div style="color:#888;font-size:8px;font-weight:bold;text-transform:uppercase;margin-bottom:4px;">Progression</div>
+          <div style="display:flex;flex-direction:column;gap:3px;">
+            <div style="background:#252540;border:1px solid #e74c3c;border-radius:3px;padding:4px 6px;display:flex;justify-content:space-between;align-items:center;">
+              <span style="color:#e74c3c;font-size:9px;font-weight:bold;">C Maj</span>
+              <span style="color:#e74c3c;font-size:8px;">▶</span>
+            </div>
+            <div style="background:#1a1a2e;border:1px solid #333;border-radius:3px;padding:4px 6px;">
+              <span style="color:#aaa;font-size:9px;">Am</span>
+            </div>
+            <div style="background:#1a1a2e;border:1px solid #333;border-radius:3px;padding:4px 6px;">
+              <span style="color:#aaa;font-size:9px;">F Maj</span>
+            </div>
+            <div style="background:#1a1a2e;border:1px solid #333;border-radius:3px;padding:4px 6px;">
+              <span style="color:#aaa;font-size:9px;">G Maj</span>
+            </div>
+            <div style="border:1px dashed #333;border-radius:3px;padding:4px 6px;text-align:center;color:#444;font-size:12px;">+</div>
+          </div>
+          <div style="margin-top:6px;display:flex;flex-direction:column;gap:3px;">
+            <div style="background:#e74c3c;border-radius:3px;padding:3px;text-align:center;color:white;font-size:9px;">▶ Play</div>
+            <div style="background:#333;border-radius:3px;padding:3px;text-align:center;color:#aaa;font-size:9px;">Import</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Side by side</h3>
+      <p>Fretboard on the left, progression panel on the right as a vertical list. Good for seeing the chord sequence at a glance while soloing. Works well on wide screens; on mobile/narrow the fretboard gets squeezed.</p>
+    </div>
+  </div>
+
+  <!-- Layout C: Tabs (Explore / Live) -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:14px;background:#1a1a2e;">
+      <div style="font-size:10px;color:#888;margin-bottom:6px;text-align:center;">Two tabs — free explore vs. progression playback</div>
+      <div style="display:flex;gap:0;margin-bottom:8px;border-bottom:1px solid #333;">
+        <div style="padding:5px 14px;background:#252550;border-radius:5px 5px 0 0;color:#e74c3c;font-size:10px;font-weight:bold;border-bottom:2px solid #e74c3c;">Explore</div>
+        <div style="padding:5px 14px;color:#666;font-size:10px;">Live</div>
+      </div>
+      <!-- Explore tab content -->
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <div style="background:#252550;border-radius:5px;padding:5px 10px;display:flex;gap:8px;align-items:center;">
+          <span style="color:#888;font-size:9px;">Root:</span>
+          <span style="color:#e74c3c;font-size:10px;font-weight:bold;">C ▾</span>
+          <span style="color:#888;font-size:9px;">Quality:</span>
+          <span style="color:#2980b9;font-size:10px;font-weight:bold;">Major ▾</span>
+          <span style="color:#27ae60;font-size:9px;background:#1a3a1a;padding:2px 6px;border-radius:8px;margin-left:auto;">Scale ON</span>
+        </div>
+        <div style="background:#2a1a0a;border-radius:5px;padding:8px;text-align:center;">
+          <svg width="90%" viewBox="0 0 260 60" xmlns="http://www.w3.org/2000/svg">
+            <rect x="10" y="5" width="2.5" height="50" fill="#ccc"/>
+            <line x1="40" y1="5" x2="40" y2="55" stroke="#555" stroke-width="1"/>
+            <line x1="70" y1="5" x2="70" y2="55" stroke="#555" stroke-width="1"/>
+            <line x1="100" y1="5" x2="100" y2="55" stroke="#555" stroke-width="1"/>
+            <line x1="130" y1="5" x2="130" y2="55" stroke="#555" stroke-width="1"/>
+            <line x1="160" y1="5" x2="160" y2="55" stroke="#555" stroke-width="1"/>
+            <line x1="190" y1="5" x2="190" y2="55" stroke="#555" stroke-width="1"/>
+            <line x1="220" y1="5" x2="220" y2="55" stroke="#555" stroke-width="1"/>
+            <line x1="250" y1="5" x2="250" y2="55" stroke="#555" stroke-width="1"/>
+            <line x1="10" y1="13" x2="258" y2="13" stroke="#aaa" stroke-width="1.6"/>
+            <line x1="10" y1="23" x2="258" y2="23" stroke="#aaa" stroke-width="1.4"/>
+            <line x1="10" y1="33" x2="258" y2="33" stroke="#aaa" stroke-width="1.2"/>
+            <line x1="10" y1="43" x2="258" y2="43" stroke="#aaa" stroke-width="1"/>
+            <line x1="10" y1="53" x2="258" y2="53" stroke="#aaa" stroke-width=".9"/>
+            <!-- scale dimmed -->
+            <circle cx="25" cy="13" r="4" fill="#444" opacity=".5"/>
+            <circle cx="55" cy="23" r="4" fill="#444" opacity=".5"/>
+            <circle cx="85" cy="33" r="4" fill="#444" opacity=".5"/>
+            <circle cx="115" cy="43" r="4" fill="#444" opacity=".5"/>
+            <!-- triads -->
+            <circle cx="55" cy="13" r="5" fill="#e74c3c"/><text x="55" y="17" text-anchor="middle" font-size="7" fill="white">1</text>
+            <circle cx="55" cy="23" r="5" fill="#e74c3c"/><text x="55" y="27" text-anchor="middle" font-size="7" fill="white">5</text>
+            <circle cx="70" cy="33" r="5" fill="#e74c3c"/><text x="70" y="37" text-anchor="middle" font-size="7" fill="white">3</text>
+            <circle cx="130" cy="23" r="5" fill="#2980b9"/><text x="130" y="27" text-anchor="middle" font-size="7" fill="white">3</text>
+            <circle cx="115" cy="33" r="5" fill="#2980b9"/><text x="115" y="37" text-anchor="middle" font-size="7" fill="white">1</text>
+            <circle cx="130" cy="43" r="5" fill="#2980b9"/><text x="130" y="47" text-anchor="middle" font-size="7" fill="white">5</text>
+            <circle cx="190" cy="33" r="5" fill="#27ae60"/><text x="190" y="37" text-anchor="middle" font-size="7" fill="white">5</text>
+            <circle cx="175" cy="43" r="5" fill="#27ae60"/><text x="175" y="47" text-anchor="middle" font-size="7" fill="white">3</text>
+            <circle cx="190" cy="53" r="5" fill="#27ae60"/><text x="190" y="57" text-anchor="middle" font-size="7" fill="white">1</text>
+          </svg>
+        </div>
+        <div style="background:#1a1a1e;border-radius:5px;padding:5px 10px;text-align:center;color:#555;font-size:9px;">
+          Switch to Live tab → add a progression and play
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Two tabs: Explore / Live</h3>
+      <p>Explore tab: pure fretboard, pick any root + quality freely. Live tab: load a progression and play through it, fretboard updates automatically. Clear mental model — you know exactly which mode you're in. More clicks to switch between the two.</p>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:16px;">Click to select, then let me know in the terminal.</p>

@@ -1,0 +1,143 @@
+<h2>Plan Page Layout</h2>
+<p class="subtitle">How should the 6 skill ladders be arranged? Each ladder has its own stages (Beginner → Intermediate → Advanced).</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Dashboard Grid</h3>
+      <p>Six cards in a 2-column grid, grouped by Pitch and Instrument. Each card shows the ladder name, current stage, and a mini progress bar.</p>
+      <div style="margin-top:12px;border:1px solid #e2e8f0;border-radius:8px;padding:10px;background:#f8fafc">
+        <div style="font-size:10px;font-weight:600;text-transform:uppercase;color:#94a3b8;margin-bottom:6px">Pitch Skills</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
+          <div style="border:1px solid #e2e8f0;border-radius:6px;padding:8px;background:white">
+            <div style="font-size:11px;font-weight:600;color:#334155">Intervals</div>
+            <div style="font-size:10px;color:#64748b;margin:2px 0">Intermediate · Stage 2/3</div>
+            <div style="height:4px;background:#e2e8f0;border-radius:2px;margin-top:4px"><div style="width:60%;height:100%;background:#6366f1;border-radius:2px"></div></div>
+          </div>
+          <div style="border:1px solid #e2e8f0;border-radius:6px;padding:8px;background:white">
+            <div style="font-size:11px;font-weight:600;color:#334155">Chords</div>
+            <div style="font-size:10px;color:#64748b;margin:2px 0">Beginner · Stage 1/3</div>
+            <div style="height:4px;background:#e2e8f0;border-radius:2px;margin-top:4px"><div style="width:20%;height:100%;background:#6366f1;border-radius:2px"></div></div>
+          </div>
+          <div style="border:1px solid #e2e8f0;border-radius:6px;padding:8px;background:white">
+            <div style="font-size:11px;font-weight:600;color:#334155">Mixed</div>
+            <div style="font-size:10px;color:#94a3b8;margin:2px 0">Locked · 0/3</div>
+            <div style="height:4px;background:#e2e8f0;border-radius:2px;margin-top:4px"><div style="width:0%;height:100%;background:#6366f1;border-radius:2px"></div></div>
+          </div>
+          <div style="border:1px solid #e2e8f0;border-radius:6px;padding:8px;background:white">
+            <div style="font-size:11px;font-weight:600;color:#334155">Melody</div>
+            <div style="font-size:10px;color:#94a3b8;margin:2px 0">Not started · 0/4</div>
+            <div style="height:4px;background:#e2e8f0;border-radius:2px;margin-top:4px"><div style="width:0%;height:100%;background:#6366f1;border-radius:2px"></div></div>
+          </div>
+        </div>
+        <div style="font-size:10px;font-weight:600;text-transform:uppercase;color:#94a3b8;margin-bottom:6px">Instrument Skills</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          <div style="border:1px solid #e2e8f0;border-radius:6px;padding:8px;background:white">
+            <div style="font-size:11px;font-weight:600;color:#334155">Fretboard</div>
+            <div style="font-size:10px;color:#64748b;margin:2px 0">Advanced · Stage 3/5</div>
+            <div style="height:4px;background:#e2e8f0;border-radius:2px;margin-top:4px"><div style="width:50%;height:100%;background:#6366f1;border-radius:2px"></div></div>
+          </div>
+          <div style="border:1px solid #e2e8f0;border-radius:6px;padding:8px;background:white">
+            <div style="font-size:11px;font-weight:600;color:#334155">Rhythm</div>
+            <div style="font-size:10px;color:#94a3b8;margin:2px 0">Not started · 0/3</div>
+            <div style="height:4px;background:#e2e8f0;border-radius:2px;margin-top:4px"><div style="width:0%;height:100%;background:#6366f1;border-radius:2px"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Expandable Rows</h3>
+      <p>Each skill is a collapsible row. Collapsed: shows skill name + mini stage dots. Expanded: reveals the full stage list with Start button for the current stage.</p>
+      <div style="margin-top:12px;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;background:white">
+        <div style="padding:6px 10px;background:#f1f5f9;font-size:10px;font-weight:600;text-transform:uppercase;color:#94a3b8">Pitch Skills</div>
+        <!-- Expanded row -->
+        <div style="border-bottom:1px solid #e2e8f0">
+          <div style="padding:8px 10px;display:flex;align-items:center;gap:8px">
+            <span style="font-size:11px;font-weight:600;color:#334155;flex:1">Intervals</span>
+            <div style="display:flex;gap:3px">
+              <div style="width:8px;height:8px;border-radius:50%;background:#22c55e"></div>
+              <div style="width:8px;height:8px;border-radius:50%;background:#6366f1;outline:2px solid #6366f1;outline-offset:1px"></div>
+              <div style="width:8px;height:8px;border-radius:50%;background:#e2e8f0"></div>
+            </div>
+            <span style="font-size:10px;color:#6366f1">▼</span>
+          </div>
+          <div style="padding:0 10px 8px 10px;border-top:1px solid #f1f5f9">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0">
+              <span style="font-size:10px;color:#22c55e">✓ Beginner — 91%</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0">
+              <span style="font-size:10px;font-weight:600;color:#334155">→ Intermediate</span>
+              <button style="padding:2px 8px;border-radius:4px;background:#6366f1;color:white;font-size:10px;border:none">Start</button>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0;opacity:0.4">
+              <span style="font-size:10px;color:#64748b">· Advanced</span>
+            </div>
+          </div>
+        </div>
+        <!-- Collapsed rows -->
+        <div style="padding:8px 10px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #e2e8f0">
+          <span style="font-size:11px;font-weight:600;color:#334155;flex:1">Chords</span>
+          <div style="display:flex;gap:3px">
+            <div style="width:8px;height:8px;border-radius:50%;background:#6366f1;outline:2px solid #6366f1;outline-offset:1px"></div>
+            <div style="width:8px;height:8px;border-radius:50%;background:#e2e8f0"></div>
+            <div style="width:8px;height:8px;border-radius:50%;background:#e2e8f0"></div>
+          </div>
+          <span style="font-size:10px;color:#94a3b8">▶</span>
+        </div>
+        <div style="padding:8px 10px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #e2e8f0;opacity:0.5">
+          <span style="font-size:11px;font-weight:600;color:#94a3b8;flex:1">Mixed</span>
+          <span style="font-size:9px;color:#94a3b8">Not started</span>
+        </div>
+        <div style="padding:8px 10px;display:flex;align-items:center;gap:8px;opacity:0.5">
+          <span style="font-size:11px;font-weight:600;color:#94a3b8;flex:1">Melody</span>
+          <span style="font-size:9px;color:#94a3b8">Not started</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Full Stage Ladder</h3>
+      <p>All stages visible at once in a flat list, grouped under skill headers. Like the current design but with group headers and 6 skill sections instead of one.</p>
+      <div style="margin-top:12px;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;background:white">
+        <div style="padding:6px 10px;background:#f1f5f9;font-size:10px;font-weight:600;text-transform:uppercase;color:#94a3b8">Intervals</div>
+        <div style="padding:7px 12px;display:flex;align-items:center;gap:6px;border-bottom:1px solid #f1f5f9">
+          <span style="color:#22c55e;font-size:11px">✓</span>
+          <span style="font-size:11px;color:#64748b;flex:1">Beginner</span>
+          <span style="font-size:10px;color:#64748b">91%</span>
+        </div>
+        <div style="padding:7px 12px;display:flex;align-items:center;gap:6px;border-bottom:1px solid #f1f5f9">
+          <span style="color:#6366f1;font-size:11px;font-weight:bold">→</span>
+          <span style="font-size:11px;font-weight:600;color:#334155;flex:1">Intermediate</span>
+          <button style="padding:2px 8px;border-radius:4px;background:#6366f1;color:white;font-size:10px;border:none">Start</button>
+        </div>
+        <div style="padding:7px 12px;display:flex;align-items:center;gap:6px;opacity:0.4">
+          <span style="color:#94a3b8;font-size:11px">·</span>
+          <span style="font-size:11px;color:#94a3b8;flex:1">Advanced</span>
+        </div>
+        <div style="padding:6px 10px;background:#f1f5f9;font-size:10px;font-weight:600;text-transform:uppercase;color:#94a3b8">Chords</div>
+        <div style="padding:7px 12px;display:flex;align-items:center;gap:6px;border-bottom:1px solid #f1f5f9">
+          <span style="color:#6366f1;font-size:11px;font-weight:bold">→</span>
+          <span style="font-size:11px;font-weight:600;color:#334155;flex:1">Beginner</span>
+          <button style="padding:2px 8px;border-radius:4px;background:#6366f1;color:white;font-size:10px;border:none">Start</button>
+        </div>
+        <div style="padding:7px 12px;display:flex;align-items:center;gap:6px;opacity:0.4;border-bottom:1px solid #f1f5f9">
+          <span style="color:#94a3b8;font-size:11px">·</span>
+          <span style="font-size:11px;color:#94a3b8;flex:1">Intermediate</span>
+        </div>
+        <div style="padding:7px 12px;display:flex;align-items:center;gap:6px;opacity:0.4">
+          <span style="color:#94a3b8;font-size:11px">·</span>
+          <span style="font-size:11px;color:#94a3b8;flex:1">Advanced</span>
+        </div>
+      </div>
+      <p style="font-size:10px;color:#94a3b8;margin-top:6px">...continues for Mixed, Melody, Fretboard, Rhythm</p>
+    </div>
+  </div>
+</div>

@@ -101,11 +101,12 @@ export interface IntervalFretboardRound {
   rootNote: Note;
   rootStringIdx: number;
   rootFret: number;
+  rootNoteWithOctave: string; // e.g., "A3" for audio playback
   targetNote: Note;
-  targetStringIdx: number;    // correct answer string
-  targetFret: number;         // correct answer fret
-  // Distractors: other valid positions on other strings
-  distractors: { stringIdx: number; fret: number; note: Note }[];
+  targetNoteWithOctave: string; // e.g., "D4" for audio playback
+  // All valid target positions (for multiple correct answers)
+  validTargets: { stringIdx: number; fret: number; note: Note }[];
+  fretsNum: number;
 }
 
 export interface ScaleIntervalRound {
@@ -525,7 +526,8 @@ export function getCorrectPositions(targetNote: string, fretsNum: number): Set<s
 export async function playFretboardRound(
   round: FretboardRound,
   playOpenStringReference = false,
-  focus: FretboardFocus = {}
+  focus: FretboardFocus = {},
+  playbackMode: 'melodic' | 'harmonic' | 'both' = 'melodic'
 ): Promise<void> {
   await initAudio();
 
@@ -559,10 +561,25 @@ export async function playFretboardRound(
     }
 
     if (referenceString !== null) {
-      // Play open string → target note
+      // Play open string → target note with specified playback mode
       const openStringNote = getFretNote(referenceString, 0);
-      playNote(openStringNote, '2n');
-      setTimeout(() => playNote(round.targetNote, '2n'), 400);
+
+      if (playbackMode === 'melodic') {
+        playNote(openStringNote, '2n');
+        setTimeout(() => playNote(round.targetNote, '2n'), 400);
+      } else if (playbackMode === 'harmonic') {
+        playNote(openStringNote, '2n');
+        playNote(round.targetNote, '2n');
+      } else { // both
+        // Play melodic first
+        playNote(openStringNote, '2n');
+        setTimeout(() => playNote(round.targetNote, '2n'), 400);
+        // Then play harmonic after a pause
+        setTimeout(() => {
+          playNote(openStringNote, '2n');
+          playNote(round.targetNote, '2n');
+        }, 1200);
+      }
       return;
     }
   }
@@ -625,45 +642,44 @@ export function getSemitoneDirection(
   return wrapped <= 6 ? 'sharp' : 'flat';
 }
 
-export function generateIntervalFretboardRound(): IntervalFretboardRound {
+export function generateIntervalFretboardRound(fretsNum = 12): IntervalFretboardRound {
   // Pick a random interval from INTERVAL_DEFS
   const def = INTERVAL_DEFS[Math.floor(Math.random() * INTERVAL_DEFS.length)];
   const semitones = def.semitones;
 
   // Pick a random root position (frets 0–9, any string)
   const rootStringIdx = Math.floor(Math.random() * 6);
-  const rootFret = Math.floor(Math.random() * 10);
+  const rootFret = Math.floor(Math.random() * Math.min(10, fretsNum + 1));
   const rootNote = getNoteFromFret(STANDARD_TUNING.notes[rootStringIdx], rootFret);
+
+  // Get root note with octave for audio playback
+  const rootOctave = STANDARD_TUNING.octaves[rootStringIdx];
+  const rootNoteWithOctave = getFretNote(rootStringIdx, rootFret) || `${rootNote}${rootOctave}`;
 
   // Compute target note
   const rootNoteIdx = ALL_NOTES.indexOf(rootNote);
   const targetNote = ALL_NOTES[(rootNoteIdx + semitones) % 12] as Note;
 
-  // Find all target positions on the neck (frets 0–12)
-  const candidates: { stringIdx: number; fret: number; note: Note }[] = [];
+  // Compute target octave (ascending interval)
+  const rootPCIdx = ALL_NOTES.indexOf(rootNote);
+  const targetPCIdx = ALL_NOTES.indexOf(targetNote);
+  const targetOctave = targetPCIdx > rootPCIdx ? rootOctave : rootOctave + 1;
+  const targetNoteWithOctave = `${targetNote}${targetOctave}`;
+
+  // Find all valid target positions on the neck (excluding root position)
+  const validTargets: { stringIdx: number; fret: number; note: Note }[] = [];
   STANDARD_TUNING.notes.forEach((openNote, si) => {
-    for (let fret = 0; fret <= 12; fret++) {
+    for (let fret = 0; fret <= fretsNum; fret++) {
       if (si === rootStringIdx && fret === rootFret) continue;
       const note = getNoteFromFret(openNote, fret);
-      if (note === targetNote) candidates.push({ stringIdx: si, fret, note });
+      if (note === targetNote) validTargets.push({ stringIdx: si, fret, note });
     }
   });
 
-  if (candidates.length === 0) {
+  if (validTargets.length === 0) {
     // Fallback: generate fresh
-    return generateIntervalFretboardRound();
+    return generateIntervalFretboardRound(fretsNum);
   }
-
-  // Prefer same or adjacent string
-  const preferred = candidates.filter(c => Math.abs(c.stringIdx - rootStringIdx) <= 1);
-  const pool = preferred.length > 0 ? preferred : candidates;
-  const correct = pool[Math.floor(Math.random() * pool.length)];
-
-  // Distractors: other positions of same note (wrong fret/string combinations)
-  const distractors = candidates
-    .filter(c => !(c.stringIdx === correct.stringIdx && c.fret === correct.fret))
-    .sort(() => Math.random() - 0.5)
-    .slice(0, 3);
 
   return {
     kind: 'intervalFretboard',
@@ -672,10 +688,11 @@ export function generateIntervalFretboardRound(): IntervalFretboardRound {
     rootNote,
     rootStringIdx,
     rootFret,
+    rootNoteWithOctave,
     targetNote,
-    targetStringIdx: correct.stringIdx,
-    targetFret: correct.fret,
-    distractors,
+    targetNoteWithOctave,
+    validTargets,
+    fretsNum,
   };
 }
 

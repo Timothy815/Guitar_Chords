@@ -1,0 +1,200 @@
+<style>
+  .demo-wrap {
+    background: #f7f4ef;
+    border: 1px solid #e2ddd6;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 4px;
+  }
+  .tab-row {
+    display: flex;
+    border: 1px solid #e2ddd6;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #faf8f4;
+  }
+  .tab-row + .tab-row {
+    margin-top: 4px;
+  }
+  .tab {
+    flex: 1;
+    padding: 9px 6px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #8a7e6e;
+    text-align: center;
+    white-space: nowrap;
+    font-family: system-ui, -apple-system, sans-serif;
+    border-right: 1px solid #e2ddd6;
+  }
+  .tab:last-child { border-right: none; }
+  .tab.active {
+    background: #4a6741;
+    color: white;
+    font-weight: 600;
+  }
+  .tab.group-label {
+    background: #ede9e2;
+    color: #5a5248;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    flex: 0 0 auto;
+    padding: 9px 12px;
+  }
+  /* Scrollable demo */
+  .tab-scroll-wrap {
+    border: 1px solid #e2ddd6;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #faf8f4;
+  }
+  .tab-scroll {
+    display: flex;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .tab-scroll::-webkit-scrollbar { display: none; }
+  .tab-scroll .tab {
+    flex: 0 0 auto;
+    min-width: 80px;
+  }
+  /* Group divider line */
+  .group-divider {
+    height: 1px;
+    background: #e2ddd6;
+    margin: 4px 0;
+    position: relative;
+  }
+  .group-divider span {
+    position: absolute;
+    top: -8px;
+    left: 0;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #b0a898;
+    background: #f7f4ef;
+    padding-right: 8px;
+  }
+  /* Dropdown demo */
+  .tab-with-dropdown {
+    display: flex;
+    border: 1px solid #e2ddd6;
+    border-radius: 8px;
+    overflow: visible;
+    background: #faf8f4;
+    position: relative;
+  }
+  .tab-dropdown-btn {
+    flex: 0 0 auto;
+    padding: 9px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #8a7e6e;
+    border-left: 1px solid #e2ddd6;
+    white-space: nowrap;
+    font-family: system-ui, sans-serif;
+  }
+</style>
+
+<h2>Ear Training Tabs — 3 Options</h2>
+<p class="subtitle">10 modes, currently fighting for space in one row. Pick the layout that works best.</p>
+
+<div class="options">
+
+  <!-- Option A: Two rows, grouped -->
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Two rows, grouped by type</h3>
+      <p style="margin-bottom:12px">Row 1 = <strong>Recognition</strong> (what you hear). Row 2 = <strong>Practice</strong> (how you train). Each tab has room to breathe.</p>
+      <div class="demo-wrap">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:#b0a898;margin-bottom:4px">Recognition</div>
+        <div class="tab-row">
+          <div class="tab active">Chord</div>
+          <div class="tab">Interval</div>
+          <div class="tab">Fretboard</div>
+          <div class="tab">Scale Drill</div>
+          <div class="tab">Int → Fret</div>
+        </div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:#b0a898;margin:8px 0 4px">Practice</div>
+        <div class="tab-row">
+          <div class="tab">Study</div>
+          <div class="tab">Plan</div>
+          <div class="tab">Rhythm</div>
+          <div class="tab">Melody</div>
+          <div class="tab">Count It</div>
+        </div>
+      </div>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>All modes visible at once</li><li>Grouping teaches the mental model</li><li>Plenty of space per tab</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Taller header area</li><li>Adds ~40px to page</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Option B: Scrollable single row, short labels -->
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Scrollable row, short labels</h3>
+      <p style="margin-bottom:12px">Single row that scrolls horizontally. Short labels (Chord, Interval, Fretboard…). Active tab scrolls into view automatically. Familiar pattern from mobile apps.</p>
+      <div class="demo-wrap">
+        <div class="tab-scroll-wrap">
+          <div class="tab-scroll">
+            <div class="tab active" style="min-width:70px">Chord</div>
+            <div class="tab" style="min-width:70px">Interval</div>
+            <div class="tab" style="min-width:70px">Study</div>
+            <div class="tab" style="min-width:80px">Fretboard</div>
+            <div class="tab" style="min-width:50px">Plan</div>
+            <div class="tab" style="min-width:70px">Rhythm</div>
+            <div class="tab" style="min-width:70px">Melody</div>
+            <div class="tab" style="min-width:75px">Count It</div>
+            <div class="tab" style="min-width:80px">Scales</div>
+            <div class="tab" style="min-width:85px;border-right:none">Int → Fret</div>
+          </div>
+        </div>
+        <div style="font-size:10px;color:#b0a898;margin-top:6px;text-align:center">← swipe / scroll to see all tabs →</div>
+      </div>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Same height as current tab bar</li><li>Minimal code change</li><li>Scales infinitely</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Hidden tabs are easy to forget</li><li>No group context</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Option C: Compact primary + More dropdown -->
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Primary tabs + "More ▾" dropdown</h3>
+      <p style="margin-bottom:12px">Show the 6 most-used modes in the bar. The 4 less-frequent ones (Scale Drill, Int→Fret, Melody, Count It) live in a dropdown. Active one always visible in bar.</p>
+      <div class="demo-wrap">
+        <div class="tab-with-dropdown">
+          <div class="tab active" style="flex:1">Chord</div>
+          <div class="tab" style="flex:1">Interval</div>
+          <div class="tab" style="flex:1">Fretboard</div>
+          <div class="tab" style="flex:1">Study</div>
+          <div class="tab" style="flex:1">Plan</div>
+          <div class="tab" style="flex:1">Rhythm</div>
+          <div class="tab-dropdown-btn">More ▾</div>
+        </div>
+        <div style="margin-top:6px;background:#faf8f4;border:1px solid #e2ddd6;border-radius:6px;padding:4px;display:flex;gap:4px;flex-wrap:wrap">
+          <div style="font-size:10px;color:#b0a898;padding:4px 6px;width:100%;font-style:italic">↓ Items in "More" dropdown:</div>
+          <div class="tab" style="flex:0 0 auto;border:1px solid #e2ddd6;border-radius:4px;padding:6px 10px">Melody</div>
+          <div class="tab" style="flex:0 0 auto;border:1px solid #e2ddd6;border-radius:4px;padding:6px 10px">Count It</div>
+          <div class="tab" style="flex:0 0 auto;border:1px solid #e2ddd6;border-radius:4px;padding:6px 10px">Scale Drill</div>
+          <div class="tab" style="flex:0 0 auto;border:1px solid #e2ddd6;border-radius:4px;padding:6px 10px">Int → Fret</div>
+        </div>
+      </div>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Primary modes always one click</li><li>Single row, no extra height</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Hidden modes feel buried</li><li>Most complex to implement</li><li>Deciding what's "primary" is subjective</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+</div>

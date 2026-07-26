@@ -1,0 +1,183 @@
+<h2>How should triads be shown on the neck?</h2>
+<p class="subtitle">For a C Major triad (root C, 3rd E, 5th G) — pick the layout that feels most useful for learning improvisation</p>
+
+<div class="cards">
+
+  <!-- Option A: Full neck, all positions -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:16px;background:#1a1a2e;">
+      <svg width="100%" viewBox="0 0 320 110" xmlns="http://www.w3.org/2000/svg">
+        <!-- Nut -->
+        <rect x="20" y="10" width="4" height="80" fill="#ccc"/>
+        <!-- Frets -->
+        <line x1="60" y1="10" x2="60" y2="90" stroke="#555" stroke-width="1.5"/>
+        <line x1="100" y1="10" x2="100" y2="90" stroke="#555" stroke-width="1.5"/>
+        <line x1="140" y1="10" x2="140" y2="90" stroke="#555" stroke-width="1.5"/>
+        <line x1="180" y1="10" x2="180" y2="90" stroke="#555" stroke-width="1.5"/>
+        <line x1="220" y1="10" x2="220" y2="90" stroke="#555" stroke-width="1.5"/>
+        <line x1="260" y1="10" x2="260" y2="90" stroke="#555" stroke-width="1.5"/>
+        <line x1="300" y1="10" x2="300" y2="90" stroke="#555" stroke-width="1.5"/>
+        <!-- Strings -->
+        <line x1="20" y1="20" x2="310" y2="20" stroke="#aaa" stroke-width="2"/>
+        <line x1="20" y1="34" x2="310" y2="34" stroke="#aaa" stroke-width="1.8"/>
+        <line x1="20" y1="48" x2="310" y2="48" stroke="#aaa" stroke-width="1.6"/>
+        <line x1="20" y1="62" x2="310" y2="62" stroke="#aaa" stroke-width="1.4"/>
+        <line x1="20" y1="76" x2="310" y2="76" stroke="#aaa" stroke-width="1.2"/>
+        <line x1="20" y1="90" x2="310" y2="90" stroke="#aaa" stroke-width="1"/>
+        <!-- Root-position triads (red) -->
+        <circle cx="80" cy="48" r="7" fill="#e74c3c"/><text x="80" y="52" text-anchor="middle" font-size="8" fill="white">1</text>
+        <circle cx="80" cy="62" r="7" fill="#e74c3c"/><text x="80" y="66" text-anchor="middle" font-size="8" fill="white">5</text>
+        <circle cx="80" cy="76" r="7" fill="#e74c3c"/><text x="80" y="80" text-anchor="middle" font-size="8" fill="white">3</text>
+        <!-- 1st inversion triads (blue) -->
+        <circle cx="160" cy="34" r="7" fill="#2980b9"/><text x="160" y="38" text-anchor="middle" font-size="8" fill="white">3</text>
+        <circle cx="160" cy="48" r="7" fill="#2980b9"/><text x="160" y="52" text-anchor="middle" font-size="8" fill="white">1</text>
+        <circle cx="140" cy="62" r="7" fill="#2980b9"/><text x="140" y="66" text-anchor="middle" font-size="8" fill="white">5</text>
+        <!-- 2nd inversion (green) -->
+        <circle cx="240" cy="20" r="7" fill="#27ae60"/><text x="240" y="24" text-anchor="middle" font-size="8" fill="white">5</text>
+        <circle cx="220" cy="34" r="7" fill="#27ae60"/><text x="220" y="38" text-anchor="middle" font-size="8" fill="white">3</text>
+        <circle cx="240" cy="48" r="7" fill="#27ae60"/><text x="240" y="52" text-anchor="middle" font-size="8" fill="white">1</text>
+        <!-- Fret numbers -->
+        <text x="40" y="105" text-anchor="middle" font-size="9" fill="#888">open</text>
+        <text x="80" y="105" text-anchor="middle" font-size="9" fill="#888">2</text>
+        <text x="120" y="105" text-anchor="middle" font-size="9" fill="#888">3</text>
+        <text x="160" y="105" text-anchor="middle" font-size="9" fill="#888">5</text>
+        <text x="200" y="105" text-anchor="middle" font-size="9" fill="#888">7</text>
+        <text x="240" y="105" text-anchor="middle" font-size="9" fill="#888">9</text>
+        <text x="280" y="105" text-anchor="middle" font-size="9" fill="#888">12</text>
+      </svg>
+      <div style="display:flex;gap:12px;justify-content:center;margin-top:6px;">
+        <span style="font-size:11px;color:#e74c3c;">● Root position</span>
+        <span style="font-size:11px;color:#2980b9;">● 1st inversion</span>
+        <span style="font-size:11px;color:#27ae60;">● 2nd inversion</span>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Full neck, all positions at once</h3>
+      <p>Every triad shape across all string groups shown simultaneously, color-coded by inversion. See the whole picture in one view. Dense, but great for pattern recognition once you know the shapes.</p>
+    </div>
+  </div>
+
+  <!-- Option B: One shape at a time, focused window -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:16px;background:#1a1a2e;">
+      <!-- Header with shape info -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <button style="background:#333;border:none;color:#aaa;padding:4px 10px;border-radius:4px;font-size:12px;">◀ prev</button>
+        <span style="color:#fff;font-size:12px;font-weight:bold;">Shape 3 of 12 · Strings 4–2 · Root pos.</span>
+        <button style="background:#333;border:none;color:#aaa;padding:4px 10px;border-radius:4px;font-size:12px;">next ▶</button>
+      </div>
+      <!-- Focused 5-fret window with scale notes dimmed and triad bright -->
+      <svg width="100%" viewBox="0 0 220 100" xmlns="http://www.w3.org/2000/svg">
+        <!-- Frets (5-fret window, frets 4-8) -->
+        <rect x="10" y="8" width="4" height="72" fill="#888"/>
+        <line x1="50" y1="8" x2="50" y2="80" stroke="#555" stroke-width="1.5"/>
+        <line x1="90" y1="8" x2="90" y2="80" stroke="#555" stroke-width="1.5"/>
+        <line x1="130" y1="8" x2="130" y2="80" stroke="#555" stroke-width="1.5"/>
+        <line x1="170" y1="8" x2="170" y2="80" stroke="#555" stroke-width="1.5"/>
+        <line x1="210" y1="8" x2="210" y2="80" stroke="#555" stroke-width="1.5"/>
+        <!-- Strings (4 strings shown for string group 4-2) -->
+        <line x1="10" y1="20" x2="215" y2="20" stroke="#aaa" stroke-width="2"/>
+        <line x1="10" y1="36" x2="215" y2="36" stroke="#aaa" stroke-width="1.8"/>
+        <line x1="10" y1="52" x2="215" y2="52" stroke="#aaa" stroke-width="1.6"/>
+        <line x1="10" y1="68" x2="215" y2="68" stroke="#aaa" stroke-width="1.4"/>
+        <!-- Scale background dots (dimmed) -->
+        <circle cx="30" cy="36" r="6" fill="#444"/>
+        <circle cx="70" cy="20" r="6" fill="#444"/>
+        <circle cx="110" cy="52" r="6" fill="#444"/>
+        <circle cx="150" cy="68" r="6" fill="#444"/>
+        <!-- Triad dots (bright, labeled) -->
+        <circle cx="70" cy="36" r="8" fill="#e74c3c" stroke="#fff" stroke-width="1.5"/><text x="70" y="40" text-anchor="middle" font-size="9" fill="white" font-weight="bold">1</text>
+        <circle cx="90" cy="52" r="8" fill="#e67e22" stroke="#fff" stroke-width="1.5"/><text x="90" y="56" text-anchor="middle" font-size="9" fill="white" font-weight="bold">3</text>
+        <circle cx="110" cy="68" r="8" fill="#f1c40f" stroke="#fff" stroke-width="1.5"/><text x="110" y="72" text-anchor="middle" font-size="9" fill="white" font-weight="bold">5</text>
+        <!-- Fret labels -->
+        <text x="30" y="95" text-anchor="middle" font-size="9" fill="#888">4</text>
+        <text x="70" y="95" text-anchor="middle" font-size="9" fill="#888">5</text>
+        <text x="110" y="95" text-anchor="middle" font-size="9" fill="#888">6</text>
+        <text x="150" y="95" text-anchor="middle" font-size="9" fill="#888">7</text>
+        <text x="190" y="95" text-anchor="middle" font-size="9" fill="#888">8</text>
+      </svg>
+      <div style="text-align:center;margin-top:4px;">
+        <button style="background:#e74c3c;border:none;color:white;padding:3px 14px;border-radius:4px;font-size:11px;">▶ Play shape</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — One shape at a time, focused window</h3>
+      <p>Navigate through shapes one at a time. Each view shows a tight fret window with the triad dots bright and scale notes dimmed behind them. Great for drilling one position before moving to the next.</p>
+    </div>
+  </div>
+
+  <!-- Option C: Grouped by string set (4 panels) -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:12px;background:#1a1a2e;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <!-- Panel: strings 6-5-4 -->
+        <div style="background:#252540;border-radius:6px;padding:8px;">
+          <div style="color:#aaa;font-size:10px;margin-bottom:4px;">Strings E·A·D</div>
+          <svg width="100%" viewBox="0 0 110 60" xmlns="http://www.w3.org/2000/svg">
+            <line x1="5" y1="10" x2="105" y2="10" stroke="#aaa" stroke-width="2"/>
+            <line x1="5" y1="25" x2="105" y2="25" stroke="#aaa" stroke-width="1.7"/>
+            <line x1="5" y1="40" x2="105" y2="40" stroke="#aaa" stroke-width="1.4"/>
+            <line x1="30" y1="5" x2="30" y2="45" stroke="#555" stroke-width="1"/>
+            <line x1="60" y1="5" x2="60" y2="45" stroke="#555" stroke-width="1"/>
+            <line x1="90" y1="5" x2="90" y2="45" stroke="#555" stroke-width="1"/>
+            <circle cx="45" cy="10" r="7" fill="#e74c3c"/><text x="45" y="14" text-anchor="middle" font-size="8" fill="white">1</text>
+            <circle cx="45" cy="25" r="7" fill="#e74c3c" opacity=".5"/><text x="45" y="29" text-anchor="middle" font-size="8" fill="white">5</text>
+            <circle cx="60" cy="40" r="7" fill="#e74c3c" opacity=".3"/><text x="60" y="44" text-anchor="middle" font-size="8" fill="white">3</text>
+          </svg>
+        </div>
+        <!-- Panel: strings 5-4-3 -->
+        <div style="background:#252540;border-radius:6px;padding:8px;">
+          <div style="color:#aaa;font-size:10px;margin-bottom:4px;">Strings A·D·G</div>
+          <svg width="100%" viewBox="0 0 110 60" xmlns="http://www.w3.org/2000/svg">
+            <line x1="5" y1="10" x2="105" y2="10" stroke="#aaa" stroke-width="1.7"/>
+            <line x1="5" y1="25" x2="105" y2="25" stroke="#aaa" stroke-width="1.4"/>
+            <line x1="5" y1="40" x2="105" y2="40" stroke="#aaa" stroke-width="1.2"/>
+            <line x1="30" y1="5" x2="30" y2="45" stroke="#555" stroke-width="1"/>
+            <line x1="60" y1="5" x2="60" y2="45" stroke="#555" stroke-width="1"/>
+            <line x1="90" y1="5" x2="90" y2="45" stroke="#555" stroke-width="1"/>
+            <circle cx="45" cy="10" r="7" fill="#2980b9"/><text x="45" y="14" text-anchor="middle" font-size="8" fill="white">3</text>
+            <circle cx="30" cy="25" r="7" fill="#2980b9" opacity=".5"/><text x="30" y="29" text-anchor="middle" font-size="8" fill="white">1</text>
+            <circle cx="45" cy="40" r="7" fill="#2980b9" opacity=".3"/><text x="45" y="44" text-anchor="middle" font-size="8" fill="white">5</text>
+          </svg>
+        </div>
+        <!-- Panel: strings 4-3-2 -->
+        <div style="background:#252540;border-radius:6px;padding:8px;">
+          <div style="color:#aaa;font-size:10px;margin-bottom:4px;">Strings D·G·B</div>
+          <svg width="100%" viewBox="0 0 110 60" xmlns="http://www.w3.org/2000/svg">
+            <line x1="5" y1="10" x2="105" y2="10" stroke="#aaa" stroke-width="1.4"/>
+            <line x1="5" y1="25" x2="105" y2="25" stroke="#aaa" stroke-width="1.2"/>
+            <line x1="5" y1="40" x2="105" y2="40" stroke="#aaa" stroke-width="1"/>
+            <line x1="30" y1="5" x2="30" y2="45" stroke="#555" stroke-width="1"/>
+            <line x1="60" y1="5" x2="60" y2="45" stroke="#555" stroke-width="1"/>
+            <line x1="90" y1="5" x2="90" y2="45" stroke="#555" stroke-width="1"/>
+            <circle cx="60" cy="10" r="7" fill="#27ae60"/><text x="60" y="14" text-anchor="middle" font-size="8" fill="white">5</text>
+            <circle cx="45" cy="25" r="7" fill="#27ae60" opacity=".5"/><text x="45" y="29" text-anchor="middle" font-size="8" fill="white">3</text>
+            <circle cx="60" cy="40" r="7" fill="#27ae60" opacity=".3"/><text x="60" y="44" text-anchor="middle" font-size="8" fill="white">1</text>
+          </svg>
+        </div>
+        <!-- Panel: strings 3-2-1 -->
+        <div style="background:#252540;border-radius:6px;padding:8px;">
+          <div style="color:#aaa;font-size:10px;margin-bottom:4px;">Strings G·B·E</div>
+          <svg width="100%" viewBox="0 0 110 60" xmlns="http://www.w3.org/2000/svg">
+            <line x1="5" y1="10" x2="105" y2="10" stroke="#aaa" stroke-width="1.2"/>
+            <line x1="5" y1="25" x2="105" y2="25" stroke="#aaa" stroke-width="1"/>
+            <line x1="5" y1="40" x2="105" y2="40" stroke="#aaa" stroke-width=".8"/>
+            <line x1="30" y1="5" x2="30" y2="45" stroke="#555" stroke-width="1"/>
+            <line x1="60" y1="5" x2="60" y2="45" stroke="#555" stroke-width="1"/>
+            <line x1="90" y1="5" x2="90" y2="45" stroke="#555" stroke-width="1"/>
+            <circle cx="30" cy="10" r="7" fill="#8e44ad"/><text x="30" y="14" text-anchor="middle" font-size="8" fill="white">1</text>
+            <circle cx="45" cy="25" r="7" fill="#8e44ad" opacity=".5"/><text x="45" y="29" text-anchor="middle" font-size="8" fill="white">3</text>
+            <circle cx="60" cy="40" r="7" fill="#8e44ad" opacity=".3"/><text x="60" y="44" text-anchor="middle" font-size="8" fill="white">5</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Grouped by string set</h3>
+      <p>Four panels, one per string group (E·A·D / A·D·G / D·G·B / G·B·E). Each panel shows all 3 inversions for that string set. Organized by where your hand sits, which is how most players think about these shapes.</p>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:16px;">Click an option to select it, then let me know in the terminal. You can pick more than one if you want elements from multiple approaches.</p>

@@ -51,9 +51,10 @@ interface FretboardProps {
   tuning?: Tuning;
   drillDots?: { stringIdx: number; fret: number; label: string; highlight?: boolean; color?: string }[];
   showAllNotes?: boolean; // ghost-dot every fret position; chord dots forced orange
+  rootPosition?: string | null; // e.g., "2-5" for interval training root
 }
 
-export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClick, onFretMouseDown, showNoteNames = true, className, fretRange, scalePositions, playingNotes = new Set(), compact = false, correctPositions = new Set(), wrongPosition = null, previewPosition = null, focusZone, highlightNote, labeledDots, flashHighlight, tuning = STANDARD_TUNING, drillDots, showAllNotes = false }: FretboardProps) {
+export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClick, onFretMouseDown, showNoteNames = true, className, fretRange, scalePositions, playingNotes = new Set(), compact = false, correctPositions = new Set(), wrongPosition = null, previewPosition = null, focusZone, highlightNote, labeledDots, flashHighlight, tuning = STANDARD_TUNING, drillDots, showAllNotes = false, rootPosition = null }: FretboardProps) {
   const [labelMode, setLabelMode] = useState<LabelMode>('none');
 
   const stringsNum = 6;
@@ -362,6 +363,25 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
             );
           })
         )}
+
+        {/* Root position marker for interval training */}
+        {rootPosition && (() => {
+          const [stringIdx, fretIdx] = rootPosition.split('-').map(Number);
+          const visualStringIdx = 5 - stringIdx;
+          const x = fretIdx === 0 ? paddingX / 2 : paddingX + (fretIdx - 0.5) * fretSpacing;
+          const y = paddingY + visualStringIdx * stringSpacing;
+          return (
+            <circle
+              key="root-position"
+              cx={x}
+              cy={y}
+              r={fretIdx === 0 ? 10 : 14}
+              fill="#3b82f6"
+              opacity={0.9}
+              style={{ pointerEvents: 'none' }}
+            />
+          );
+        })()}
 
         {/* Highlight note — rendered as brand-primary filled circle over scale dot */}
         {highlightNote && (() => {

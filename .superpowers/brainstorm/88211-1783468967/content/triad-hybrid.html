@@ -1,0 +1,117 @@
+<h2>A + C hybrid — or keep them separate?</h2>
+<p class="subtitle">The tension between A and C is really about exploration vs. organization. Here's what a synthesis looks like vs. keeping both as distinct modes.</p>
+
+<div class="cards">
+
+  <!-- Hybrid: A with string-group filter strip -->
+  <div class="card" data-choice="hybrid" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:14px;background:#1a1a2e;">
+      <!-- Filter strip -->
+      <div style="display:flex;gap:6px;margin-bottom:10px;justify-content:center;flex-wrap:wrap;">
+        <button style="background:#e74c3c;border:none;color:white;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:bold;">All</button>
+        <button style="background:#333;border:1px solid #555;color:#aaa;padding:3px 10px;border-radius:12px;font-size:11px;">E·A·D</button>
+        <button style="background:#333;border:1px solid #555;color:#aaa;padding:3px 10px;border-radius:12px;font-size:11px;">A·D·G</button>
+        <button style="background:#333;border:1px solid #555;color:#aaa;padding:3px 10px;border-radius:12px;font-size:11px;">D·G·B</button>
+        <button style="background:#333;border:1px solid #555;color:#aaa;padding:3px 10px;border-radius:12px;font-size:11px;">G·B·E</button>
+      </div>
+      <!-- Full neck showing all groups -->
+      <svg width="100%" viewBox="0 0 320 100" xmlns="http://www.w3.org/2000/svg">
+        <rect x="20" y="8" width="4" height="72" fill="#ccc"/>
+        <line x1="60" y1="8" x2="60" y2="80" stroke="#555" stroke-width="1.5"/>
+        <line x1="100" y1="8" x2="100" y2="80" stroke="#555" stroke-width="1.5"/>
+        <line x1="140" y1="8" x2="140" y2="80" stroke="#555" stroke-width="1.5"/>
+        <line x1="180" y1="8" x2="180" y2="80" stroke="#555" stroke-width="1.5"/>
+        <line x1="220" y1="8" x2="220" y2="80" stroke="#555" stroke-width="1.5"/>
+        <line x1="260" y1="8" x2="260" y2="80" stroke="#555" stroke-width="1.5"/>
+        <line x1="300" y1="8" x2="300" y2="80" stroke="#555" stroke-width="1.5"/>
+        <line x1="20" y1="18" x2="310" y2="18" stroke="#aaa" stroke-width="2"/>
+        <line x1="20" y1="30" x2="310" y2="30" stroke="#aaa" stroke-width="1.8"/>
+        <line x1="20" y1="42" x2="310" y2="42" stroke="#aaa" stroke-width="1.6"/>
+        <line x1="20" y1="54" x2="310" y2="54" stroke="#aaa" stroke-width="1.4"/>
+        <line x1="20" y1="66" x2="310" y2="66" stroke="#aaa" stroke-width="1.2"/>
+        <line x1="20" y1="78" x2="310" y2="78" stroke="#aaa" stroke-width="1"/>
+        <!-- E·A·D group (red) -->
+        <circle cx="80" cy="18" r="7" fill="#e74c3c"/><text x="80" y="22" text-anchor="middle" font-size="8" fill="white">1</text>
+        <circle cx="80" cy="30" r="7" fill="#e74c3c"/><text x="80" y="34" text-anchor="middle" font-size="8" fill="white">5</text>
+        <circle cx="80" cy="42" r="7" fill="#e74c3c"/><text x="80" y="46" text-anchor="middle" font-size="8" fill="white">3</text>
+        <!-- A·D·G group (blue) -->
+        <circle cx="140" cy="30" r="7" fill="#2980b9"/><text x="140" y="34" text-anchor="middle" font-size="8" fill="white">3</text>
+        <circle cx="120" cy="42" r="7" fill="#2980b9"/><text x="120" y="46" text-anchor="middle" font-size="8" fill="white">1</text>
+        <circle cx="140" cy="54" r="7" fill="#2980b9"/><text x="140" y="58" text-anchor="middle" font-size="8" fill="white">5</text>
+        <!-- D·G·B group (green) -->
+        <circle cx="200" cy="42" r="7" fill="#27ae60"/><text x="200" y="46" text-anchor="middle" font-size="8" fill="white">5</text>
+        <circle cx="180" cy="54" r="7" fill="#27ae60"/><text x="180" y="58" text-anchor="middle" font-size="8" fill="white">3</text>
+        <circle cx="200" cy="66" r="7" fill="#27ae60"/><text x="200" y="70" text-anchor="middle" font-size="8" fill="white">1</text>
+        <!-- G·B·E group (purple) -->
+        <circle cx="260" cy="54" r="7" fill="#8e44ad"/><text x="260" y="58" text-anchor="middle" font-size="8" fill="white">1</text>
+        <circle cx="240" cy="66" r="7" fill="#8e44ad"/><text x="240" y="70" text-anchor="middle" font-size="8" fill="white">3</text>
+        <circle cx="260" cy="78" r="7" fill="#8e44ad"/><text x="260" y="82" text-anchor="middle" font-size="8" fill="white">5</text>
+        <!-- Fret labels -->
+        <text x="80" y="96" text-anchor="middle" font-size="9" fill="#888">2</text>
+        <text x="120" y="96" text-anchor="middle" font-size="9" fill="#888">3</text>
+        <text x="160" y="96" text-anchor="middle" font-size="9" fill="#888">5</text>
+        <text x="200" y="96" text-anchor="middle" font-size="9" fill="#888">7</text>
+        <text x="240" y="96" text-anchor="middle" font-size="9" fill="#888">9</text>
+        <text x="280" y="96" text-anchor="middle" font-size="9" fill="#888">12</text>
+      </svg>
+      <p style="font-size:10px;color:#888;text-align:center;margin-top:6px;">Click a string group filter → only that group's shapes stay bright, others dim</p>
+    </div>
+    <div class="card-body">
+      <h3>Hybrid — A with string-group filter</h3>
+      <p>Full neck view (A) as default. A filter strip at the top lets you isolate one string group — that group's triads stay bright, the rest dim. You get the full picture and the focused organization in one view, with no mode switching.</p>
+    </div>
+  </div>
+
+  <!-- Two-mode: A for live, C for study -->
+  <div class="card" data-choice="two-mode" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:14px;background:#1a1a2e;">
+      <div style="display:flex;gap:8px;margin-bottom:10px;justify-content:center;">
+        <button style="background:#e74c3c;border:none;color:white;padding:4px 16px;border-radius:6px;font-size:12px;font-weight:bold;">▶ Live</button>
+        <button style="background:#333;border:1px solid #555;color:#aaa;padding:4px 16px;border-radius:6px;font-size:12px;">📚 Study</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+        <div style="background:#1e3a1e;border:1px solid #27ae60;border-radius:6px;padding:8px;text-align:center;">
+          <div style="color:#27ae60;font-size:10px;font-weight:bold;margin-bottom:4px;">LIVE MODE</div>
+          <div style="color:#ccc;font-size:10px;">Full neck · all triads</div>
+          <div style="color:#888;font-size:9px;margin-top:3px;">Updates as chord changes</div>
+          <svg width="90" height="40" viewBox="0 0 90 40" style="display:block;margin:6px auto 0">
+            <line x1="0" y1="8" x2="90" y2="8" stroke="#aaa" stroke-width="1.2"/>
+            <line x1="0" y1="18" x2="90" y2="18" stroke="#aaa" stroke-width="1"/>
+            <line x1="0" y1="28" x2="90" y2="28" stroke="#aaa" stroke-width=".9"/>
+            <line x1="0" y1="38" x2="90" y2="38" stroke="#aaa" stroke-width=".8"/>
+            <line x1="20" y1="0" x2="20" y2="40" stroke="#444" stroke-width="1"/>
+            <line x1="45" y1="0" x2="45" y2="40" stroke="#444" stroke-width="1"/>
+            <line x1="70" y1="0" x2="70" y2="40" stroke="#444" stroke-width="1"/>
+            <circle cx="20" cy="8" r="5" fill="#e74c3c"/>
+            <circle cx="33" cy="18" r="5" fill="#e74c3c"/>
+            <circle cx="45" cy="8" r="5" fill="#2980b9"/>
+            <circle cx="58" cy="28" r="5" fill="#27ae60"/>
+            <circle cx="70" cy="18" r="5" fill="#8e44ad"/>
+          </svg>
+        </div>
+        <div style="background:#1a1a30;border:1px solid #555;border-radius:6px;padding:8px;text-align:center;">
+          <div style="color:#888;font-size:10px;font-weight:bold;margin-bottom:4px;">STUDY MODE</div>
+          <div style="color:#ccc;font-size:10px;">4-panel string groups</div>
+          <div style="color:#888;font-size:9px;margin-top:3px;">Drill one zone at a time</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;margin-top:6px;">
+            <div style="background:#252540;border-radius:3px;padding:3px;text-align:center;font-size:8px;color:#e74c3c;">E·A·D ●●●</div>
+            <div style="background:#252540;border-radius:3px;padding:3px;text-align:center;font-size:8px;color:#2980b9;">A·D·G ●●●</div>
+            <div style="background:#252540;border-radius:3px;padding:3px;text-align:center;font-size:8px;color:#27ae60;">D·G·B ●●●</div>
+            <div style="background:#252540;border-radius:3px;padding:3px;text-align:center;font-size:8px;color:#8e44ad;">G·B·E ●●●</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Two modes — Live (A) + Study (C)</h3>
+      <p>Live mode uses full neck A-style during progression playback. Study mode switches to the C-style 4-panel grid for systematic shape drilling. Two distinct views, toggled with a button — each optimized for its job.</p>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:16px;">
+  The real question: do you want to switch between focused-learning and full-picture in one view (Hybrid), or have two explicitly separate modes (Two-mode)?
+  <br><br>
+  Click to select, then let me know in the terminal.
+</p>
