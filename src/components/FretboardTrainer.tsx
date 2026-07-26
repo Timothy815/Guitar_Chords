@@ -82,11 +82,11 @@ export function FretboardTrainer({
       initAudio()
         .then(() => {
           playNote(droneNote, '2n');
-          setTimeout(() => playFretboardRound(round, playOpenStringReference).catch(() => {}), 600);
+          setTimeout(() => playFretboardRound(round, playOpenStringReference, focus).catch(() => {}), 600);
         })
         .catch(() => {});
     } else {
-      playFretboardRound(round, playOpenStringReference).catch(() => {});
+      playFretboardRound(round, playOpenStringReference, focus).catch(() => {});
     }
     // droneMode and droneNote intentionally omitted from deps: effect must only
     // fire when a new round starts, not when the user adjusts drone settings mid-round.
@@ -260,7 +260,7 @@ export function FretboardTrainer({
           )}
         </p>
         <button
-          onClick={() => playFretboardRound(round, playOpenStringReference).catch(() => {})}
+          onClick={() => playFretboardRound(round, playOpenStringReference, focus).catch(() => {})}
           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-primary text-white text-sm font-medium hover:bg-brand-primary/90 transition-colors"
         >
           <Volume2 size={16} /> Replay

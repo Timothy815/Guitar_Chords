@@ -522,20 +522,40 @@ export function getCorrectPositions(targetNote: string, fretsNum: number): Set<s
   return positions;
 }
 
-export async function playFretboardRound(round: FretboardRound, playOpenStringReference = false): Promise<void> {
+export async function playFretboardRound(
+  round: FretboardRound,
+  playOpenStringReference = false,
+  focus: FretboardFocus = {}
+): Promise<void> {
   await initAudio();
 
   if (playOpenStringReference) {
     // Find a valid string/fret position for the target note
     let referenceString: number | null = null;
-    for (let stringIdx = 0; stringIdx < 6; stringIdx++) {
+
+    // If user has focused on specific strings, use the lowest-pitched focused string
+    if (focus.stringIdxs && focus.stringIdxs.length > 0) {
+      const lowestFocusedString = Math.min(...focus.stringIdxs);
+      // Check if target note exists on the lowest focused string
       for (let fret = 0; fret <= round.fretsNum; fret++) {
-        if (getFretNote(stringIdx, fret) === round.targetNote) {
-          referenceString = stringIdx;
+        if (getFretNote(lowestFocusedString, fret) === round.targetNote) {
+          referenceString = lowestFocusedString;
           break;
         }
       }
-      if (referenceString !== null) break;
+    }
+
+    // Fallback: search all strings if not found on focused string
+    if (referenceString === null) {
+      for (let stringIdx = 0; stringIdx < 6; stringIdx++) {
+        for (let fret = 0; fret <= round.fretsNum; fret++) {
+          if (getFretNote(stringIdx, fret) === round.targetNote) {
+            referenceString = stringIdx;
+            break;
+          }
+        }
+        if (referenceString !== null) break;
+      }
     }
 
     if (referenceString !== null) {
