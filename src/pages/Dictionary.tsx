@@ -794,10 +794,13 @@ export function Dictionary() {
   }, [scaleBoxOptions, scaleBoxSelection, scaleDiagonalOptions, scaleDiagonalSelection, scalePositionOptions, scalePositionSelection, scaleThreeNpsOptions, scaleThreeNpsSelection, scaleViewMode, strictScalePositionPositions, strictScaleBoxPositions, strictScaleDiagonalPositions, strictScaleThreeNpsPositions]);
 
   const scaleFretsNum = useMemo(() => {
+    // Full neck view should show all 22 frets for complete visualization
+    if (mode === 'scales' && scaleViewMode === 'full') return 22;
+
     if (!activeStrictScalePositions || activeStrictScalePositions.size === 0) return 15;
     const frets = [...activeStrictScalePositions].map(p => parseInt(p.split('-')[1], 10));
     return Math.max(15, Math.max(...frets) + 1);
-  }, [activeStrictScalePositions]);
+  }, [activeStrictScalePositions, mode, scaleViewMode]);
 
   // Calculate CAGED position colors for full neck view
   const cagedPositionMap = useMemo(() => {

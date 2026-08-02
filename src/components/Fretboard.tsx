@@ -134,6 +134,9 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
       show = true;
     }
 
+    // Track if this is a root note for special rendering
+    let isRootNote = false;
+
     // Check Scale
     if (scale && !chord) {
       if (scale.notes.includes(noteJustName as any)) {
@@ -152,6 +155,7 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
             bgColor = "fill-orange-500";
             textColor = "fill-white";
           } else if (noteJustName === scale.root) {
+            isRootNote = true;
             bgColor = "fill-brand-active";
           } else if (cagedPositionMap && cagedColors) {
             // Use CAGED position colors
@@ -228,11 +232,18 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
     // Check if this position has CAGED colors
     const posKey = `${stringIdx}-${fretIdx}`;
     const cagedPos = cagedPositionMap?.get(posKey);
-    const hasCagedColor = cagedPos && cagedPos.length > 0 && cagedColors;
+    const hasCagedColor = cagedPos && cagedPos.length > 0 && cagedColors && !isRootNote;
 
-    // Build inline style for CAGED colors
+    // Build inline style for CAGED colors or root notes
     let inlineStyle: React.CSSProperties | undefined = drillDot?.color ? { fill: drillDot.color } : undefined;
-    if (hasCagedColor && cagedColors) {
+    if (isRootNote && cagedPositionMap && cagedColors) {
+      // Root notes: use brand-active color with a thick black ring for emphasis
+      inlineStyle = {
+        fill: 'var(--color-brand-active)',
+        stroke: '#000000',
+        strokeWidth: 3,
+      };
+    } else if (hasCagedColor && cagedColors) {
       const primaryColor = cagedColors[cagedPos[0]];
       const hasOverlap = cagedPos.length > 1;
       const secondaryColor = hasOverlap ? cagedColors[cagedPos[1]] : undefined;
@@ -244,13 +255,15 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
       };
     }
 
+    const dotRadius = isRootNote && cagedPositionMap ? (fretIdx === 0 ? 12 : 16) : (fretIdx === 0 ? 10 : 14);
+
     return (
       <g onClick={() => handleDotClick(stringIdx, fretIdx)} style={{cursor: 'pointer'}}>
         <circle
           cx={x}
           cy={y}
-          r={fretIdx === 0 ? 10 : 14}
-          className={cn("shadow-lg", fretIdx === 0 ? openStringBase : "print:stroke-black print:fill-white", hasCagedColor ? '' : (fretIdx === 0 ? '' : "stroke-white/20 stroke-2"), hasCagedColor ? '' : bgColor)}
+          r={dotRadius}
+          className={cn("shadow-lg", fretIdx === 0 ? openStringBase : "print:stroke-black print:fill-white", hasCagedColor || isRootNote ? '' : (fretIdx === 0 ? '' : "stroke-white/20 stroke-2"), (hasCagedColor || isRootNote) ? '' : bgColor)}
           style={inlineStyle}
         />
         {text && <text x={x} y={y + 5} className={cn("text-[14px] font-bold pointer-events-none", textColor, fretIdx === 0 ? "print:fill-black" : "print:fill-black")} textAnchor="middle">{text}</text>}
