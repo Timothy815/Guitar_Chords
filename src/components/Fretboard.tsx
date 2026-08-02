@@ -391,10 +391,12 @@ export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteCl
           Array.from({ length: fretsNum + 1 }).map((_, i) => {
             const fretIdx = startFret + i;
             const isNut = fretIdx === 0;
+            // Visual positioning based on loop index, not absolute fret number
+            const xPos = isNut ? 0 : (startFret === 0 ? paddingX + (i - 1) * fretSpacing : paddingX + i * fretSpacing);
             return (
               <g key={`note-${stringIdx}-${fretIdx}`}>
                 <rect
-                  x={isNut ? 0 : paddingX + (fretIdx - 1) * fretSpacing}
+                  x={xPos}
                   y={paddingY + (5 - stringIdx) * stringSpacing - 15}
                   width={isNut ? paddingX : fretSpacing}
                   height={30}
@@ -416,7 +418,7 @@ export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteCl
             if (isInFocus(stringIdx, fretIdx, focusZone, fretsNum + startFret)) return null;
             const visualStringIdx = 5 - stringIdx;
             const isNut = fretIdx === 0;
-            const x = isNut ? 0 : paddingX + (fretIdx - 1) * fretSpacing;
+            const x = isNut ? 0 : (startFret === 0 ? paddingX + (i - 1) * fretSpacing : paddingX + i * fretSpacing);
             const y = paddingY + visualStringIdx * stringSpacing - 15;
             const width = isNut ? paddingX : fretSpacing;
             return (
@@ -466,7 +468,7 @@ export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteCl
             if (!isCorrect && !isWrong) return null;
             const visualStringIdx = 5 - stringIdx;
             const isNut = fretIdx === 0;
-            const x = isNut ? paddingX / 2 : paddingX + (fretIdx - 0.5) * fretSpacing;
+            const x = isNut ? paddingX / 2 : (startFret === 0 ? paddingX + (i - 0.5) * fretSpacing : paddingX + (i + 0.5) * fretSpacing);
             const y = paddingY + visualStringIdx * stringSpacing;
             return (
               <circle
