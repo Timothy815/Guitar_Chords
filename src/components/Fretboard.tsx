@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ChordShape, ScalePattern, STANDARD_TUNING, Tuning } from '../types';
 import { getFretNote, playNote } from '../lib/audio';
 import { cn } from '../lib/utils';
@@ -58,6 +58,7 @@ interface FretboardProps {
 
 export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClick, onFretMouseDown, showNoteNames = true, className, fretRange, scalePositions, playingNotes = new Set(), compact = false, correctPositions = new Set(), wrongPosition = null, previewPosition = null, focusZone, highlightNote, labeledDots, flashHighlight, tuning = STANDARD_TUNING, drillDots, showAllNotes = false, rootPosition = null, cagedPositionMap, cagedColors }: FretboardProps) {
   const [labelMode, setLabelMode] = useState<LabelMode>('none');
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const stringsNum = 6;
   const paddingX = 40;
@@ -288,8 +289,27 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
   const useFixedWidth = fretsNum > 15;
   const svgWidth = useFixedWidth ? totalWidth : undefined;
 
+  // Auto-scroll to show the selected fret range when it changes
+  useEffect(() => {
+    if (!scrollContainerRef.current || !fretRange || fretRange.length !== 2) return;
+
+    const [startFret, endFret] = fretRange;
+
+    // If the range is beyond fret 12, scroll to show it
+    if (startFret > 12) {
+      // Calculate the pixel position of the start fret
+      // Each fret is fretSpacing pixels wide, and we add paddingX
+      const scrollPosition = (startFret - 2) * fretSpacing; // Start 2 frets before for context
+
+      scrollContainerRef.current.scrollLeft = Math.max(0, scrollPosition);
+    } else {
+      // Reset scroll to beginning for low positions
+      scrollContainerRef.current.scrollLeft = 0;
+    }
+  }, [fretRange, fretSpacing]);
+
   return (
-    <div className={cn("w-full overflow-x-auto print:overflow-hidden pb-4 print:pb-0", className)}>
+    <div ref={scrollContainerRef} className={cn("w-full overflow-x-auto print:overflow-hidden pb-4 print:pb-0", className)}>
       <svg
         viewBox={`0 0 ${totalWidth} ${totalHeight}`}
         width={svgWidth}
