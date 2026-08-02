@@ -310,15 +310,20 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
     // No range to scroll to
     if (startFret === undefined) return;
 
-    // If the range is beyond fret 12, scroll to show it
-    if (startFret > 12) {
-      // Calculate the pixel position of the start fret
-      // Each fret is fretSpacing pixels wide, and we add paddingX
-      const scrollPosition = (startFret - 2) * fretSpacing; // Start 2 frets before for context
+    // Auto-scroll if position starts at fret 10 or higher
+    // This ensures positions at frets 10-14, 12-16, etc. are fully visible
+    if (startFret >= 10) {
+      // Calculate the pixel position to show the position with context
+      // Show 3 frets before the start for better context
+      const scrollPosition = Math.max(0, (startFret - 3) * fretSpacing);
 
-      scrollContainerRef.current.scrollLeft = Math.max(0, scrollPosition);
+      scrollContainerRef.current.scrollLeft = scrollPosition;
+    } else if (startFret >= 7) {
+      // Medium positions (frets 7-9): slight scroll to center them better
+      const scrollPosition = Math.max(0, (startFret - 2) * fretSpacing);
+      scrollContainerRef.current.scrollLeft = scrollPosition;
     } else {
-      // Reset scroll to beginning for low positions
+      // Reset scroll to beginning for low positions (frets 0-6)
       scrollContainerRef.current.scrollLeft = 0;
     }
   }, [fretRange, scalePositions, fretSpacing]);
