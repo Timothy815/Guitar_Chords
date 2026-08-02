@@ -388,7 +388,7 @@ export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteCl
 
         {/* Render Notes */}
         {Array.from({ length: stringsNum }).map((_, stringIdx) =>
-          Array.from({ length: fretsNum + 1 }).map((_, i) => {
+          Array.from({ length: startFret === 0 ? fretsNum + 1 : fretsNum }).map((_, i) => {
             const fretIdx = startFret + i;
             const isNut = fretIdx === 0;
             // Visual positioning based on loop index, not absolute fret number
@@ -413,7 +413,7 @@ export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteCl
 
         {/* Dimming overlay — dims frets outside the active focus zone */}
         {focusZone && Array.from({ length: stringsNum }).map((_, stringIdx) =>
-          Array.from({ length: fretsNum + 1 }).map((_, i) => {
+          Array.from({ length: startFret === 0 ? fretsNum + 1 : fretsNum }).map((_, i) => {
             const fretIdx = startFret + i;
             if (isInFocus(stringIdx, fretIdx, focusZone, fretsNum + startFret)) return null;
             const visualStringIdx = 5 - stringIdx;
@@ -460,7 +460,7 @@ export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteCl
 
         {/* Trainer feedback dots */}
         {(correctPositions.size > 0 || wrongPosition !== null) && Array.from({ length: stringsNum }).map((_, stringIdx) =>
-          Array.from({ length: fretsNum + 1 }).map((_, i) => {
+          Array.from({ length: startFret === 0 ? fretsNum + 1 : fretsNum }).map((_, i) => {
             const fretIdx = startFret + i;
             const key = `${stringIdx}-${fretIdx}`;
             const isCorrect = correctPositions.has(key);
