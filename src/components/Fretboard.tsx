@@ -191,8 +191,14 @@ export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteCl
       textColor = 'fill-white';
     }
 
-    const x = isMuted || fretIdx === 0 ? paddingX / 2 : paddingX + (fretIdx - 0.5) * fretSpacing;
+    // Calculate visual position: when startFret > 0, fret 8 should be at visual position (8 - startFret)
+    const visualFretIdx = fretIdx - startFret;
+    const x = isMuted || fretIdx === 0 ? paddingX / 2 : paddingX + (visualFretIdx + 0.5) * fretSpacing;
     const y = paddingY + visualStringIdx * stringSpacing;
+
+    if (stringIdx === 0 && show && scalePositions && scalePositions.has(`${stringIdx}-${fretIdx}`)) {
+      console.log(`[renderNoteMarker] string ${stringIdx}, fretIdx=${fretIdx}, startFret=${startFret}, visualFretIdx=${visualFretIdx}, x=${x}, paddingX=${paddingX}, fretSpacing=${fretSpacing}`);
+    }
 
     if (!show && !isMuted) {
       if (fretIdx === 0 && (!chord && !scale)) {
