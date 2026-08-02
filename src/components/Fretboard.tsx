@@ -528,7 +528,7 @@ export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteCl
             fontSize={10}
             className="font-mono fill-brand-secondary/70 print:hidden"
           >
-            {startFret + i + 1}
+            {startFret === 0 ? i + 1 : startFret + i}
           </text>
         ))}
       </svg>
@@ -556,7 +556,7 @@ export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteCl
         style={{ paddingLeft: `${(paddingX / totalWidth) * 100}%`, paddingRight: `${(paddingX / totalWidth) * 100}%` }}
       >
         {Array.from({ length: fretsNum }).map((_, i) => (
-          <div key={i} className="flex-1 text-center">{startFret + i + 1}</div>
+          <div key={i} className="flex-1 text-center">{startFret === 0 ? i + 1 : startFret + i}</div>
         ))}
       </div>
     </div>
