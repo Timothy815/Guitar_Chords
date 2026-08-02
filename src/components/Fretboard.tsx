@@ -171,9 +171,8 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
           }
         }
         const isExplicitlyLabeled = labeledDots?.some(d => d.stringIdx === stringIdx && d.fret === fretIdx) ?? false;
-        // Always show note name for open strings (fret 0) in scale view, or when explicitly requested
-        const alwaysShowLabel = fretIdx === 0 || showNoteNames || isExplicitlyLabeled;
-        text = labelMode !== 'none' ? getLabelText(noteJustName) : (alwaysShowLabel ? noteJustName : "");
+        // Show note names: always for open strings, when showNoteNames is on, or when explicitly labeled
+        text = labelMode !== 'none' ? getLabelText(noteJustName) : (showNoteNames || isExplicitlyLabeled || fretIdx === 0 ? noteJustName : "");
       }
     }
 
@@ -234,24 +233,25 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
       ? "stroke-brand-secondary print:stroke-black print:fill-white"
       : "stroke-brand-secondary fill-brand-bg print:stroke-black print:fill-white";
 
-    // Check if this position has CAGED colors
+    // Check if this position has CAGED colors (only in full neck view)
     const posKey = `${stringIdx}-${fretIdx}`;
     const cagedPos = cagedPositionMap?.get(posKey);
-    const hasCagedColor = cagedPos && cagedPos.length > 0 && cagedColors && !isRootNote;
+    const usingCagedColors = cagedPositionMap && cagedColors; // true only in full neck view
+    const hasCagedColor = cagedPos && cagedPos.length > 0 && usingCagedColors && !isRootNote;
 
     // Build inline style for CAGED colors or root notes
     let inlineStyle: React.CSSProperties | undefined = drillDot?.color ? { fill: drillDot.color } : undefined;
-    if (isRootNote && cagedPositionMap && cagedColors) {
-      // Root notes: use brand-active color with a thick black ring for emphasis
+    if (isRootNote && usingCagedColors) {
+      // Root notes in full neck view: brand-active color with thick black ring for emphasis
       inlineStyle = {
         fill: 'var(--color-brand-active)',
         stroke: '#000000',
         strokeWidth: 3,
       };
-    } else if (hasCagedColor && cagedColors) {
-      const primaryColor = cagedColors[cagedPos[0]];
+    } else if (hasCagedColor) {
+      const primaryColor = cagedColors![cagedPos[0]];
       const hasOverlap = cagedPos.length > 1;
-      const secondaryColor = hasOverlap ? cagedColors[cagedPos[1]] : undefined;
+      const secondaryColor = hasOverlap ? cagedColors![cagedPos[1]] : undefined;
 
       inlineStyle = {
         fill: primaryColor,
@@ -260,7 +260,7 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
       };
     }
 
-    const dotRadius = isRootNote && cagedPositionMap ? (fretIdx === 0 ? 12 : 16) : (fretIdx === 0 ? 10 : 14);
+    const dotRadius = isRootNote && usingCagedColors ? (fretIdx === 0 ? 12 : 16) : (fretIdx === 0 ? 10 : 14);
 
     return (
       <g onClick={() => handleDotClick(stringIdx, fretIdx)} style={{cursor: 'pointer'}}>
@@ -268,7 +268,13 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
           cx={x}
           cy={y}
           r={dotRadius}
-          className={cn("shadow-lg", fretIdx === 0 ? openStringBase : "print:stroke-black print:fill-white", hasCagedColor || isRootNote ? '' : (fretIdx === 0 ? '' : "stroke-white/20 stroke-2"), (hasCagedColor || isRootNote) ? '' : bgColor)}
+          className={cn(
+            "shadow-lg",
+            fretIdx === 0 ? openStringBase : "print:stroke-black print:fill-white",
+            // Only skip stroke/fill classes if we're actually applying inline styles
+            (hasCagedColor || (isRootNote && usingCagedColors)) ? '' : (fretIdx === 0 ? '' : "stroke-white/20 stroke-2"),
+            (hasCagedColor || (isRootNote && usingCagedColors)) ? '' : bgColor
+          )}
           style={inlineStyle}
         />
         {text && <text x={x} y={y + 5} className={cn("text-[14px] font-bold pointer-events-none", textColor, fretIdx === 0 ? "print:fill-black" : "print:fill-black")} textAnchor="middle">{text}</text>}
