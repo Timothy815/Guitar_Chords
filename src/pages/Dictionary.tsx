@@ -681,6 +681,7 @@ export function Dictionary() {
     option.pattern.forEach((stringOffsets, stringIdx) => {
       stringOffsets.forEach(offset => positions.add(`${stringIdx}-${option.anchorFret + offset}`));
     });
+    console.log('[CAGED Debug] Selected:', scalePositionSelection, 'Anchor:', option.anchorFret, 'Positions:', Array.from(positions).slice(0, 10));
     return positions;
   }, [scalePositionOptions, scalePositionSelection, scaleViewMode]);
 
@@ -852,6 +853,7 @@ export function Dictionary() {
         windowStart = Math.max(0, 22 - windowSize + 1);
       }
 
+      console.log('[Window Debug] minFret:', minFret, 'maxFret:', maxFret, 'windowStart:', windowStart, 'windowSize:', windowSize, 'will show frets', windowStart, 'to', windowStart + windowSize - 1);
       return { scaleFretsNum: windowSize, scaleStartFret: windowStart };
     }
 
