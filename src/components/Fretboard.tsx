@@ -63,8 +63,11 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
   const paddingX = 40;
   const paddingY = 30;
   const stringSpacing = 30;
-  const totalWidth = 800; // SVG ViewBox
-  const fretSpacing = (totalWidth - paddingX * 2) / fretsNum;
+
+  // Keep fret spacing constant regardless of fret count for proper scrolling
+  const baseFretSpacing = 60; // spacing for standard 12-fret view
+  const fretSpacing = baseFretSpacing;
+  const totalWidth = paddingX * 2 + fretSpacing * fretsNum;
   const totalHeight = paddingY * 2 + stringSpacing * (stringsNum - 1);
 
   const dots = [3, 5, 7, 9, 15, 17, 19, 21];

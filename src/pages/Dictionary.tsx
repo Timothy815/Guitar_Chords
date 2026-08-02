@@ -31,17 +31,23 @@ const BOX_SPAN = 4;
 /**
  * Returns which CAGED position(s) a given fret belongs to (0-4 for E/D/C/A/G).
  * Can return multiple positions if fret is in an overlap zone.
+ * CAGED shapes repeat every 12 frets (one octave), so we check both base position and octave repeats.
  */
 function getCagedPositions(fret: number, rootFret: number): number[] {
   const positions: number[] = [];
   for (let i = 0; i < 5; i++) {
-    let startFret = rootFret + CAGED_OFFSETS[i];
-    if (startFret < 0) startFret = 0;
-    if (startFret > 11) startFret = startFret % 12;
-    const endFret = startFret + BOX_SPAN;
+    // Check base position and octave repeats (0-11, 12-23)
+    for (let octave = 0; octave <= 1; octave++) {
+      let startFret = rootFret + CAGED_OFFSETS[i] + (octave * 12);
+      if (startFret < 0) startFret = 0;
+      const endFret = startFret + BOX_SPAN;
 
-    if (fret >= startFret && fret <= endFret) {
-      positions.push(i);
+      if (fret >= startFret && fret <= endFret) {
+        if (!positions.includes(i)) {
+          positions.push(i);
+        }
+        break; // Found this position, no need to check more octaves
+      }
     }
   }
   return positions;
