@@ -15,6 +15,38 @@ import { STANDARD_TUNING } from '../types';
 import { getBluesBoxPattern } from '../lib/bluesBoxPatterns';
 import { getCagedScaleAnchor, getCagedScalePattern, getCagedScaleRepeat, findShapeAnchors, supportsCagedScale } from '../lib/cagedScalePatterns';
 
+// CAGED position colors
+const CAGED_COLORS = [
+  '#3b82f6', // E-shape: blue
+  '#10b981', // D-shape: green
+  '#f59e0b', // C-shape: amber
+  '#ef4444', // A-shape: red
+  '#8b5cf6', // G-shape: purple
+];
+
+// CAGED position offsets (semitones from root on low E)
+const CAGED_OFFSETS = [-1, 2, 4, 7, 9];
+const BOX_SPAN = 4;
+
+/**
+ * Returns which CAGED position(s) a given fret belongs to (0-4 for E/D/C/A/G).
+ * Can return multiple positions if fret is in an overlap zone.
+ */
+function getCagedPositions(fret: number, rootFret: number): number[] {
+  const positions: number[] = [];
+  for (let i = 0; i < 5; i++) {
+    let startFret = rootFret + CAGED_OFFSETS[i];
+    if (startFret < 0) startFret = 0;
+    if (startFret > 11) startFret = startFret % 12;
+    const endFret = startFret + BOX_SPAN;
+
+    if (fret >= startFret && fret <= endFret) {
+      positions.push(i);
+    }
+  }
+  return positions;
+}
+
 function getNavigationChords(tonalName: string): ChordShape[] {
   const base = tonalName.split('/')[0];
   const m = base.match(/^([A-G][#b])(.*)/) ?? base.match(/^([A-G])(.*)/);
@@ -766,6 +798,46 @@ export function Dictionary() {
     const frets = [...activeStrictScalePositions].map(p => parseInt(p.split('-')[1], 10));
     return Math.max(15, Math.max(...frets) + 1);
   }, [activeStrictScalePositions]);
+
+  // Calculate CAGED position colors for full neck view
+  const cagedPositionMap = useMemo(() => {
+    if (mode !== 'scales' || scaleViewMode !== 'full' || !activeScale) return undefined;
+
+    // Find root fret on low E string
+    const lowENoteIdx = ALL_NOTES.indexOf(STANDARD_TUNING.notes[0] as Note);
+    const rootNoteIdx = ALL_NOTES.indexOf(selectedKey);
+    const rootFret = (rootNoteIdx - lowENoteIdx + 12) % 12;
+
+    // Build map of position -> CAGED position indices
+    const map = new Map<string, number[]>();
+
+    // Build scale positions if not using strict positions
+    let positions: Set<string> | undefined = activeStrictScalePositions;
+    if (!positions && activeScale) {
+      positions = new Set<string>();
+      STANDARD_TUNING.notes.forEach((openNote, stringIdx) => {
+        for (let fret = 0; fret <= scaleFretsNum; fret++) {
+          const noteStr = getFretNote(stringIdx, fret, currentTuning);
+          const noteJustName = noteStr.replace(/[0-9]/g, '');
+          if (activeScale.notes.includes(noteJustName as any)) {
+            positions!.add(`${stringIdx}-${fret}`);
+          }
+        }
+      });
+    }
+
+    if (!positions) return undefined;
+
+    positions.forEach(posKey => {
+      const [stringIdx, fretIdx] = posKey.split('-').map(Number);
+      const cagedPos = getCagedPositions(fretIdx, rootFret);
+      if (cagedPos.length > 0) {
+        map.set(posKey, cagedPos);
+      }
+    });
+
+    return map;
+  }, [mode, scaleViewMode, activeScale, selectedKey, activeStrictScalePositions, scaleFretsNum, currentTuning]);
 
   // When viewing a box/position with only a fretRange (no explicit strict positions), deduplicate
   // notes by MIDI pitch so the same pitch never appears twice in one box (G string fret+4 = B string open).
@@ -2179,6 +2251,8 @@ export function Dictionary() {
                         playingNotes={playingNotes}
                         fretRange={mode === 'scales' && scaleFretRange.length === 2 ? [scaleFretRange[0], scaleFretRange[1]] : undefined}
                         scalePositions={mode === 'scales' ? (activeStrictScalePositions ?? dedupedScalePositions) : undefined}
+                        cagedPositionMap={cagedPositionMap}
+                        cagedColors={CAGED_COLORS}
                         onNoteClick={(str) => {
                           // Handled by onFretClick if possible, fallback
                           import('../lib/audio').then(m => m.playNote(str, sustain));
