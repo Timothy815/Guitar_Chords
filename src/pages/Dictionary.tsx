@@ -32,15 +32,21 @@ const BOX_SPAN = 4;
  * Returns which CAGED position(s) a given fret belongs to (0-4 for E/D/C/A/G).
  * Can return multiple positions if fret is in an overlap zone.
  * CAGED shapes repeat every 12 frets (one octave), so we check both base position and octave repeats.
+ * Limited to fret 22 (standard guitar range).
  */
 function getCagedPositions(fret: number, rootFret: number): number[] {
   const positions: number[] = [];
+  const maxFret = 22; // Standard guitar fret limit
+
   for (let i = 0; i < 5; i++) {
     // Check base position and octave repeats (0-11, 12-23)
     for (let octave = 0; octave <= 1; octave++) {
       let startFret = rootFret + CAGED_OFFSETS[i] + (octave * 12);
       if (startFret < 0) startFret = 0;
       const endFret = startFret + BOX_SPAN;
+
+      // Skip positions that start beyond fret 22
+      if (startFret > maxFret) continue;
 
       if (fret >= startFret && fret <= endFret) {
         if (!positions.includes(i)) {
@@ -807,6 +813,7 @@ export function Dictionary() {
     }
 
     const windowSize = 12;
+    const maxFret = 22; // Guitar frets only go to 22
 
     // For position/box/diagonal views with explicit fretRange, center it within 12 frets
     if (mode === 'scales' && scaleFretRange.length === 2) {
@@ -818,7 +825,12 @@ export function Dictionary() {
       const leftPadding = Math.floor(totalPadding / 2);
 
       // Calculate window start, ensuring it doesn't go below 0
-      const windowStart = Math.max(0, start - leftPadding);
+      let windowStart = Math.max(0, start - leftPadding);
+
+      // Ensure window doesn't exceed fret 22
+      if (windowStart + windowSize - 1 > maxFret) {
+        windowStart = Math.max(0, maxFret - windowSize + 1);
+      }
 
       return { scaleFretsNum: windowSize, scaleStartFret: windowStart };
     }
@@ -833,7 +845,12 @@ export function Dictionary() {
       const totalPadding = Math.max(0, windowSize - rangeSize);
       const leftPadding = Math.floor(totalPadding / 2);
 
-      const windowStart = Math.max(0, minFret - leftPadding);
+      let windowStart = Math.max(0, minFret - leftPadding);
+
+      // Ensure window doesn't exceed fret 22
+      if (windowStart + windowSize - 1 > 22) {
+        windowStart = Math.max(0, 22 - windowSize + 1);
+      }
 
       return { scaleFretsNum: windowSize, scaleStartFret: windowStart };
     }

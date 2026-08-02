@@ -9,7 +9,7 @@ export function findShapeAnchors(
   pattern: readonly (readonly number[])[],
   baseAnchor: number,
   repeatSemitones: number,
-  bounds: { min: number; max: number } = { min: 0, max: 24 },
+  bounds: { min: number; max: number } = { min: 0, max: 22 },
 ): number[] {
   const offsets = pattern.flat();
   const minOffset = offsets.length ? Math.min(...offsets) : 0;
