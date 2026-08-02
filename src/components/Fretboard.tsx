@@ -390,12 +390,13 @@ export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteCl
         {Array.from({ length: stringsNum }).map((_, stringIdx) =>
           Array.from({ length: fretsNum + 1 }).map((_, i) => {
             const fretIdx = startFret + i;
+            const isNut = fretIdx === 0;
             return (
               <g key={`note-${stringIdx}-${fretIdx}`}>
                 <rect
-                  x={i === 0 ? 0 : paddingX + (i - 1) * fretSpacing}
+                  x={isNut ? 0 : paddingX + (fretIdx - 1) * fretSpacing}
                   y={paddingY + (5 - stringIdx) * stringSpacing - 15}
-                  width={i === 0 ? paddingX : fretSpacing}
+                  width={isNut ? paddingX : fretSpacing}
                   height={30}
                   fill="transparent"
                   onClick={() => (!chord && !scale || onFretClick) ? handleDotClick(stringIdx, fretIdx) : null}
@@ -414,9 +415,10 @@ export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteCl
             const fretIdx = startFret + i;
             if (isInFocus(stringIdx, fretIdx, focusZone, fretsNum + startFret)) return null;
             const visualStringIdx = 5 - stringIdx;
-            const x = i === 0 ? 0 : paddingX + (i - 1) * fretSpacing;
+            const isNut = fretIdx === 0;
+            const x = isNut ? 0 : paddingX + (fretIdx - 1) * fretSpacing;
             const y = paddingY + visualStringIdx * stringSpacing - 15;
-            const width = i === 0 ? paddingX : fretSpacing;
+            const width = isNut ? paddingX : fretSpacing;
             return (
               <rect
                 key={`dim-${stringIdx}-${fretIdx}`}
@@ -463,7 +465,8 @@ export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteCl
             const isWrong = wrongPosition === key;
             if (!isCorrect && !isWrong) return null;
             const visualStringIdx = 5 - stringIdx;
-            const x = i === 0 ? paddingX / 2 : paddingX + (i - 0.5) * fretSpacing;
+            const isNut = fretIdx === 0;
+            const x = isNut ? paddingX / 2 : paddingX + (fretIdx - 0.5) * fretSpacing;
             const y = paddingY + visualStringIdx * stringSpacing;
             return (
               <circle
