@@ -150,7 +150,7 @@ export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteCl
         const inExplicitPosition = scalePositions ? scalePositions.has(`${stringIdx}-${fretIdx}`) : true;
         if (!inExplicitPosition) {
           show = false;
-        } else if (fretRange) {
+        } else if (fretRange && fretRange.length === 2) {
           const [startFret, endFret] = fretRange;
           if (fretIdx >= startFret && fretIdx <= endFret) show = true;
         } else {
