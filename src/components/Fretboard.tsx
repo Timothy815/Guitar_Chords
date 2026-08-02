@@ -30,6 +30,7 @@ function getIntervalName(root: string, note: string): string {
 
 interface FretboardProps {
   fretsNum?: number; // Usually 12 or 15 or 22
+  startFret?: number; // Starting fret number (default 0) for focused windows
   chord?: ChordShape;
   scale?: ScalePattern;
   onNoteClick?: (note: string) => void;
@@ -56,7 +57,7 @@ interface FretboardProps {
   cagedColors?: string[]; // Array of 5 colors for E/D/C/A/G shapes
 }
 
-export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClick, onFretMouseDown, showNoteNames = true, className, fretRange, scalePositions, playingNotes = new Set(), compact = false, correctPositions = new Set(), wrongPosition = null, previewPosition = null, focusZone, highlightNote, labeledDots, flashHighlight, tuning = STANDARD_TUNING, drillDots, showAllNotes = false, rootPosition = null, cagedPositionMap, cagedColors }: FretboardProps) {
+export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteClick, onFretClick, onFretMouseDown, showNoteNames = true, className, fretRange, scalePositions, playingNotes = new Set(), compact = false, correctPositions = new Set(), wrongPosition = null, previewPosition = null, focusZone, highlightNote, labeledDots, flashHighlight, tuning = STANDARD_TUNING, drillDots, showAllNotes = false, rootPosition = null, cagedPositionMap, cagedColors }: FretboardProps) {
   const [labelMode, setLabelMode] = useState<LabelMode>('none');
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -64,8 +65,8 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
   const paddingX = 40;
   const paddingY = 30;
 
-  // Increase string spacing for full neck view (22 frets) to prevent dot overlap
-  const stringSpacing = fretsNum > 15 ? 36 : 30;
+  // Consistent string spacing across all views for visual consistency
+  const stringSpacing = 36;
 
   // Keep fret spacing constant regardless of fret count for proper scrolling
   const baseFretSpacing = 60; // spacing for standard 12-fret view
@@ -291,44 +292,43 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
   const useFixedWidth = fretsNum > 15;
   const svgWidth = useFixedWidth ? totalWidth : undefined;
 
-  // Auto-scroll to show the selected fret range when it changes
+  // Auto-scroll for full neck view only (position views use startFret offset instead)
   useEffect(() => {
     if (!scrollContainerRef.current) return;
 
-    let startFret: number | undefined;
-    let endFret: number | undefined;
+    // Only auto-scroll for full neck view (startFret === 0, fretsNum > 15)
+    // Position views with startFret offset don't need scrolling
+    if (startFret !== 0 || fretsNum <= 15) {
+      scrollContainerRef.current.scrollLeft = 0;
+      return;
+    }
+
+    let rangeStartFret: number | undefined;
 
     // Try to get range from fretRange prop
     if (fretRange && fretRange.length === 2) {
-      [startFret, endFret] = fretRange;
+      [rangeStartFret] = fretRange;
     }
     // If no fretRange, calculate from scalePositions (for strict CAGED positions)
     else if (scalePositions && scalePositions.size > 0) {
       const frets = Array.from(scalePositions).map(pos => parseInt(pos.split('-')[1], 10));
-      startFret = Math.min(...frets);
-      endFret = Math.max(...frets);
+      rangeStartFret = Math.min(...frets);
     }
 
     // No range to scroll to
-    if (startFret === undefined) return;
+    if (rangeStartFret === undefined) return;
 
     // Auto-scroll if position starts at fret 10 or higher
-    // This ensures positions at frets 10-14, 12-16, etc. are fully visible
-    if (startFret >= 10) {
-      // Calculate the pixel position to show the position with context
-      // Show 3 frets before the start for better context
-      const scrollPosition = Math.max(0, (startFret - 3) * fretSpacing);
-
+    if (rangeStartFret >= 10) {
+      const scrollPosition = Math.max(0, (rangeStartFret - 3) * fretSpacing);
       scrollContainerRef.current.scrollLeft = scrollPosition;
-    } else if (startFret >= 7) {
-      // Medium positions (frets 7-9): slight scroll to center them better
-      const scrollPosition = Math.max(0, (startFret - 2) * fretSpacing);
+    } else if (rangeStartFret >= 7) {
+      const scrollPosition = Math.max(0, (rangeStartFret - 2) * fretSpacing);
       scrollContainerRef.current.scrollLeft = scrollPosition;
     } else {
-      // Reset scroll to beginning for low positions (frets 0-6)
       scrollContainerRef.current.scrollLeft = 0;
     }
-  }, [fretRange, scalePositions, fretSpacing]);
+  }, [fretRange, scalePositions, fretSpacing, startFret, fretsNum]);
 
   return (
     <div ref={scrollContainerRef} className={cn("w-full overflow-x-auto print:overflow-hidden pb-4 print:pb-0", className)}>
@@ -367,9 +367,9 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
         ))}
 
         {/* Fret Markers (Dots) */}
-        {Array.from({ length: fretsNum }).map((_, fretIdx) => {
-          const actualFret = fretIdx + 1;
-          const x = paddingX + (fretIdx + 0.5) * fretSpacing;
+        {Array.from({ length: fretsNum }).map((_, i) => {
+          const actualFret = startFret + i + 1;
+          const x = paddingX + (i + 0.5) * fretSpacing;
           const middleY = paddingY + ((stringsNum - 1) * stringSpacing) / 2;
 
           if (dots.includes(actualFret)) {
@@ -388,31 +388,35 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
 
         {/* Render Notes */}
         {Array.from({ length: stringsNum }).map((_, stringIdx) =>
-          Array.from({ length: fretsNum + 1 }).map((_, fretIdx) =>
-            <g key={`note-${stringIdx}-${fretIdx}`}>
-              <rect
-                x={fretIdx === 0 ? 0 : paddingX + (fretIdx - 1) * fretSpacing}
-                y={paddingY + (5 - stringIdx) * stringSpacing - 15}
-                width={fretIdx === 0 ? paddingX : fretSpacing}
-                height={30}
-                fill="transparent"
-                onClick={() => (!chord && !scale || onFretClick) ? handleDotClick(stringIdx, fretIdx) : null}
-                onMouseDown={onFretMouseDown ? () => onFretMouseDown(stringIdx, fretIdx) : undefined}
-                className={(!chord && !scale || onFretClick) ? "cursor-pointer hover:fill-brand-secondary/20 transition-colors" : ""}
-              />
-              {renderNoteMarker(stringIdx, fretIdx)}
-            </g>
-          )
+          Array.from({ length: fretsNum + 1 }).map((_, i) => {
+            const fretIdx = startFret + i;
+            return (
+              <g key={`note-${stringIdx}-${fretIdx}`}>
+                <rect
+                  x={i === 0 ? 0 : paddingX + (i - 1) * fretSpacing}
+                  y={paddingY + (5 - stringIdx) * stringSpacing - 15}
+                  width={i === 0 ? paddingX : fretSpacing}
+                  height={30}
+                  fill="transparent"
+                  onClick={() => (!chord && !scale || onFretClick) ? handleDotClick(stringIdx, fretIdx) : null}
+                  onMouseDown={onFretMouseDown ? () => onFretMouseDown(stringIdx, fretIdx) : undefined}
+                  className={(!chord && !scale || onFretClick) ? "cursor-pointer hover:fill-brand-secondary/20 transition-colors" : ""}
+                />
+                {renderNoteMarker(stringIdx, fretIdx)}
+              </g>
+            );
+          })
         )}
 
         {/* Dimming overlay — dims frets outside the active focus zone */}
         {focusZone && Array.from({ length: stringsNum }).map((_, stringIdx) =>
-          Array.from({ length: fretsNum + 1 }).map((_, fretIdx) => {
-            if (isInFocus(stringIdx, fretIdx, focusZone, fretsNum)) return null;
+          Array.from({ length: fretsNum + 1 }).map((_, i) => {
+            const fretIdx = startFret + i;
+            if (isInFocus(stringIdx, fretIdx, focusZone, fretsNum + startFret)) return null;
             const visualStringIdx = 5 - stringIdx;
-            const x = fretIdx === 0 ? 0 : paddingX + (fretIdx - 1) * fretSpacing;
+            const x = i === 0 ? 0 : paddingX + (i - 1) * fretSpacing;
             const y = paddingY + visualStringIdx * stringSpacing - 15;
-            const width = fretIdx === 0 ? paddingX : fretSpacing;
+            const width = i === 0 ? paddingX : fretSpacing;
             return (
               <rect
                 key={`dim-${stringIdx}-${fretIdx}`}
@@ -452,13 +456,14 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
 
         {/* Trainer feedback dots */}
         {(correctPositions.size > 0 || wrongPosition !== null) && Array.from({ length: stringsNum }).map((_, stringIdx) =>
-          Array.from({ length: fretsNum + 1 }).map((_, fretIdx) => {
+          Array.from({ length: fretsNum + 1 }).map((_, i) => {
+            const fretIdx = startFret + i;
             const key = `${stringIdx}-${fretIdx}`;
             const isCorrect = correctPositions.has(key);
             const isWrong = wrongPosition === key;
             if (!isCorrect && !isWrong) return null;
             const visualStringIdx = 5 - stringIdx;
-            const x = fretIdx === 0 ? paddingX / 2 : paddingX + (fretIdx - 0.5) * fretSpacing;
+            const x = i === 0 ? paddingX / 2 : paddingX + (i - 0.5) * fretSpacing;
             const y = paddingY + visualStringIdx * stringSpacing;
             return (
               <circle
@@ -518,7 +523,7 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
             fontSize={10}
             className="font-mono fill-brand-secondary/70 print:hidden"
           >
-            {i + 1}
+            {startFret + i + 1}
           </text>
         ))}
       </svg>
@@ -546,7 +551,7 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
         style={{ paddingLeft: `${(paddingX / totalWidth) * 100}%`, paddingRight: `${(paddingX / totalWidth) * 100}%` }}
       >
         {Array.from({ length: fretsNum }).map((_, i) => (
-          <div key={i} className="flex-1 text-center">{i + 1}</div>
+          <div key={i} className="flex-1 text-center">{startFret + i + 1}</div>
         ))}
       </div>
     </div>

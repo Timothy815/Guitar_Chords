@@ -799,14 +799,48 @@ export function Dictionary() {
     return [];
   }, [scaleBoxOptions, scaleBoxSelection, scaleDiagonalOptions, scaleDiagonalSelection, scalePositionOptions, scalePositionSelection, scaleThreeNpsOptions, scaleThreeNpsSelection, scaleViewMode, strictScalePositionPositions, strictScaleBoxPositions, strictScaleDiagonalPositions, strictScaleThreeNpsPositions]);
 
-  const scaleFretsNum = useMemo(() => {
-    // Full neck view should show all 22 frets for complete visualization
-    if (mode === 'scales' && scaleViewMode === 'full') return 22;
+  // Calculate focused fretboard window for consistent 12-fret position views
+  const { scaleFretsNum, scaleStartFret } = useMemo(() => {
+    // Full neck view should show all 22 frets starting from 0
+    if (mode === 'scales' && scaleViewMode === 'full') {
+      return { scaleFretsNum: 22, scaleStartFret: 0 };
+    }
 
-    if (!activeStrictScalePositions || activeStrictScalePositions.size === 0) return 15;
-    const frets = [...activeStrictScalePositions].map(p => parseInt(p.split('-')[1], 10));
-    return Math.max(15, Math.max(...frets) + 1);
-  }, [activeStrictScalePositions, mode, scaleViewMode]);
+    const windowSize = 12;
+
+    // For position/box/diagonal views with explicit fretRange, center it within 12 frets
+    if (mode === 'scales' && scaleFretRange.length === 2) {
+      const [start, end] = scaleFretRange;
+      const rangeSize = end - start + 1;
+
+      // Calculate padding needed
+      const totalPadding = Math.max(0, windowSize - rangeSize);
+      const leftPadding = Math.floor(totalPadding / 2);
+
+      // Calculate window start, ensuring it doesn't go below 0
+      const windowStart = Math.max(0, start - leftPadding);
+
+      return { scaleFretsNum: windowSize, scaleStartFret: windowStart };
+    }
+
+    // If we have strict positions, calculate from their range
+    if (activeStrictScalePositions && activeStrictScalePositions.size > 0) {
+      const frets = [...activeStrictScalePositions].map(p => parseInt(p.split('-')[1], 10));
+      const minFret = Math.min(...frets);
+      const maxFret = Math.max(...frets);
+      const rangeSize = maxFret - minFret + 1;
+
+      const totalPadding = Math.max(0, windowSize - rangeSize);
+      const leftPadding = Math.floor(totalPadding / 2);
+
+      const windowStart = Math.max(0, minFret - leftPadding);
+
+      return { scaleFretsNum: windowSize, scaleStartFret: windowStart };
+    }
+
+    // Default to 15 frets starting from 0
+    return { scaleFretsNum: 15, scaleStartFret: 0 };
+  }, [activeStrictScalePositions, mode, scaleViewMode, scaleFretRange]);
 
   // Calculate CAGED position colors for full neck view
   const cagedPositionMap = useMemo(() => {
@@ -2254,6 +2288,7 @@ export function Dictionary() {
                   <div className="w-full" onMouseEnter={initAudio}>
                      <Fretboard
                         fretsNum={scaleFretsNum}
+                        startFret={scaleStartFret}
                         chord={mode === 'chords' ? scaffoldedChord : (mode === 'identify' ? { name: 'Identified', frets: identifiedFrets, fingers: identifiedFrets.map(f => (f === -1 ? -1 : 0)) as Finger[] } : undefined)}
                         showNoteNames={!(mode === 'chords' && scaffoldLevel === 1)}
                         scale={mode === 'scales' ? displayedScale ?? undefined : undefined}
