@@ -171,7 +171,9 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
           }
         }
         const isExplicitlyLabeled = labeledDots?.some(d => d.stringIdx === stringIdx && d.fret === fretIdx) ?? false;
-        text = labelMode !== 'none' ? getLabelText(noteJustName) : (showNoteNames || isExplicitlyLabeled ? noteJustName : "");
+        // Always show note name for open strings (fret 0) in scale view, or when explicitly requested
+        const alwaysShowLabel = fretIdx === 0 || showNoteNames || isExplicitlyLabeled;
+        text = labelMode !== 'none' ? getLabelText(noteJustName) : (alwaysShowLabel ? noteJustName : "");
       }
     }
 
@@ -276,9 +278,17 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
 
   const showToggle = !!(chord || scale);
 
+  // For extended fretboards (>15 frets), use fixed width to enable scrolling
+  const useFixedWidth = fretsNum > 15;
+  const svgWidth = useFixedWidth ? totalWidth : undefined;
+
   return (
     <div className={cn("w-full overflow-x-auto print:overflow-hidden pb-4 print:pb-0", className)}>
-      <svg viewBox={`0 0 ${totalWidth} ${totalHeight}`} className={cn("w-full h-auto drop-shadow-sm border-8 print:border-2 border-brand-fretborder rounded-xl", !compact && "min-w-[600px] print:min-w-0")}>
+      <svg
+        viewBox={`0 0 ${totalWidth} ${totalHeight}`}
+        width={svgWidth}
+        className={cn("h-auto drop-shadow-sm border-8 print:border-2 border-brand-fretborder rounded-xl", useFixedWidth ? "" : "w-full", !compact && !useFixedWidth && "min-w-[600px] print:min-w-0")}
+      >
         {/* Fretboard Background */}
         <rect x={paddingX} y={paddingY} width={totalWidth - paddingX * 2} height={totalHeight - paddingY * 2} fill="var(--color-brand-fretboard)" />
 
