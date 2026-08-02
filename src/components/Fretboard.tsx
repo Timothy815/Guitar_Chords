@@ -63,7 +63,9 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
   const stringsNum = 6;
   const paddingX = 40;
   const paddingY = 30;
-  const stringSpacing = 30;
+
+  // Increase string spacing for full neck view (22 frets) to prevent dot overlap
+  const stringSpacing = fretsNum > 15 ? 36 : 30;
 
   // Keep fret spacing constant regardless of fret count for proper scrolling
   const baseFretSpacing = 60; // spacing for standard 12-fret view
