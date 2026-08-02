@@ -643,9 +643,16 @@ export function Dictionary() {
     return SCALE_POSITION_BOXES.flatMap((box, positionIndex) => {
       const strictCagedPattern = getCagedScalePattern(activeScaleBase.name, positionIndex);
       if (strictCagedPattern) {
-        const anchorFret = getCagedScaleAnchor(activeScaleBase.name, rootFret);
+        // Each CAGED position has its own anchor based on the position offset
+        let positionAnchor = rootFret + CAGED_OFFSETS[positionIndex];
         const offsets = strictCagedPattern.flat();
-        return findShapeAnchors(strictCagedPattern, anchorFret, 12).map((alt, altIndex) => {
+
+        // Ensure anchor doesn't go negative
+        while (positionAnchor + Math.min(...offsets) < 0) {
+          positionAnchor += 12;
+        }
+
+        return findShapeAnchors(strictCagedPattern, positionAnchor, 12).map((alt, altIndex) => {
           const minFret = alt + Math.min(...offsets);
           const maxFret = alt + Math.max(...offsets);
           return {
