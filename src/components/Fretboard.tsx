@@ -291,9 +291,24 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
 
   // Auto-scroll to show the selected fret range when it changes
   useEffect(() => {
-    if (!scrollContainerRef.current || !fretRange || fretRange.length !== 2) return;
+    if (!scrollContainerRef.current) return;
 
-    const [startFret, endFret] = fretRange;
+    let startFret: number | undefined;
+    let endFret: number | undefined;
+
+    // Try to get range from fretRange prop
+    if (fretRange && fretRange.length === 2) {
+      [startFret, endFret] = fretRange;
+    }
+    // If no fretRange, calculate from scalePositions (for strict CAGED positions)
+    else if (scalePositions && scalePositions.size > 0) {
+      const frets = Array.from(scalePositions).map(pos => parseInt(pos.split('-')[1], 10));
+      startFret = Math.min(...frets);
+      endFret = Math.max(...frets);
+    }
+
+    // No range to scroll to
+    if (startFret === undefined) return;
 
     // If the range is beyond fret 12, scroll to show it
     if (startFret > 12) {
@@ -306,7 +321,7 @@ export function Fretboard({ fretsNum = 12, chord, scale, onNoteClick, onFretClic
       // Reset scroll to beginning for low positions
       scrollContainerRef.current.scrollLeft = 0;
     }
-  }, [fretRange, fretSpacing]);
+  }, [fretRange, scalePositions, fretSpacing]);
 
   return (
     <div ref={scrollContainerRef} className={cn("w-full overflow-x-auto print:overflow-hidden pb-4 print:pb-0", className)}>
