@@ -1085,14 +1085,17 @@ export function Dictionary() {
   const pianoNotes = mode === 'chords' ? activeChordNotes : identifiedNotesWithOctaves;
 
   const handleFretClick = (str: number, fret: number) => {
+     console.log('[handleFretClick] string:', str, 'fret:', fret, 'mode:', mode);
      if (mode === 'identify') {
         setIdentifiedFrets(prev => {
            const next = [...prev];
+           console.log('[identify] prev frets:', prev, 'setting string', str, 'to fret', fret);
            if (next[str] === fret) {
               next[str] = -1; // toggle off
            } else {
               next[str] = fret;
            }
+           console.log('[identify] new frets:', next);
            return next;
         });
         import('../lib/audio').then(m => m.playNote(getFretNote(str, fret), sustain));

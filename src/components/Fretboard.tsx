@@ -96,6 +96,7 @@ export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteCl
   };
 
   const handleDotClick = (stringIdx: number, fretIdx: number) => {
+    console.log('[Fretboard handleDotClick] stringIdx:', stringIdx, 'fretIdx:', fretIdx, 'startFret:', startFret);
     const noteStr = getFretNote(stringIdx, fretIdx, tuning);
     if (onFretClick) onFretClick(stringIdx, fretIdx);
     else if (onNoteClick) onNoteClick(noteStr);
