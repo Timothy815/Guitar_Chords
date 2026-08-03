@@ -96,7 +96,6 @@ export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteCl
   };
 
   const handleDotClick = (stringIdx: number, fretIdx: number) => {
-    console.log('[Fretboard handleDotClick] stringIdx:', stringIdx, 'fretIdx:', fretIdx, 'startFret:', startFret);
     const noteStr = getFretNote(stringIdx, fretIdx, tuning);
     if (onFretClick) onFretClick(stringIdx, fretIdx);
     else if (onNoteClick) onNoteClick(noteStr);
@@ -400,8 +399,15 @@ export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteCl
           Array.from({ length: startFret === 0 ? fretsNum + 1 : fretsNum }).map((_, i) => {
             const fretIdx = startFret + i;
             const isNut = fretIdx === 0;
-            // Visual positioning based on loop index, not absolute fret number
-            const xPos = isNut ? 0 : (startFret === 0 ? paddingX + (i - 1) * fretSpacing : paddingX + i * fretSpacing);
+            const visualFretIdx = fretIdx - startFret;
+            // Clickable rect must align with note marker position
+            const xPos = isNut
+              ? 0
+              : visualFretIdx === 0
+                ? 0
+                : startFret === 0
+                  ? paddingX + (i - 1) * fretSpacing
+                  : paddingX + (i - 1) * fretSpacing;
 
             return (
               <g key={`note-${stringIdx}-${fretIdx}`}>
@@ -428,7 +434,15 @@ export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteCl
             if (isInFocus(stringIdx, fretIdx, focusZone, fretsNum + startFret)) return null;
             const visualStringIdx = 5 - stringIdx;
             const isNut = fretIdx === 0;
-            const x = isNut ? 0 : (startFret === 0 ? paddingX + (i - 1) * fretSpacing : paddingX + i * fretSpacing);
+            const visualFretIdx = fretIdx - startFret;
+            // Dimming overlay must align with clickable rect position
+            const x = isNut
+              ? 0
+              : visualFretIdx === 0
+                ? 0
+                : startFret === 0
+                  ? paddingX + (i - 1) * fretSpacing
+                  : paddingX + (i - 1) * fretSpacing;
             const y = paddingY + visualStringIdx * stringSpacing - 15;
             const width = isNut ? paddingX : fretSpacing;
             return (
