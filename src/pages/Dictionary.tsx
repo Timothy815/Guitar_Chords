@@ -815,6 +815,56 @@ export function Dictionary() {
     const windowSize = 12;
     const maxFret = 22; // Guitar frets only go to 22
 
+    // For chord mode, calculate window based on chord's fret positions
+    if (mode === 'chords' && activeChord) {
+      const frettedPositions = activeChord.frets.filter(f => f > 0);
+      if (frettedPositions.length > 0) {
+        const minFret = Math.min(...frettedPositions);
+        const maxFret = Math.max(...frettedPositions);
+        const rangeSize = maxFret - minFret + 1;
+
+        const totalPadding = Math.max(0, windowSize - rangeSize);
+        const leftPadding = Math.floor(totalPadding / 2);
+
+        let windowStart = Math.max(0, minFret - leftPadding);
+
+        // Ensure window doesn't exceed fret 22
+        if (windowStart + windowSize - 1 > 22) {
+          windowStart = Math.max(0, 22 - windowSize + 1);
+        }
+
+        return { scaleFretsNum: windowSize, scaleStartFret: windowStart };
+      } else {
+        // All open strings or muted - show first 15 frets
+        return { scaleFretsNum: 15, scaleStartFret: 0 };
+      }
+    }
+
+    // For identify mode, calculate window based on identified fret positions
+    if (mode === 'identify') {
+      const frettedPositions = identifiedFrets.filter(f => f > 0);
+      if (frettedPositions.length > 0) {
+        const minFret = Math.min(...frettedPositions);
+        const maxFret = Math.max(...frettedPositions);
+        const rangeSize = maxFret - minFret + 1;
+
+        const totalPadding = Math.max(0, windowSize - rangeSize);
+        const leftPadding = Math.floor(totalPadding / 2);
+
+        let windowStart = Math.max(0, minFret - leftPadding);
+
+        // Ensure window doesn't exceed fret 22
+        if (windowStart + windowSize - 1 > 22) {
+          windowStart = Math.max(0, 22 - windowSize + 1);
+        }
+
+        return { scaleFretsNum: windowSize, scaleStartFret: windowStart };
+      } else {
+        // All open strings or muted - show first 15 frets
+        return { scaleFretsNum: 15, scaleStartFret: 0 };
+      }
+    }
+
     // For position/box/diagonal views with explicit fretRange, center it within 12 frets
     if (mode === 'scales' && scaleFretRange.length === 2) {
       const [start, end] = scaleFretRange;
@@ -857,7 +907,7 @@ export function Dictionary() {
 
     // Default to 15 frets starting from 0
     return { scaleFretsNum: 15, scaleStartFret: 0 };
-  }, [activeStrictScalePositions, mode, scaleViewMode, scaleFretRange]);
+  }, [activeStrictScalePositions, mode, scaleViewMode, scaleFretRange, activeChord, identifiedFrets]);
 
   // Calculate CAGED position colors for full neck view
   const cagedPositionMap = useMemo(() => {
