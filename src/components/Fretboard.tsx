@@ -61,8 +61,6 @@ export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteCl
   const [labelMode, setLabelMode] = useState<LabelMode>('none');
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  console.log('[Fretboard] fretsNum:', fretsNum, 'startFret:', startFret, 'scalePositions:', scalePositions ? Array.from(scalePositions).slice(0, 5) : 'none');
-
   const stringsNum = 6;
   const paddingX = 40;
   const paddingY = 30;
@@ -201,10 +199,6 @@ export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteCl
         ? paddingX / 2
         : paddingX + (visualFretIdx - 0.5) * fretSpacing;
     const y = paddingY + visualStringIdx * stringSpacing;
-
-    if (stringIdx === 0 && show && scalePositions && scalePositions.has(`${stringIdx}-${fretIdx}`)) {
-      console.log(`[renderNoteMarker] string ${stringIdx}, fretIdx=${fretIdx}, startFret=${startFret}, visualFretIdx=${visualFretIdx}, x=${x}, paddingX=${paddingX}, fretSpacing=${fretSpacing}`);
-    }
 
     if (!show && !isMuted) {
       if (fretIdx === 0 && (!chord && !scale)) {
@@ -407,10 +401,6 @@ export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteCl
             const isNut = fretIdx === 0;
             // Visual positioning based on loop index, not absolute fret number
             const xPos = isNut ? 0 : (startFret === 0 ? paddingX + (i - 1) * fretSpacing : paddingX + i * fretSpacing);
-
-            if (stringIdx === 0 && scalePositions && scalePositions.has(`${stringIdx}-${fretIdx}`)) {
-              console.log(`[Note Render] string ${stringIdx}, i=${i}, fretIdx=${fretIdx}, xPos=${xPos}, fretSpacing=${fretSpacing}`);
-            }
 
             return (
               <g key={`note-${stringIdx}-${fretIdx}`}>
