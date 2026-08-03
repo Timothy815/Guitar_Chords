@@ -409,12 +409,16 @@ export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteCl
                   ? paddingX + (i - 1) * fretSpacing
                   : paddingX + (i - 1) * fretSpacing;
 
+            if (stringIdx === 0 && fretIdx <= 2) {
+              console.log(`[Clickable Rect] i=${i}, fretIdx=${fretIdx}, isNut=${isNut}, visualFretIdx=${visualFretIdx}, startFret=${startFret}, xPos=${xPos}, width=${isNut || visualFretIdx === 0 ? paddingX : fretSpacing}`);
+            }
+
             return (
               <g key={`note-${stringIdx}-${fretIdx}`}>
                 <rect
                   x={xPos}
                   y={paddingY + (5 - stringIdx) * stringSpacing - 15}
-                  width={isNut ? paddingX : fretSpacing}
+                  width={isNut || visualFretIdx === 0 ? paddingX : fretSpacing}
                   height={30}
                   fill="transparent"
                   onClick={() => (!chord && !scale || onFretClick) ? handleDotClick(stringIdx, fretIdx) : null}
@@ -444,7 +448,7 @@ export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteCl
                   ? paddingX + (i - 1) * fretSpacing
                   : paddingX + (i - 1) * fretSpacing;
             const y = paddingY + visualStringIdx * stringSpacing - 15;
-            const width = isNut ? paddingX : fretSpacing;
+            const width = isNut || visualFretIdx === 0 ? paddingX : fretSpacing;
             return (
               <rect
                 key={`dim-${stringIdx}-${fretIdx}`}
@@ -555,6 +559,10 @@ export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteCl
             : startFret === 0
               ? paddingX + (i + 0.5) * fretSpacing
               : paddingX + (i - 0.5) * fretSpacing;
+          const labelText = startFret === 0 ? i + 1 : startFret + i;
+          if (i <= 2) {
+            console.log(`[Label] i=${i}, startFret=${startFret}, labelX=${labelX}, labelText=${labelText}, paddingX=${paddingX}, fretSpacing=${fretSpacing}`);
+          }
           return (
             <text
               key={`fnum-${i}`}
@@ -564,7 +572,7 @@ export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteCl
               fontSize={10}
               className="font-mono fill-brand-secondary/70 print:hidden"
             >
-              {startFret === 0 ? i + 1 : startFret + i}
+              {labelText}
             </text>
           );
         })}
