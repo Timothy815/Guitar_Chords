@@ -193,7 +193,13 @@ export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteCl
 
     // Calculate visual position: when startFret > 0, fret 8 should be at visual position (8 - startFret)
     const visualFretIdx = fretIdx - startFret;
-    const x = isMuted || fretIdx === 0 ? paddingX / 2 : paddingX + (visualFretIdx + 0.5) * fretSpacing;
+    // Notes appear in the space BEFORE the fret line: fret 8 is between fret 7 and fret 8 lines
+    // For the first fret in the window (visualFretIdx=0), center in the paddingX area
+    const x = isMuted || fretIdx === 0
+      ? paddingX / 2
+      : visualFretIdx === 0
+        ? paddingX / 2
+        : paddingX + (visualFretIdx - 0.5) * fretSpacing;
     const y = paddingY + visualStringIdx * stringSpacing;
 
     if (stringIdx === 0 && show && scalePositions && scalePositions.has(`${stringIdx}-${fretIdx}`)) {
@@ -520,7 +526,12 @@ export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteCl
         {highlightNote && (() => {
           const { stringIdx, fret } = highlightNote;
           const visualStringIdx = 5 - stringIdx;
-          const x = fret === 0 ? paddingX / 2 : paddingX + (fret - 0.5) * fretSpacing;
+          const visualFretIdx = fret - startFret;
+          const x = fret === 0
+            ? paddingX / 2
+            : visualFretIdx === 0
+              ? paddingX / 2
+              : paddingX + (visualFretIdx - 0.5) * fretSpacing;
           const y = paddingY + visualStringIdx * stringSpacing;
           const r = fret === 0 ? 10 : 14;
           return (
@@ -532,18 +543,26 @@ export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteCl
         })()}
 
         {/* Fret numbers — screen only */}
-        {Array.from({ length: fretsNum }).map((_, i) => (
-          <text
-            key={`fnum-${i}`}
-            x={paddingX + (i + 0.5) * fretSpacing}
-            y={totalHeight - 8}
-            textAnchor="middle"
-            fontSize={10}
-            className="font-mono fill-brand-secondary/70 print:hidden"
-          >
-            {startFret === 0 ? i + 1 : startFret + i}
-          </text>
-        ))}
+        {Array.from({ length: fretsNum }).map((_, i) => {
+          // Labels must align with note positions
+          const labelX = i === 0 && startFret > 0
+            ? paddingX / 2
+            : startFret === 0
+              ? paddingX + (i + 0.5) * fretSpacing
+              : paddingX + (i - 0.5) * fretSpacing;
+          return (
+            <text
+              key={`fnum-${i}`}
+              x={labelX}
+              y={totalHeight - 8}
+              textAnchor="middle"
+              fontSize={10}
+              className="font-mono fill-brand-secondary/70 print:hidden"
+            >
+              {startFret === 0 ? i + 1 : startFret + i}
+            </text>
+          );
+        })}
       </svg>
 
       {/* Label mode toggle — only when chord or scale is active, and not in compact mode */}
