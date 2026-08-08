@@ -338,13 +338,32 @@ export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteCl
     }
   }, [fretRange, scalePositions, fretSpacing, startFret, fretsNum]);
 
+  // For print mode, limit to 12 frets since patterns repeat
+  const printMaxWidth = paddingX * 2 + fretSpacing * 12;
+
   return (
     <div ref={scrollContainerRef} className={cn("w-full overflow-x-auto print:overflow-hidden pb-4 print:pb-0", className)}>
-      <svg
-        viewBox={`0 0 ${totalWidth} ${totalHeight}`}
-        width={svgWidth}
-        className={cn("h-auto drop-shadow-sm border-8 print:border-2 border-brand-fretborder rounded-xl", useFixedWidth ? "" : "w-full", !compact && !useFixedWidth && "min-w-[600px] print:min-w-0")}
+      <div
+        className="print:overflow-hidden print:max-w-max"
+        style={{
+          // @ts-ignore
+          '--print-max-width': `${printMaxWidth}px`,
+        } as React.CSSProperties}
       >
+        <style>{`
+          @media print {
+            .fretboard-print-wrapper {
+              max-width: ${printMaxWidth}px;
+              overflow: hidden;
+            }
+          }
+        `}</style>
+        <div className="fretboard-print-wrapper">
+          <svg
+            viewBox={`0 0 ${totalWidth} ${totalHeight}`}
+            width={svgWidth}
+            className={cn("h-auto drop-shadow-sm border-8 print:border-2 border-brand-fretborder rounded-xl", useFixedWidth ? "" : "w-full", !compact && !useFixedWidth && "min-w-[600px] print:min-w-0")}
+          >
         {/* Fretboard Background */}
         <rect x={paddingX} y={paddingY} width={totalWidth - paddingX * 2} height={totalHeight - paddingY * 2} fill="var(--color-brand-fretboard)" />
 
@@ -569,6 +588,8 @@ export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteCl
           );
         })}
       </svg>
+        </div>
+      </div>
 
       {/* Label mode toggle — only when chord or scale is active, and not in compact mode */}
       {showToggle && !compact && (
@@ -587,12 +608,12 @@ export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteCl
         </div>
       )}
 
-      {/* Fret numbers for print — HTML so they render at full CSS size */}
+      {/* Fret numbers for print — HTML so they render at full CSS size (limit to 12 frets) */}
       <div
         className="hidden print:flex text-[9px] font-mono text-gray-600"
-        style={{ paddingLeft: `${(paddingX / totalWidth) * 100}%`, paddingRight: `${(paddingX / totalWidth) * 100}%` }}
+        style={{ paddingLeft: `${(paddingX / printMaxWidth) * 100}%`, paddingRight: `${(paddingX / printMaxWidth) * 100}%` }}
       >
-        {Array.from({ length: fretsNum }).map((_, i) => (
+        {Array.from({ length: Math.min(fretsNum, 12) }).map((_, i) => (
           <div key={i} className="flex-1 text-center">{startFret === 0 ? i + 1 : startFret + i}</div>
         ))}
       </div>
