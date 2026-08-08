@@ -9,6 +9,9 @@ type LabelMode = 'none' | 'note' | 'interval';
 
 const INTERVAL_NAMES = ['1', 'b2', '2', 'b3', '3', '4', 'b5', '5', 'b6', '6', 'b7', '7'];
 
+// Max frets guaranteed to fit legibly on one printed page.
+const PRINT_FRET_CAP = 15;
+
 function isInFocus(
   stringIdx: number,
   fretIdx: number,
@@ -339,7 +342,7 @@ export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteCl
   }, [fretRange, scalePositions, fretSpacing, startFret, fretsNum]);
 
   // For print mode, limit to 12 frets since patterns repeat
-  const printMaxWidth = paddingX * 2 + fretSpacing * 12;
+  const printMaxWidth = paddingX * 2 + fretSpacing * Math.min(fretsNum, PRINT_FRET_CAP);
 
   return (
     <div ref={scrollContainerRef} className={cn("w-full overflow-x-auto print:overflow-hidden pb-4 print:pb-0", className)}>
@@ -566,8 +569,8 @@ export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteCl
           );
         })()}
 
-        {/* Fret numbers — screen only (limit to 12 frets for print compatibility) */}
-        {Array.from({ length: Math.min(fretsNum, 12) }).map((_, i) => {
+        {/* Fret numbers — screen only. This block already carries print:hidden below, so it never affects print output. */}
+        {Array.from({ length: fretsNum }).map((_, i) => {
           // Labels must align with note positions
           const labelX = i === 0 && startFret > 0
             ? paddingX / 2
@@ -608,12 +611,12 @@ export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteCl
         </div>
       )}
 
-      {/* Fret numbers for print — HTML so they render at full CSS size (limit to 12 frets) */}
+      {/* Fret numbers for print — HTML so they render at full CSS size (capped at PRINT_FRET_CAP frets) */}
       <div
         className="hidden print:flex text-[9px] font-mono text-gray-600"
         style={{ paddingLeft: `${(paddingX / printMaxWidth) * 100}%`, paddingRight: `${(paddingX / printMaxWidth) * 100}%` }}
       >
-        {Array.from({ length: Math.min(fretsNum, 12) }).map((_, i) => (
+        {Array.from({ length: Math.min(fretsNum, PRINT_FRET_CAP) }).map((_, i) => (
           <div key={i} className="flex-1 text-center">{startFret === 0 ? i + 1 : startFret + i}</div>
         ))}
       </div>
