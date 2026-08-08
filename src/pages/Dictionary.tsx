@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Chord as TonalChord } from '@tonaljs/tonal';
 import { Fretboard } from '../components/Fretboard';
 import { IntervalFretboard } from '../components/IntervalFretboard';
+import { PrintFretRangeDialog } from '../components/PrintFretRangeDialog';
 import { PianoKeyboard } from '../components/PianoKeyboard';
 import { COMMON_CHORDS, COMMON_SCALES, generateScalePattern, generateDiagonalPentatonic, ALL_NOTES, ScaleCategory } from '../data/guitarData';
 import { playStrum, playArpeggio, getFretNote, initAudio, playNote, setEffects } from '../lib/audio';
@@ -433,6 +434,8 @@ export function Dictionary() {
   const [showIntervalInfo, setShowIntervalInfo] = useState(false);
   const [showAllNotes, setShowAllNotes] = useState(false);
   const [intervalView, setIntervalView] = useState<'bass' | 'stacked'>('bass');
+  const [printRangeOpen, setPrintRangeOpen] = useState(false);
+  const [printFretRange, setPrintFretRange] = useState<[number, number] | null>(null);
 
   function handleOpenInChords(root: Note, qualityPrefix: string) {
     if (!isStandardTuning) return;
@@ -981,6 +984,13 @@ export function Dictionary() {
   }, [activeChord, isStandardTuning, mode]);
 
   useEffect(() => { setScaffoldLevel(0); }, [selectedKey, selectedChordIdx]);
+
+  useEffect(() => {
+    if (printFretRange) {
+      handlePrint('print-area');
+      setPrintFretRange(null);
+    }
+  }, [printFretRange]);
 
   // Which scales (rooted on selectedKey) contain all notes of the active chord
   const relatedScales = useMemo(() => {
@@ -2099,7 +2109,10 @@ export function Dictionary() {
                  )}
                  {mode === 'scales' && activeScale && (
                     <div className="flex gap-3 print:hidden">
-                       <button onClick={() => handlePrint('print-area')} className="flex items-center gap-2 px-4 py-2 bg-transparent border border-brand-line text-brand-ink rounded-md hover:border-brand-primary hover:text-brand-primary transition-colors font-semibold text-sm">
+                       <button
+                         onClick={() => scaleViewMode === 'full' ? setPrintRangeOpen(true) : handlePrint('print-area')}
+                         className="flex items-center gap-2 px-4 py-2 bg-transparent border border-brand-line text-brand-ink rounded-md hover:border-brand-primary hover:text-brand-primary transition-colors font-semibold text-sm"
+                       >
                           <Printer size={16} /> Print Diagram
                        </button>
                        <button
@@ -2111,6 +2124,14 @@ export function Dictionary() {
                        </button>
                     </div>
                  )}
+                 <PrintFretRangeDialog
+                   isOpen={printRangeOpen}
+                   onCancel={() => setPrintRangeOpen(false)}
+                   onConfirm={(start, end) => {
+                     setPrintFretRange([start, end]);
+                     setPrintRangeOpen(false);
+                   }}
+                 />
               </div>
 
               {/* Interval analysis for Identify tab — shown whenever 2+ strings are fretted */}
@@ -2334,6 +2355,7 @@ export function Dictionary() {
                 <>
                   <div className="w-full" onMouseEnter={initAudio}>
                      <Fretboard
+                        className={mode === 'scales' && scaleViewMode === 'full' && printFretRange ? 'print:hidden' : undefined}
                         fretsNum={scaleFretsNum}
                         startFret={scaleStartFret}
                         chord={mode === 'chords' ? scaffoldedChord : (mode === 'identify' ? { name: 'Identified', frets: identifiedFrets, fingers: identifiedFrets.map(f => (f === -1 ? -1 : 0)) as Finger[] } : undefined)}
@@ -2352,6 +2374,19 @@ export function Dictionary() {
                         tuning={currentTuning}
                         showAllNotes={mode === 'identify' && showAllNotes}
                      />
+                     {mode === 'scales' && scaleViewMode === 'full' && printFretRange && (
+                       <div className="hidden print:block">
+                         <Fretboard
+                           fretsNum={printFretRange[1] - printFretRange[0] + 1}
+                           startFret={printFretRange[0]}
+                           fretRange={printFretRange}
+                           scale={displayedScale ?? undefined}
+                           cagedPositionMap={cagedPositionMap}
+                           cagedColors={CAGED_COLORS}
+                           tuning={currentTuning}
+                         />
+                       </div>
+                     )}
                   </div>
                   <p className="text-brand-secondary/70 text-sm mt-8 pb-4 print:hidden text-center">
                      Click any dot to hear the note{mode === 'identify' ? ' and set the fret' : ''}, or use keyboard numbers <strong>1-6</strong> to play individual strings.
