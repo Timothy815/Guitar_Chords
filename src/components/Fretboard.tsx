@@ -356,6 +356,7 @@ export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteCl
         <style>{`
           @media print {
             .fretboard-print-wrapper {
+              width: ${printMaxWidth}px;
               max-width: ${printMaxWidth}px;
               overflow: hidden;
             }
@@ -591,6 +592,19 @@ export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteCl
           );
         })}
       </svg>
+
+          {/* Fret numbers for print — HTML so they render at full CSS size (capped at PRINT_FRET_CAP frets).
+              Nested inside fretboard-print-wrapper (not a sibling) so it shares that div's exact resolved
+              width — as a sibling it stretched to the page width instead of the fretboard's width, spreading
+              labels for high frets far past the visible neck. */}
+          <div
+            className="hidden print:flex text-[9px] font-mono text-gray-600"
+            style={{ paddingLeft: `${(paddingX / printMaxWidth) * 100}%`, paddingRight: `${(paddingX / printMaxWidth) * 100}%` }}
+          >
+            {Array.from({ length: Math.min(fretsNum, PRINT_FRET_CAP) }).map((_, i) => (
+              <div key={i} className="flex-1 text-center">{startFret === 0 ? i + 1 : startFret + i}</div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -610,16 +624,6 @@ export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteCl
           </button>
         </div>
       )}
-
-      {/* Fret numbers for print — HTML so they render at full CSS size (capped at PRINT_FRET_CAP frets) */}
-      <div
-        className="hidden print:flex text-[9px] font-mono text-gray-600"
-        style={{ paddingLeft: `${(paddingX / printMaxWidth) * 100}%`, paddingRight: `${(paddingX / printMaxWidth) * 100}%` }}
-      >
-        {Array.from({ length: Math.min(fretsNum, PRINT_FRET_CAP) }).map((_, i) => (
-          <div key={i} className="flex-1 text-center">{startFret === 0 ? i + 1 : startFret + i}</div>
-        ))}
-      </div>
     </div>
   );
 }
