@@ -547,8 +547,8 @@ export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteCl
           );
         })()}
 
-        {/* Fret numbers — screen only */}
-        {Array.from({ length: fretsNum }).map((_, i) => {
+        {/* Fret numbers — screen only (limit to 12 frets for print compatibility) */}
+        {Array.from({ length: Math.min(fretsNum, 12) }).map((_, i) => {
           // Labels must align with note positions
           const labelX = i === 0 && startFret > 0
             ? paddingX / 2
