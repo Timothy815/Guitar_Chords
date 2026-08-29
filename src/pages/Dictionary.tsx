@@ -9,7 +9,7 @@ import { COMMON_CHORDS, COMMON_SCALES, generateScalePattern, generateDiagonalPen
 import { playStrum, playArpeggio, getFretNote, initAudio, playNote, setEffects } from '../lib/audio';
 import { Volume2, ListMusic, Printer, ChevronDown, ChevronUp } from 'lucide-react';
 import { ChordShape, Note, TUNINGS, Tuning, Finger } from '../types';
-import { handlePrint, cn, avgChordPitch, chordPositionBucket, PositionBucket, POSITION_LABELS } from '../lib/utils';
+import { handlePrint, cn, avgChordPitch, chordPositionBucket, PositionBucket, POSITION_LABELS, shiftFretsAcrossStrings } from '../lib/utils';
 import { addChordToActiveProgression } from '@/src/lib/progressionUtils';
 import { TheoryReference } from '../components/TheoryReference';
 import { STANDARD_TUNING } from '../types';
@@ -1062,6 +1062,21 @@ export function Dictionary() {
     setIdentifiedFrets(prev => prev.map(f => f === -1 ? -1 : Math.max(0, f + delta)));
   }
 
+  const frettedStrings = identifiedFrets
+    .map((f, s) => (f !== -1 ? s : -1))
+    .filter(s => s !== -1);
+  const canShiftStringDown = frettedStrings.some(s => s - 1 >= 0);
+  const canShiftStringUp = frettedStrings.some(s => s + 1 <= 5);
+
+  const OPEN_STRING_NAMES = ['E', 'A', 'D', 'G', 'B', 'E'];
+  const currentStringLabel = frettedStrings.length > 0
+    ? frettedStrings.map(s => OPEN_STRING_NAMES[s]).join(' · ')
+    : '';
+
+  function shiftStrings(delta: 1 | -1) {
+    setIdentifiedFrets(prev => shiftFretsAcrossStrings(prev, delta));
+  }
+
   const activeChordNotes: string[] = mode === 'chords' && activeChord
     ? activeChord.frets
         .map((fret, strIdx) => fret !== -1 ? getFretNote(strIdx, fret) : null)
@@ -1843,6 +1858,37 @@ export function Dictionary() {
                            </div>
                            <p className="text-[10px] text-brand-secondary/60 leading-tight">
                              Moves all fretted notes together — same shape, new chord
+                           </p>
+                         </div>
+                       )}
+
+                       {/* String shift — slide the fretted cluster up/down across strings, preserving intervals */}
+                       {frettedNotes.length > 0 && (
+                         <div className="mt-3 space-y-1">
+                           <p className="text-xs font-medium text-brand-secondary">Slide across strings</p>
+                           <div className="flex items-center gap-2">
+                             <button
+                               onClick={() => shiftStrings(-1)}
+                               disabled={!canShiftStringDown}
+                               className="flex-1 py-1.5 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink text-xs font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                               title="Shift cluster one string toward the bass"
+                             >
+                               ▼ Bass
+                             </button>
+                             <span className="text-xs tabular-nums text-brand-secondary min-w-[56px] text-center">
+                               {currentStringLabel}
+                             </span>
+                             <button
+                               onClick={() => shiftStrings(1)}
+                               disabled={!canShiftStringUp}
+                               className="flex-1 py-1.5 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink text-xs font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                               title="Shift cluster one string toward the treble"
+                             >
+                               Treble ▲
+                             </button>
+                           </div>
+                           <p className="text-[10px] text-brand-secondary/60 leading-tight">
+                             Same intervals, new strings — notes that run off the edge are dropped
                            </p>
                          </div>
                        )}
