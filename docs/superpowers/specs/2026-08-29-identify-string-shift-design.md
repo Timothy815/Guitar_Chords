@@ -36,30 +36,31 @@ export function shiftFretsAcrossStrings(frets: number[], delta: 1 | -1): number[
   const result = frets.map(() => -1);
   if (survivors.length === 0) return result;
 
-  // Adding the same constant (12 * k semitones) to every survivor's
-  // absolute pitch preserves every pairwise interval between them
-  // automatically — no need to track a designated "root" note. Try no
-  // octave shift first, then one down, then one up: the smallest
-  // adjustment that lands every survivor's fret in [0, 15].
+  // The anchor is the lowest-pitched surviving note. It keeps its fret
+  // number unchanged on its new string — that's what "sliding the shape
+  // over" means when consecutive strings are a uniform interval apart
+  // (e.g. E-A-D -> A-D-G with the same frets reproduces the same chord,
+  // just a fourth higher in pitch, which is correct and expected).
+  // Every other note is placed at the same semitone offset from the
+  // anchor's NEW pitch that it had from the anchor's OLD pitch. This is
+  // where the B-string correction falls out for free: wherever the
+  // major-third seam sits differently relative to the anchor after the
+  // move, the recomputed fret differs from the naive "same fret, new
+  // string" value by exactly the right amount.
+  const anchor = survivors.reduce((a, b) => (a.midi <= b.midi ? a : b));
+  const anchorNewMidi = OPEN_STRING_PITCHES[anchor.newStr] + anchor.fret;
+
   const FRET_CAP = 15;
-  const candidates = [0, -1, 1];
-  let k = candidates.find(cand =>
-    survivors.every(n => {
-      const newFret = (n.midi + 12 * cand) - OPEN_STRING_PITCHES[n.newStr];
-      return newFret >= 0 && newFret <= FRET_CAP;
-    })
-  );
-
-  if (k === undefined) {
-    // No single octave adjustment fits everyone — drop whichever notes
-    // don't fit under k = 0 and keep the rest, same treatment as running
-    // off the edge of the strings.
-    k = 0;
-  }
-
   for (const n of survivors) {
-    const newMidi = n.midi + 12 * k;
-    const newFret = newMidi - OPEN_STRING_PITCHES[n.newStr];
+    const offset = n.midi - anchor.midi; // 0 for the anchor itself
+    let targetMidi = anchorNewMidi + offset;
+    let newFret = targetMidi - OPEN_STRING_PITCHES[n.newStr];
+    // Nudge by whole octaves to land in the playable range. A 16-fret
+    // window (0-15) always contains a representative of every pitch
+    // class, so this always terminates with a valid fret in practice;
+    // the "else" below is a defensive fallback only.
+    while (newFret < 0) { newFret += 12; targetMidi += 12; }
+    while (newFret > FRET_CAP) { newFret -= 12; targetMidi -= 12; }
     if (newFret >= 0 && newFret <= FRET_CAP) {
       result[n.newStr] = newFret;
     }
@@ -75,7 +76,7 @@ Note for the implementer: `OPEN_STRING_PITCHES` is currently a module-local `con
 **Contract:**
 - Input: `frets` — 6-element array, index 0 = low E, `-1` = muted/unfretted (same convention used everywhere else in the app).
 - Input: `delta` — `-1` shifts every fretted note one string toward the bass (low E); `1` shifts toward the treble (high E).
-- Output: a new 6-element `frets` array with the same interval structure preserved, notes that ran off either edge of the fretboard replaced with `-1`, and — only when required to keep the surviving notes within fret 0–15 — the whole remaining cluster shifted by a full octave together (never independently per note, so the chord's inversion is never scrambled).
+- Output: a new 6-element `frets` array. The lowest-pitched surviving note (the anchor) keeps its fret number and simply moves to its new string; every other surviving note is placed at the same semitone offset from the anchor it had before the shift, nudged by whole octaves only when needed to stay within fret 0–15. Notes that ran off either edge of the fretboard are `-1`.
 - Pure function, no side effects, safe to call on every render.
 
 ---
@@ -151,10 +152,10 @@ const currentStringLabel = frettedStrings.length > 0
 - **Cluster crosses the B string in either direction:** handled correctly by construction — every note's fret is recomputed from its semitone offset to the anchor, not copied from the old string, so the major-third tuning gap is automatically compensated for.
 - **Shift would drop every fretted note:** direction button is disabled (`canShiftStringDown`/`canShiftStringUp` false); nothing happens.
 - **Shift drops some but not all notes:** allowed with no confirmation — the surviving notes are recomputed and drawn immediately; this is the intended "shape runs off the edge of the strings" behavior.
-- **Single remaining fretted note:** still shiftable — trivially preserves its own pitch class, just recomputes which fret reproduces it on the new string.
+- **Single remaining fretted note:** still shiftable — with nothing else in the cluster, that note is its own anchor and simply keeps the same fret number on the new string (its pitch transposes by whatever interval separates the two strings, exactly like the general case).
 - **Zero fretted notes:** whole block hidden, matching "Slide shape."
-- **Octave adjustment needed** (cluster already high or low on the neck): the entire surviving cluster shifts by one full octave together, never per-note, so the chord's inversion/voicing shape never gets scrambled by the move itself.
-- **No octave adjustment can fit every survivor within fret 0–15** (not expected in practice given the string tuning gaps and 15-fret cap, but handled defensively): whichever note(s) don't fit are dropped, same as running off the string edge.
+- **Octave adjustment needed** (a non-anchor note's recomputed fret falls outside 0–15): that note alone is nudged by whole octaves until it lands in range; the anchor's fret never moves. Because the offset from the anchor is preserved exactly (just relocated by a multiple of 12 semitones), the note keeps its harmonic identity (still "the third," still "the seventh") — only its specific octave register can shift, which is an unavoidable and expected trade-off of the fretboard's limited range, not an inversion-scrambling bug.
+- **No octave adjustment can fit a survivor within fret 0–15** (not expected in practice — a 16-fret window always contains a representative of every pitch class — but handled defensively): that note is dropped, same as running off the string edge.
 
 ## Testing
 
