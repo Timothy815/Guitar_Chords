@@ -79,6 +79,10 @@ function getNavigationChords(tonalName: string): ChordShape[] {
       shapes = pool.filter(c => q(c).startsWith('Minor')); break;
     case '7':
       shapes = pool.filter(c => { const s = q(c); return s.startsWith('7 ') || s === '7' || s.startsWith('7('); }); break;
+    case '9':
+      shapes = pool.filter(c => q(c).startsWith('9')); break;
+    case '13':
+      shapes = pool.filter(c => q(c).startsWith('13')); break;
     case 'M7': case 'maj7': case 'Maj7':
       shapes = pool.filter(c => q(c).startsWith('Maj7')); break;
     case 'm7': case 'min7':
