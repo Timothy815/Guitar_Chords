@@ -5,7 +5,7 @@ import { Fretboard } from '../Fretboard';
 import { initAudio, playStrum, getFretNote } from '../../lib/audio';
 import { cn } from '../../lib/utils';
 import { Eye, EyeOff, Plus, ChevronDown, ChevronUp } from 'lucide-react';
-import { computeTensionVoicings, TENSION_QUALITIES } from './tensions';
+import { computeTensionVoicings, TENSION_QUALITIES } from '../../lib/tensionVoicings';
 import type { Note } from '../../types';
 
 const SET_CONFIG: Record<string, { hex: string; label: string }> = {

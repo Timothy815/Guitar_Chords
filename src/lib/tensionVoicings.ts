@@ -1,10 +1,17 @@
-import { getFretNote } from '../../lib/audio';
-
 const OPEN_MIDI = [40, 45, 50, 55, 59, 64];
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
 function noteNameFromMidi(midi: number): string {
   return NOTE_NAMES[((midi % 12) + 12) % 12];
+}
+
+// Octave-qualified label (e.g. "G3"), computed from raw MIDI math so this
+// module never depends on the live audio tuning state -- OPEN_MIDI always
+// represents standard tuning, so the label must too.
+function noteLabelFromMidi(midi: number): string {
+  const name = noteNameFromMidi(midi);
+  const octave = Math.floor(midi / 12) - 1;
+  return `${name}${octave}`;
 }
 
 export interface TensionDef {
@@ -72,11 +79,11 @@ export interface TensionVoicing {
   rootFret: number;
 }
 
-// Shell (R-3-7) on 3 adjacent strings, tension added on the next higher string
-const SHELL_WITH_TENSION = [
-  { shell: [0, 1, 2] as [number, number, number], tension: 3, setKey: '6-3', setLabel: 'Str 6–3' },
-  { shell: [1, 2, 3] as [number, number, number], tension: 4, setKey: '5-2', setLabel: 'Str 5–2' },
-  { shell: [2, 3, 4] as [number, number, number], tension: 5, setKey: '4-1', setLabel: 'Str 4–1' },
+// Shell (R-3-7) on 3 adjacent strings; tension goes on one of the strings above it.
+const SHELL_SETS: { shell: [number, number, number]; setKey: string }[] = [
+  { shell: [0, 1, 2], setKey: '6-3' },
+  { shell: [1, 2, 3], setKey: '5-2' },
+  { shell: [2, 3, 4], setKey: '4-1' },
 ];
 
 export function computeTensionVoicings(
@@ -88,7 +95,7 @@ export function computeTensionVoicings(
 ): TensionVoicing[] {
   const results: TensionVoicing[] = [];
 
-  for (const { shell: [s0, s1, s2], tension: s3, setKey } of SHELL_WITH_TENSION) {
+  for (const { shell: [s0, s1, s2], setKey } of SHELL_SETS) {
     for (let rootFret = 0; rootFret <= 15; rootFret++) {
       const rootMidi = OPEN_MIDI[s0] + rootFret;
       if (noteNameFromMidi(rootMidi) !== root) continue;
@@ -109,8 +116,25 @@ export function computeTensionVoicings(
       // Tension goes above the seventh
       let tensionMidi = rootMidi + tensionSt;
       while (tensionMidi <= seventhMidi) tensionMidi += 12;
-      const tensionFret = tensionMidi - OPEN_MIDI[s3];
-      if (tensionFret < 0 || tensionFret > 15) continue;
+
+      // Try the string immediately above the shell first, then each string
+      // further up the neck. OPEN_MIDI is monotonically increasing, so for
+      // a fixed target pitch, higher-index strings always yield a lower
+      // (or equal) fret -- trying only the first candidate (the old
+      // behavior) silently dropped the whole voicing whenever that one
+      // string couldn't hold the pitch within fret 0-15, even when a
+      // higher string could hold it comfortably.
+      let s3 = -1;
+      let tensionFret = -1;
+      for (let candidate = s2 + 1; candidate <= 5; candidate++) {
+        const fret = tensionMidi - OPEN_MIDI[candidate];
+        if (fret >= 0 && fret <= 15) {
+          s3 = candidate;
+          tensionFret = fret;
+          break;
+        }
+      }
+      if (s3 === -1) continue;
 
       const frets = [-1, -1, -1, -1, -1, -1];
       frets[s0] = rootFret;
@@ -123,10 +147,10 @@ export function computeTensionVoicings(
         strings: [s0, s1, s2, s3],
         setKey,
         notes: [
-          { role: 'R',          name: getFretNote(s0, rootFret)    },
-          { role: '3',          name: getFretNote(s1, thirdFret)   },
-          { role: '7',          name: getFretNote(s2, seventhFret) },
-          { role: tensionLabel, name: getFretNote(s3, tensionFret) },
+          { role: 'R',          name: noteLabelFromMidi(rootMidi)    },
+          { role: '3',          name: noteLabelFromMidi(thirdMidi)   },
+          { role: '7',          name: noteLabelFromMidi(seventhMidi) },
+          { role: tensionLabel, name: noteLabelFromMidi(tensionMidi) },
         ],
         rootFret,
       });
@@ -134,4 +158,30 @@ export function computeTensionVoicings(
   }
 
   return results;
+}
+
+// Picks a single representative voicing for contexts that need only one
+// (e.g. the chord browser) -- the most compact voicing (smallest fret span
+// among fretted notes), tie-broken by lowest neck position.
+export function bestTensionVoicing(
+  root: string,
+  thirdSt: number,
+  seventhSt: number,
+  tensionSt: number,
+  tensionLabel: string,
+): TensionVoicing | null {
+  const all = computeTensionVoicings(root, thirdSt, seventhSt, tensionSt, tensionLabel);
+  if (all.length === 0) return null;
+
+  const span = (v: TensionVoicing) => {
+    const fretted = v.frets.filter(f => f > 0);
+    return fretted.length ? Math.max(...fretted) - Math.min(...fretted) : 0;
+  };
+
+  return all.reduce((best, v) => {
+    const bestSpan = span(best);
+    const vSpan = span(v);
+    if (vSpan !== bestSpan) return vSpan < bestSpan ? v : best;
+    return v.rootFret < best.rootFret ? v : best;
+  });
 }
