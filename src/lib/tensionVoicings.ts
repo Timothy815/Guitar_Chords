@@ -163,6 +163,8 @@ export function computeTensionVoicings(
 // Picks a single representative voicing for contexts that need only one
 // (e.g. the chord browser) -- the most compact voicing (smallest fret span
 // among fretted notes), tie-broken by lowest neck position.
+const MAX_PLAYABLE_SPAN = 5;
+
 export function bestTensionVoicing(
   root: string,
   thirdSt: number,
@@ -178,7 +180,10 @@ export function bestTensionVoicing(
     return fretted.length ? Math.max(...fretted) - Math.min(...fretted) : 0;
   };
 
-  return all.reduce((best, v) => {
+  const playable = all.filter(v => span(v) <= MAX_PLAYABLE_SPAN);
+  if (playable.length === 0) return null;
+
+  return playable.reduce((best, v) => {
     const bestSpan = span(best);
     const vSpan = span(v);
     if (vSpan !== bestSpan) return vSpan < bestSpan ? v : best;
