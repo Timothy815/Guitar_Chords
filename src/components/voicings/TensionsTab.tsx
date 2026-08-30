@@ -5,7 +5,7 @@ import { Fretboard } from '../Fretboard';
 import { initAudio, playStrum, getFretNote } from '../../lib/audio';
 import { cn } from '../../lib/utils';
 import { Eye, EyeOff, Plus, ChevronDown, ChevronUp } from 'lucide-react';
-import { computeTensionVoicings, TENSION_QUALITIES } from './tensions';
+import { computeTensionVoicings, TENSION_QUALITIES } from '../../lib/tensionVoicings';
 import type { Note } from '../../types';
 
 const SET_CONFIG: Record<string, { hex: string; label: string }> = {
@@ -267,7 +267,7 @@ export function TensionsTab() {
                   <div>
                     <div className="flex items-center gap-1.5">
                       <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-                      <h3 className="text-sm font-bold text-brand-ink">{SET_CONFIG[v.setKey].label}</h3>
+                      <h3 className="text-sm font-bold text-brand-ink">Str {6 - v.strings[0]}–{6 - v.strings[3]}</h3>
                     </div>
                     <p className="text-xs text-brand-secondary mt-0.5 pl-4">
                       {root}{quality.label}({tension.label})

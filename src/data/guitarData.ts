@@ -1,4 +1,5 @@
 import { ChordShape, Finger, Note, ScalePattern } from '../types';
+import { bestTensionVoicing } from '../lib/tensionVoicings';
 
 export const ALL_NOTES: Note[] = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
@@ -80,6 +81,26 @@ for (const note of ALL_NOTES) {
       fingers: shape.fingers as Finger[],
       baseFret: baseFret,
       barre: baseFret > 0 ? [{ stringStart: shape.rootString, stringEnd: 5, fret: baseFret, finger: 1 }] : undefined
+    });
+  }
+}
+
+const DOMINANT_TENSIONS: { key: string; semitones: number }[] = [
+  { key: '9', semitones: 2 },
+  { key: '13', semitones: 9 },
+];
+const DOM7_THIRD_ST = 4;
+const DOM7_SEVENTH_ST = 10;
+
+for (const note of ALL_NOTES) {
+  for (const t of DOMINANT_TENSIONS) {
+    const v = bestTensionVoicing(note, DOM7_THIRD_ST, DOM7_SEVENTH_ST, t.semitones, t.key);
+    if (!v) continue;
+
+    COMMON_CHORDS[note].push({
+      name: `${note} ${t.key} (Shell)`,
+      frets: v.frets,
+      fingers: v.frets.map(f => (f === -1 ? -1 : 0)) as Finger[],
     });
   }
 }

@@ -68,7 +68,7 @@ function getNavigationChords(tonalName: string): ChordShape[] {
     Db: 'C#', Eb: 'D#', Fb: 'E', Gb: 'F#', Ab: 'G#', Bb: 'A#', Cb: 'B',
   };
   const root = (flatToSharp[m[1]] ?? m[1]) as Note;
-  const qual = m[2];
+  const qual = m[2].replace(/no[35]/g, '');
   const pool = COMMON_CHORDS[root] ?? [];
   const q = (c: ChordShape) => c.name.slice(root.length + 1);
   let shapes: ChordShape[];
@@ -79,6 +79,10 @@ function getNavigationChords(tonalName: string): ChordShape[] {
       shapes = pool.filter(c => q(c).startsWith('Minor')); break;
     case '7':
       shapes = pool.filter(c => { const s = q(c); return s.startsWith('7 ') || s === '7' || s.startsWith('7('); }); break;
+    case '9':
+      shapes = pool.filter(c => q(c).startsWith('9')); break;
+    case '13':
+      shapes = pool.filter(c => q(c).startsWith('13')); break;
     case 'M7': case 'maj7': case 'Maj7':
       shapes = pool.filter(c => q(c).startsWith('Maj7')); break;
     case 'm7': case 'min7':
