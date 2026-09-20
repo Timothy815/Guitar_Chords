@@ -5,6 +5,7 @@ import { Progression, ChordShape, ChordSlot, ArpeggioStep, ArpeggioPattern, Note
 import { COMMON_CHORDS, ALL_NOTES } from '../data/guitarData';
 import { Fretboard } from '../components/Fretboard';
 import { CircleOfFifths } from '../components/CircleOfFifths';
+import { relativeMajorOf } from '../data/musicTheory';
 import { ChordSheet } from '../components/ChordSheet';
 import { Plus, Trash2, Play, Printer, Disc, GripHorizontal, Square, RotateCcw, Pencil, X, Upload, FileText } from 'lucide-react';
 import { Reorder } from 'motion/react';
@@ -1377,8 +1378,12 @@ export function Progressions() {
                       )}
                     </div>
                     <CircleOfFifths
-                      selectedKey={circleKey}
-                      onKeySelect={(key) => {
+                      tonic={circleKey}
+                      mode="major"
+                      selected={circleKey ? { root: circleKey, quality: 'major' } : null}
+                      compact
+                      onSelect={(root, quality) => {
+                        const key = quality === 'minor' ? relativeMajorOf(root) : root;
                         setCircleKey(key);
                         setChordPaletteKey(key);
                         if (activeProgression) {
