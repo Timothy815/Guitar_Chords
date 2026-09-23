@@ -10,6 +10,7 @@ const INTERVAL_NAMES: Record<number, string> = {
   0: 'Root',    1: 'Min 2nd', 2: 'Maj 2nd', 3: 'Min 3rd', 4: 'Maj 3rd',
   5: 'Perf 4th', 6: 'Dim 5th', 7: 'Perf 5th', 8: 'Aug 5th',
   9: 'Maj 6th', 10: 'Min 7th', 11: 'Maj 7th',
+  13: 'Min 9th', 14: 'Maj 9th',
 };
 
 // ─── Chord type data ───────────────────────────────────────────────────────────
