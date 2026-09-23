@@ -10,6 +10,7 @@ const INTERVAL_NAMES: Record<number, string> = {
   0: 'Root',    1: 'Min 2nd', 2: 'Maj 2nd', 3: 'Min 3rd', 4: 'Maj 3rd',
   5: 'Perf 4th', 6: 'Dim 5th', 7: 'Perf 5th', 8: 'Aug 5th',
   9: 'Maj 6th', 10: 'Min 7th', 11: 'Maj 7th',
+  13: 'Min 9th', 14: 'Maj 9th',
 };
 
 // ─── Chord type data ───────────────────────────────────────────────────────────
@@ -35,7 +36,7 @@ const CHORD_FAMILIES: { family: string; types: ChordTypeDef[] }[] = [
   {
     family: '7ths & Extended',
     types: [
-      { name: 'Dominant 7',      abbr: '7',    intervals: [0,4,7,10],  qualityPrefix: '7',    context: 'V7 in any major or minor key' },
+      { name: 'Dominant 7',      abbr: '7',    intervals: [0,4,7,10],  qualityPrefix: '7 (',  context: 'V7 in any major or minor key' },
       { name: 'Major 7',         abbr: 'maj7', intervals: [0,4,7,11],  qualityPrefix: 'Maj7', context: 'Imaj7, IVmaj7 (major) · jazz/pop' },
       { name: 'Minor 7',         abbr: 'm7',   intervals: [0,3,7,10],  qualityPrefix: 'm7',   context: 'ii7, iii7, vi7 (major) · jazz, R&B' },
       { name: 'Diminished 7',    abbr: '°7',   intervals: [0,3,6,9],   qualityPrefix: 'dim7', context: 'vii°7 (harmonic minor) · classical tension' },
@@ -47,6 +48,16 @@ const CHORD_FAMILIES: { family: string; types: ChordTypeDef[] }[] = [
     types: [
       { name: 'Sus2', abbr: 'sus2', intervals: [0,2,7], qualityPrefix: 'sus2', context: 'Ambiguous — no 3rd, floats between major & minor' },
       { name: 'Sus4', abbr: 'sus4', intervals: [0,5,7], qualityPrefix: 'sus4', context: 'V suspension that resolves down to major' },
+    ],
+  },
+  {
+    family: 'Sixths & Jazz',
+    types: [
+      { name: 'Major 6th',             abbr: '6',       intervals: [0,4,7,9],    qualityPrefix: '6 (',   context: 'Adds a 6th to a major triad — sweet, but a defining swing/Gypsy-jazz color.' },
+      { name: 'Minor 6th',             abbr: 'm6',      intervals: [0,3,7,9],    qualityPrefix: 'm6',    context: 'The signature Jazz Manouche minor chord — minor triad plus a major 6th.' },
+      { name: 'Six-Nine',              abbr: '6/9',     intervals: [0,4,7,9,14], qualityPrefix: '6/9',   context: 'Major 6th chord with an added 9th — lush, often used as a I-chord substitute.' },
+      { name: 'Minor-Major 7',         abbr: 'm(maj7)', intervals: [0,3,7,11],   qualityPrefix: 'mmaj7', context: 'Minor triad with a major 7th — the dramatic "minor tonic" sound in minor-key jazz.' },
+      { name: '7♭9 (Altered Dominant)', abbr: '7b9',     intervals: [0,4,7,10,13], qualityPrefix: '7b9',  context: 'Dominant 7th with a flat 9 — the tense, exotic Gypsy-jazz/bebop dominant sound.' },
     ],
   },
 ];

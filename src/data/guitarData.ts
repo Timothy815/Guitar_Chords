@@ -46,6 +46,18 @@ const shapes = [
   { baseRoot: 'A', nameStr: 'dim7 (A Shape)', relFrets: [-1, 0, 1, 2, 1, 2], fingers: [-1, 1, 2, 4, 3, 4], rootString: 1 },
   // Half-diminished (m7b5): root, b3, b5, b7 — verified: A,C,Eb,G
   { baseRoot: 'A', nameStr: 'm7b5 (A Shape)', relFrets: [-1, 0, 1, 0, 1, -1], fingers: [-1, 1, 2, 1, 3, -1], rootString: 1 },
+  // Minor 6th: root, b3, 5, 6 — verified: A,C,E,F#
+  { baseRoot: 'A', nameStr: 'm6 (A Shape)', relFrets: [-1, 0, 2, 2, 1, 2], fingers: [-1, 1, 2, 3, 1, 4], rootString: 1 },
+  // Major 6th: root, 3, 5, 6 — verified: A,C#,E,F#
+  { baseRoot: 'A', nameStr: '6 (A Shape)', relFrets: [-1, 0, 2, 2, 2, 2], fingers: [-1, 1, 3, 3, 3, 3], rootString: 1 },
+  // Minor-Major 7: root, b3, 5, 7 — verified: A,C,E,G#
+  { baseRoot: 'A', nameStr: 'mmaj7 (A Shape)', relFrets: [-1, 0, 2, 1, 1, 0], fingers: [-1, 1, 2, 1, 1, 1], rootString: 1 },
+  // Six-Nine: root, 3, 5, 6, 9 — verified: A,C#,E,F#,B
+  { baseRoot: 'A', nameStr: '6/9 (A Shape)', relFrets: [-1, 0, 2, 4, 2, 2], fingers: [-1, 1, 1, 4, 2, 3], rootString: 1 },
+  // Six-Nine (low position): root, 3, 6, 9, omit 5th — verified: D,F#,B,E
+  { baseRoot: 'D', nameStr: '6/9 (D Shape)', relFrets: [2, -1, 0, -1, 0, 0], fingers: [2, -1, 1, -1, 1, 1], rootString: 2 },
+  // Dominant 7b9: root, 3, 5, b7, b9 — verified: A,C#,E,G,A#
+  { baseRoot: 'A', nameStr: '7b9 (A Shape)', relFrets: [-1, 0, 2, 3, 2, 3], fingers: [-1, 1, 1, 3, 2, 4], rootString: 1 },
 ];
 
 const openChords: Record<string, ChordShape[]> = {

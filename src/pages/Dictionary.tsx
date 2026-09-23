@@ -61,7 +61,7 @@ function getCagedPositions(fret: number, rootFret: number): number[] {
 }
 
 function getNavigationChords(tonalName: string): ChordShape[] {
-  const base = tonalName.split('/')[0];
+  const base = tonalName.split(/\/(?=[A-G])/)[0];
   const m = base.match(/^([A-G][#b])(.*)/) ?? base.match(/^([A-G])(.*)/);
   if (!m) return [];
   const flatToSharp: Record<string, string> = {
@@ -99,6 +99,16 @@ function getNavigationChords(tonalName: string): ChordShape[] {
       shapes = pool.filter(c => q(c).startsWith('sus4')); break;
     case 'aug': case '+':
       shapes = pool.filter(c => q(c).startsWith('aug')); break;
+    case 'm6': case '-6':
+      shapes = pool.filter(c => q(c).startsWith('m6')); break;
+    case '6': case 'add6': case 'M6':
+      shapes = pool.filter(c => { const s = q(c); return s.startsWith('6') && !s.startsWith('6/9'); }); break;
+    case '6add9': case '6/9': case '69':
+      shapes = pool.filter(c => q(c).startsWith('6/9')); break;
+    case 'm/ma7': case 'm/maj7': case 'mM7': case 'mMaj7':
+      shapes = pool.filter(c => q(c).startsWith('mmaj7')); break;
+    case '7b9':
+      shapes = pool.filter(c => q(c).startsWith('7b9')); break;
     default: return [];
   }
   return shapes.sort((a, b) => {

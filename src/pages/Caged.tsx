@@ -94,7 +94,7 @@ const DEFAULT_SHAPE_ID: Record<ChordQuality, string> = {
 const DICTIONARY_QUALITY_PREFIX: Record<ChordQuality, string> = {
   major: 'Major',
   minor: 'Minor',
-  dom7: '7',
+  dom7: '7 (',
   maj7: 'Maj7',
   min7: 'm7',
   sus2: 'sus2',
