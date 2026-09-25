@@ -1359,17 +1359,49 @@ export function Dictionary() {
         };
         const stringIdx = stringMap[e.key];
         let noteToPlay = "";
-        
+
         if (mode === 'chords' && activeChord) {
            const fret = activeChord.frets[stringIdx];
+           if (fret !== -1) noteToPlay = getFretNote(stringIdx, fret);
+        } else if (mode === 'identify') {
+           const fret = identifiedFretsRef.current[stringIdx];
            if (fret !== -1) noteToPlay = getFretNote(stringIdx, fret);
         } else {
            noteToPlay = getFretNote(stringIdx, 0); // open string
         }
-        
+
         if (noteToPlay) {
            playNote(noteToPlay, sustain);
         }
+        return;
+      }
+
+      if (mode !== 'identify') return;
+      if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+
+      const frets = identifiedFretsRef.current;
+      const fretted = frets.filter(f => f !== -1);
+      if (fretted.length === 0) return;
+
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        // ◀ Down / Up ▶ — same as the "Slide shape" buttons
+        const delta = e.key === 'ArrowRight' ? 1 : -1;
+        const min = Math.min(...fretted);
+        const max = Math.max(...fretted);
+        const canShift = delta === 1 ? (max >= 0 && max < 15) : min > 0;
+        if (!canShift) return;
+        e.preventDefault();
+        setIdentifiedFrets(prev => prev.map(f => (f === -1 ? -1 : Math.max(0, f + delta))));
+      } else {
+        // ▼ Bass / Treble ▲ — same as the "Slide across strings" buttons
+        const delta = e.key === 'ArrowUp' ? 1 : -1;
+        const frettedStringsNow = frets.map((f, s) => (f !== -1 ? s : -1)).filter(s => s !== -1);
+        const canShift = delta === 1
+          ? frettedStringsNow.some(s => s + 1 <= 5)
+          : frettedStringsNow.some(s => s - 1 >= 0);
+        if (!canShift) return;
+        e.preventDefault();
+        setIdentifiedFrets(prev => shiftFretsAcrossStrings(prev, delta as 1 | -1));
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -2449,7 +2481,7 @@ export function Dictionary() {
                      )}
                   </div>
                   <p className="text-brand-secondary/70 text-sm mt-8 pb-4 print:hidden text-center">
-                     Click any dot to hear the note{mode === 'identify' ? ' and set the fret' : ''}, or use keyboard numbers <strong>1-6</strong> to play individual strings.
+                     Click any dot to hear the note{mode === 'identify' ? ' and set the fret' : ''}, or use keyboard numbers <strong>1-6</strong> to play individual strings{mode === 'identify' ? <>, and arrow keys (<strong>←→</strong> slide shape, <strong>↑↓</strong> slide across strings)</> : ''}.
                   </p>
                   {(mode === 'chords' || mode === 'identify') && (
                     <div className="w-full mt-2 print:hidden">
