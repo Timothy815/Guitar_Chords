@@ -1134,6 +1134,7 @@ export function Dictionary() {
   const activeScaleRef = React.useRef(activeScale); activeScaleRef.current = activeScale;
   const scaleFretRangeRef = React.useRef(scaleFretRange); scaleFretRangeRef.current = scaleFretRange;
   const identifiedFretsRef = React.useRef(identifiedFrets); identifiedFretsRef.current = identifiedFrets;
+  const strumDirectionRef = React.useRef(strumDirection); strumDirectionRef.current = strumDirection;
   const seqStepsRef = React.useRef(seqSteps); seqStepsRef.current = seqSteps;
   const seqScaleFretsRef = React.useRef(seqScaleFrets); seqScaleFretsRef.current = seqScaleFrets;
   const seqStepDurationsRef = React.useRef(seqStepDurations); seqStepDurationsRef.current = seqStepDurations;
@@ -1372,6 +1373,22 @@ export function Dictionary() {
 
         if (noteToPlay) {
            playNote(noteToPlay, sustain);
+        }
+        return;
+      }
+
+      if (e.code === 'Space') {
+        const target = e.target as HTMLElement | null;
+        if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
+        if (mode !== 'chords' && mode !== 'identify') return;
+        e.preventDefault();
+        await initAudio();
+        if (mode === 'chords' && activeChord) {
+           const notesToPlay = activeChord.frets.map((fret, stringIdx) => getFretNote(stringIdx, fret)).filter(n => n !== "");
+           playStrum(notesToPlay, sustain, strumDirectionRef.current);
+        } else {
+           const notesToPlay = identifiedFretsRef.current.map((fret, stringIdx) => getFretNote(stringIdx, fret)).filter(n => n !== "");
+           playStrum(notesToPlay, sustain, strumDirectionRef.current);
         }
         return;
       }
