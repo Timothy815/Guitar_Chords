@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Renderer, Stave, StaveNote, TabStave, TabNote, Voice, Formatter, Accidental } from 'vexflow';
 import { ChordShape } from '../types';
-import { Fretboard } from './Fretboard';
+import { ChordDiagram } from './ChordDiagram';
 import { getFretNote } from '../lib/audio';
 
 interface ChordCardProps {
@@ -92,22 +92,12 @@ export function ChordCard({ chord, progressionKey, labelMode = 'fingers' }: Chor
     tabVoice.draw(ctx, tabStave);
   }, [chord, progressionKey]);
 
-  const maxFret = Math.max(...chord.frets.filter(f => f >= 0));
-  const displayFrets = Math.max(5, maxFret <= 5 ? 5 : maxFret + 1);
-
   return (
     <div className="flex flex-col items-center border border-brand-line rounded-lg p-3 bg-white print:border-gray-300 break-inside-avoid">
       <h3 className="font-serif font-bold text-brand-ink text-base mb-2 text-center print:text-black">
         {chord.name.split('(')[0].trim()}
       </h3>
-      <Fretboard
-        fretsNum={displayFrets}
-        chord={chord}
-        showNoteNames={false}
-        forceLabelMode={labelMode === 'notes' ? 'note' : 'none'}
-        className="pointer-events-none w-full"
-        compact
-      />
+      <ChordDiagram chord={chord} labelMode={labelMode} className="max-w-[180px]" />
       <div ref={vexRef} className="w-full" style={{ height: 250 }} />
     </div>
   );

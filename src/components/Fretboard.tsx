@@ -40,10 +40,6 @@ interface FretboardProps {
   onFretClick?: (stringIdx: number, fretIdx: number) => void;
   onFretMouseDown?: (stringIdx: number, fretIdx: number) => void;
   showNoteNames?: boolean;
-  // Forces the dot label mode, overriding the internal toggle (which is hidden while set).
-  // Unlike showNoteNames, 'note' takes precedence over finger numbers — use this when the
-  // caller owns the notes-vs-fingers choice (e.g. the progression builder and chord sheet).
-  forceLabelMode?: LabelMode;
   className?: string; // Additional classes
   fretRange?: [number, number]; // [startFret, endFret] to isolate scales
   scalePositions?: Set<string>; // explicit string-fret positions for strict scale shapes
@@ -64,9 +60,8 @@ interface FretboardProps {
   cagedColors?: string[]; // Array of 5 colors for E/D/C/A/G shapes
 }
 
-export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteClick, onFretClick, onFretMouseDown, showNoteNames = true, forceLabelMode, className, fretRange, scalePositions, playingNotes = new Set(), compact = false, correctPositions = new Set(), wrongPosition = null, previewPosition = null, focusZone, highlightNote, labeledDots, flashHighlight, tuning = STANDARD_TUNING, drillDots, showAllNotes = false, rootPosition = null, cagedPositionMap, cagedColors }: FretboardProps) {
-  const [internalLabelMode, setInternalLabelMode] = useState<LabelMode>('none');
-  const labelMode = forceLabelMode ?? internalLabelMode;
+export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteClick, onFretClick, onFretMouseDown, showNoteNames = true, className, fretRange, scalePositions, playingNotes = new Set(), compact = false, correctPositions = new Set(), wrongPosition = null, previewPosition = null, focusZone, highlightNote, labeledDots, flashHighlight, tuning = STANDARD_TUNING, drillDots, showAllNotes = false, rootPosition = null, cagedPositionMap, cagedColors }: FretboardProps) {
+  const [labelMode, setLabelMode] = useState<LabelMode>('none');
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const stringsNum = 6;
@@ -90,7 +85,7 @@ export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteCl
   const canShowIntervals = labelRoot !== null;
 
   const cycleLabelMode = () => {
-    setInternalLabelMode(prev => {
+    setLabelMode(prev => {
       if (prev === 'none') return 'note';
       if (prev === 'note') return canShowIntervals ? 'interval' : 'none';
       return 'none';
@@ -302,8 +297,7 @@ export function Fretboard({ fretsNum = 12, startFret = 0, chord, scale, onNoteCl
     );
   };
 
-  // Hide the internal toggle when the caller owns the label mode — it would be inert.
-  const showToggle = !!(chord || scale) && forceLabelMode === undefined;
+  const showToggle = !!(chord || scale);
 
   // For extended fretboards (>15 frets), use fixed width to enable scrolling
   const useFixedWidth = fretsNum > 15;

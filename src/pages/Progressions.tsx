@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Progression, ChordShape, ChordSlot, ArpeggioStep, ArpeggioPattern, Note } from '../types';
 import { COMMON_CHORDS, ALL_NOTES } from '../data/guitarData';
-import { Fretboard } from '../components/Fretboard';
+import { ChordDiagram } from '../components/ChordDiagram';
 import { CircleOfFifths } from '../components/CircleOfFifths';
 import { relativeMajorOf } from '../data/musicTheory';
 import { ChordSheet } from '../components/ChordSheet';
@@ -1259,8 +1259,6 @@ export function Progressions() {
                 >
                   {activeProgression.slots.map((slot, i) => {
                     const chord = slot.chord;
-                    const maxFret = Math.max(...chord.frets);
-                    const displayFrets = Math.max(5, maxFret <= 5 ? 5 : maxFret + 1);
                     const isActive = activeChordIdx === i;
                     const isEditing = openSequencerSlotIdx === i;
                     return (
@@ -1324,7 +1322,7 @@ export function Progressions() {
                           'text-center font-bold text-brand-ink text-lg mb-2 print:mb-2 print:mt-0 print:text-xl',
                           topKeys[0]?.chordLabels[i] ? 'mt-0' : 'mt-3'
                         )}>{chord.name}</h4>
-                        <Fretboard fretsNum={displayFrets} chord={chord} showNoteNames={false} forceLabelMode={chordLabelMode === 'notes' ? 'note' : 'none'} className="pointer-events-none origin-top" compact />
+                        <ChordDiagram chord={chord} labelMode={chordLabelMode} className="pointer-events-none max-w-[200px] mx-auto" />
                       </Reorder.Item>
                     );
                   })}
