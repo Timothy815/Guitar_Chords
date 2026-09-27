@@ -6,9 +6,11 @@ interface ChordSheetProps {
   progression: Progression;
   showDiagrams: boolean;
   showChart: boolean;
+  /** Dot labels on the chord diagrams: finger numbers (default) or note names. */
+  labelMode?: 'fingers' | 'notes';
 }
 
-export function ChordSheet({ progression, showDiagrams, showChart }: ChordSheetProps) {
+export function ChordSheet({ progression, showDiagrams, showChart, labelMode = 'fingers' }: ChordSheetProps) {
   // Deduplicate chords by name, preserving first occurrence order
   const uniqueChords: ChordShape[] = [];
   const seen = new Set<string>();
@@ -36,6 +38,7 @@ export function ChordSheet({ progression, showDiagrams, showChart }: ChordSheetP
                 <ChordCard
                   chord={chord}
                   progressionKey={progression.key ?? 'C'}
+                  labelMode={labelMode}
                 />
               </React.Fragment>
             ))}
