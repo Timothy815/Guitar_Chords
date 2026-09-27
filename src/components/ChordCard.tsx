@@ -7,6 +7,8 @@ import { getFretNote } from '../lib/audio';
 interface ChordCardProps {
   chord: ChordShape;
   progressionKey: string;
+  /** Dot labels on the diagram: finger numbers (default) or note names. */
+  labelMode?: 'fingers' | 'notes';
 }
 
 // Maps our sharp-only root notes to VexFlow key signature strings
@@ -23,7 +25,7 @@ function toVexStaffKey(noteStr: string): string {
   return `${match[1].toLowerCase()}/${parseInt(match[2]) + 1}`;
 }
 
-export function ChordCard({ chord, progressionKey }: ChordCardProps) {
+export function ChordCard({ chord, progressionKey, labelMode = 'fingers' }: ChordCardProps) {
   const vexRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -102,6 +104,7 @@ export function ChordCard({ chord, progressionKey }: ChordCardProps) {
         fretsNum={displayFrets}
         chord={chord}
         showNoteNames={false}
+        forceLabelMode={labelMode === 'notes' ? 'note' : 'none'}
         className="pointer-events-none w-full"
         compact
       />

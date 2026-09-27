@@ -585,15 +585,19 @@ function ChordSheetModal({
   progression,
   showDiagrams,
   showChart,
+  labelMode,
   onToggleDiagrams,
   onToggleChart,
+  onSetLabelMode,
   onClose,
 }: {
   progression: Progression;
   showDiagrams: boolean;
   showChart: boolean;
+  labelMode: 'fingers' | 'notes';
   onToggleDiagrams: () => void;
   onToggleChart: () => void;
+  onSetLabelMode: (mode: 'fingers' | 'notes') => void;
   onClose: () => void;
 }) {
   return (
@@ -613,7 +617,7 @@ function ChordSheetModal({
         </div>
 
         {/* Toggles */}
-        <div className="flex gap-6">
+        <div className="flex items-center gap-6 flex-wrap">
           <SheetToggle
             label="Chord Diagrams"
             checked={showDiagrams}
@@ -626,6 +630,31 @@ function ChordSheetModal({
             onChange={onToggleChart}
             disabled={showChart && !showDiagrams}
           />
+          {showDiagrams && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-brand-secondary uppercase tracking-wider">Labels</span>
+              <div className="flex items-center rounded-md border border-brand-line overflow-hidden text-xs font-bold">
+                <button
+                  onClick={() => onSetLabelMode('fingers')}
+                  className={cn(
+                    'px-2.5 py-1 transition-colors',
+                    labelMode === 'fingers' ? 'bg-brand-primary text-white' : 'text-brand-secondary hover:text-brand-ink'
+                  )}
+                >
+                  Fingers
+                </button>
+                <button
+                  onClick={() => onSetLabelMode('notes')}
+                  className={cn(
+                    'px-2.5 py-1 transition-colors border-l border-brand-line',
+                    labelMode === 'notes' ? 'bg-brand-primary text-white' : 'text-brand-secondary hover:text-brand-ink'
+                  )}
+                >
+                  Notes
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Live preview */}
@@ -634,6 +663,7 @@ function ChordSheetModal({
             progression={progression}
             showDiagrams={showDiagrams}
             showChart={showChart}
+            labelMode={labelMode}
           />
         </div>
 
@@ -980,8 +1010,10 @@ export function Progressions() {
           progression={activeProgression}
           showDiagrams={showDiagrams}
           showChart={showChart}
+          labelMode={chordLabelMode}
           onToggleDiagrams={() => setShowDiagrams(v => !v)}
           onToggleChart={() => setShowChart(v => !v)}
+          onSetLabelMode={setChordLabelMode}
           onClose={() => setShowChordSheetModal(false)}
         />
       )}
@@ -1292,7 +1324,7 @@ export function Progressions() {
                           'text-center font-bold text-brand-ink text-lg mb-2 print:mb-2 print:mt-0 print:text-xl',
                           topKeys[0]?.chordLabels[i] ? 'mt-0' : 'mt-3'
                         )}>{chord.name}</h4>
-                        <Fretboard fretsNum={displayFrets} chord={chord} showNoteNames={chordLabelMode === 'notes'} className="pointer-events-none origin-top" compact />
+                        <Fretboard fretsNum={displayFrets} chord={chord} showNoteNames={false} forceLabelMode={chordLabelMode === 'notes' ? 'note' : 'none'} className="pointer-events-none origin-top" compact />
                       </Reorder.Item>
                     );
                   })}
@@ -1513,6 +1545,7 @@ export function Progressions() {
                 progression={activeProgression}
                 showDiagrams={showDiagrams}
                 showChart={showChart}
+                labelMode={chordLabelMode}
               />
             </div>,
             document.body
