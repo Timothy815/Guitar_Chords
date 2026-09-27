@@ -675,6 +675,7 @@ export function Progressions() {
   const [showVoiceLeading, setShowVoiceLeading] = useState(false);
   const [showDiagrams, setShowDiagrams] = useState(true);
   const [showChart, setShowChart] = useState(true);
+  const [chordLabelMode, setChordLabelMode] = useState<'fingers' | 'notes'>('fingers');
   const [bpmDraft, setBpmDraft] = useState('');
   const stopFnRef = useRef<(() => void) | null>(null);
   const [countInEnabled, setCountInEnabled] = useState(false);
@@ -1164,6 +1165,29 @@ export function Progressions() {
                   >
                     {showVoiceLeading ? 'Hide Voice Leading' : 'Show Voice Leading'}
                   </button>
+                  {/* Chord card label mode: fingers vs. note names */}
+                  <div className="flex items-center rounded-md border border-brand-line overflow-hidden text-xs font-bold">
+                    <button
+                      onClick={() => setChordLabelMode('fingers')}
+                      title="Show finger numbers on chord diagrams"
+                      className={cn(
+                        'px-2.5 py-1.5 transition-colors',
+                        chordLabelMode === 'fingers' ? 'bg-brand-primary text-white' : 'text-brand-secondary hover:text-brand-ink'
+                      )}
+                    >
+                      Fingers
+                    </button>
+                    <button
+                      onClick={() => setChordLabelMode('notes')}
+                      title="Show note names on chord diagrams"
+                      className={cn(
+                        'px-2.5 py-1.5 transition-colors border-l border-brand-line',
+                        chordLabelMode === 'notes' ? 'bg-brand-primary text-white' : 'text-brand-secondary hover:text-brand-ink'
+                      )}
+                    >
+                      Notes
+                    </button>
+                  </div>
                   <button
                     onClick={() => navigate('/ear-training')}
                     className="text-xs px-3 py-1.5 rounded border border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-ink transition-colors"
@@ -1199,7 +1223,7 @@ export function Progressions() {
                     const updated = { ...activeProgression, slots: newOrder };
                     saveProgressions(progressions.map(p => p.id === updated.id ? updated : p));
                   }}
-                  className="flex gap-4 print:gap-4 print:justify-start print:items-start overflow-x-auto pb-4 print:pb-0 print:flex-row print:flex-wrap print:overflow-hidden print:w-full"
+                  className="flex flex-wrap gap-4 pb-4 print:gap-4 print:justify-start print:items-start print:pb-0 print:flex-row print:overflow-hidden print:w-full"
                 >
                   {activeProgression.slots.map((slot, i) => {
                     const chord = slot.chord;
@@ -1213,7 +1237,7 @@ export function Progressions() {
                         key={`${chord.name}-${i}`}
                         value={slot}
                         className={cn(
-                          'flex-shrink-0 w-48 rounded-lg p-4 relative group bg-brand-bg print:w-[360px] print:border-none print:shadow-none print:p-0 print:bg-transparent print:mb-8 print:break-inside-avoid cursor-grab active:cursor-grabbing select-none transition-all border',
+                          'flex-shrink-0 w-full sm:w-60 rounded-lg p-4 relative group bg-brand-bg print:w-[360px] print:border-none print:shadow-none print:p-0 print:bg-transparent print:mb-8 print:break-inside-avoid cursor-grab active:cursor-grabbing select-none transition-all border',
                           isActive ? 'border-brand-primary ring-2 ring-brand-primary shadow-md' :
                           isEditing ? 'border-brand-primary/60' : 'border-brand-line'
                         )}
@@ -1265,10 +1289,10 @@ export function Progressions() {
                           </div>
                         )}
                         <h4 className={cn(
-                          'text-center font-bold text-brand-ink mb-2 print:mb-2 print:mt-0 print:text-xl',
+                          'text-center font-bold text-brand-ink text-lg mb-2 print:mb-2 print:mt-0 print:text-xl',
                           topKeys[0]?.chordLabels[i] ? 'mt-0' : 'mt-3'
                         )}>{chord.name}</h4>
-                        <Fretboard fretsNum={displayFrets} chord={chord} showNoteNames={false} className="pointer-events-none origin-top print:scale-100 scale-75" />
+                        <Fretboard fretsNum={displayFrets} chord={chord} showNoteNames={chordLabelMode === 'notes'} className="pointer-events-none origin-top" compact />
                       </Reorder.Item>
                     );
                   })}
