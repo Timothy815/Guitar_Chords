@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Chord as TonalChord } from '@tonaljs/tonal';
 import { Fretboard } from '../components/Fretboard';
+import { ChordDiagram } from '../components/ChordDiagram';
 import { IntervalFretboard } from '../components/IntervalFretboard';
 import { PrintFretRangeDialog } from '../components/PrintFretRangeDialog';
 import { PianoKeyboard } from '../components/PianoKeyboard';
@@ -2464,7 +2465,10 @@ export function Dictionary() {
                 <>
                   <div className="w-full" onMouseEnter={initAudio}>
                      <Fretboard
-                        className={mode === 'scales' && scaleViewMode === 'full' && printFretRange ? 'print:hidden' : undefined}
+                        className={cn(
+                          mode === 'scales' && scaleViewMode === 'full' && printFretRange && 'print:hidden',
+                          ((mode === 'chords' && scaffoldedChord) || mode === 'identify') && 'print:hidden'
+                        )}
                         fretsNum={scaleFretsNum}
                         startFret={scaleStartFret}
                         chord={mode === 'chords' ? scaffoldedChord : (mode === 'identify' ? { name: 'Identified', frets: identifiedFrets, fingers: identifiedFrets.map(f => (f === -1 ? -1 : 0)) as Finger[] } : undefined)}
@@ -2493,6 +2497,21 @@ export function Dictionary() {
                            cagedPositionMap={cagedPositionMap}
                            cagedColors={CAGED_COLORS}
                            tuning={currentTuning}
+                         />
+                       </div>
+                     )}
+                     {mode === 'chords' && scaffoldedChord && (
+                       <div className="hidden print:flex print:justify-center">
+                         <ChordDiagram chord={scaffoldedChord} labelMode="fingers" tuning={currentTuning} className="max-w-[220px]" />
+                       </div>
+                     )}
+                     {mode === 'identify' && (
+                       <div className="hidden print:flex print:justify-center">
+                         <ChordDiagram
+                           chord={{ name: 'Identified', frets: identifiedFrets, fingers: identifiedFrets.map(f => (f === -1 ? -1 : 0)) as Finger[] }}
+                           labelMode="notes"
+                           tuning={currentTuning}
+                           className="max-w-[220px]"
                          />
                        </div>
                      )}
