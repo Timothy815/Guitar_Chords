@@ -21,11 +21,14 @@ const SET_CONFIG: Record<string, { hex: string; label: string }> = {
 };
 
 const SHELL_QUALITIES = [
-  { key: 'maj7',  label: 'maj7',  thirdSt: 4, seventhSt: 11, thirdName: 'Major 3rd', seventhName: 'Major 7th' },
-  { key: 'm7',    label: 'm7',    thirdSt: 3, seventhSt: 10, thirdName: 'Minor 3rd', seventhName: 'Minor 7th' },
-  { key: 'dom7',  label: '7',     thirdSt: 4, seventhSt: 10, thirdName: 'Major 3rd', seventhName: 'Minor 7th' },
-  { key: 'm7b5',  label: 'm7♭5', thirdSt: 3, seventhSt: 10, thirdName: 'Minor 3rd', seventhName: 'Minor 7th' },
-  { key: 'dim7',  label: 'dim7',  thirdSt: 3, seventhSt: 9,  thirdName: 'Minor 3rd', seventhName: 'Dim. 7th'  },
+  { key: 'maj7',  label: 'maj7',  thirdSt: 4, seventhSt: 11, thirdName: 'Major 3rd', seventhName: 'Major 7th', topLabel: '7' },
+  { key: 'm7',    label: 'm7',    thirdSt: 3, seventhSt: 10, thirdName: 'Minor 3rd', seventhName: 'Minor 7th', topLabel: '7' },
+  { key: 'dom7',  label: '7',     thirdSt: 4, seventhSt: 10, thirdName: 'Major 3rd', seventhName: 'Minor 7th', topLabel: '7' },
+  { key: 'm7b5',  label: 'm7♭5', thirdSt: 3, seventhSt: 10, thirdName: 'Minor 3rd', seventhName: 'Minor 7th', topLabel: '7' },
+  { key: 'dim7',  label: 'dim7',  thirdSt: 3, seventhSt: 9,  thirdName: 'Minor 3rd', seventhName: 'Dim. 7th',  topLabel: '7' },
+  { key: '6',     label: '6',     thirdSt: 4, seventhSt: 9,  thirdName: 'Major 3rd', seventhName: 'Major 6th', topLabel: '6' },
+  { key: 'm6',    label: 'm6',    thirdSt: 3, seventhSt: 9,  thirdName: 'Minor 3rd', seventhName: 'Major 6th', topLabel: '6' },
+  { key: 'mmaj7', label: 'mMaj7', thirdSt: 3, seventhSt: 11, thirdName: 'Minor 3rd', seventhName: 'Major 7th', topLabel: '7' },
 ] as const;
 
 type QualityKey = typeof SHELL_QUALITIES[number]['key'];
@@ -130,7 +133,7 @@ export function ShellVoicingsTab() {
       return [
         { stringIdx: v.strings[0], fret: v.rootFret,    label: dotLabel === 'role' ? 'R' : v.rootNote.replace(/[0-9]/g, ''),    color },
         { stringIdx: v.strings[1], fret: v.thirdFret,   label: dotLabel === 'role' ? '3' : v.thirdNote.replace(/[0-9]/g, ''),   color },
-        { stringIdx: v.strings[2], fret: v.seventhFret, label: dotLabel === 'role' ? '7' : v.seventhNote.replace(/[0-9]/g, ''), color },
+        { stringIdx: v.strings[2], fret: v.seventhFret, label: dotLabel === 'role' ? quality.topLabel : v.seventhNote.replace(/[0-9]/g, ''), color },
       ];
     });
 
@@ -222,6 +225,11 @@ export function ShellVoicingsTab() {
             m7♭5 uses the same shell as m7 — only the omitted 5th differs between them.
           </p>
         )}
+        {qualityKey === 'm6' && (
+          <p className="text-xs text-brand-secondary/70 mt-2">
+            m6 is the classic gypsy-jazz tonic chord — the "la pompe" rhythm driver in minor-key manouche tunes.
+          </p>
+        )}
       </div>
 
       {/* Formula row */}
@@ -237,7 +245,7 @@ export function ShellVoicingsTab() {
         </div>
         <span className="text-brand-line">·</span>
         <div className="flex items-center gap-1.5">
-          <span className="w-6 h-6 rounded-full bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400 flex items-center justify-center text-[10px] font-bold flex-shrink-0">7</span>
+          <span className="w-6 h-6 rounded-full bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400 flex items-center justify-center text-[10px] font-bold flex-shrink-0">{quality.topLabel}</span>
           <span className="text-brand-secondary">{quality.seventhName} ({quality.seventhSt} st)</span>
         </div>
       </div>
@@ -274,7 +282,7 @@ export function ShellVoicingsTab() {
                 : 'border-brand-line text-brand-secondary hover:border-brand-primary/60 hover:text-brand-primary'
             )}
           >
-            {dotLabel === 'role' ? 'Labels: R / 3 / 7' : 'Labels: note names'}
+            {dotLabel === 'role' ? `Labels: R / 3 / ${quality.topLabel}` : 'Labels: note names'}
           </button>
         </div>
       </div>
@@ -322,8 +330,8 @@ export function ShellVoicingsTab() {
                   {([
                     { label: 'R', note: v.rootNote,    cls: 'text-white' },
                     { label: '3', note: v.thirdNote,   cls: 'text-white' },
-                    { label: '7', note: v.seventhNote, cls: 'text-white' },
-                  ] as const).map(({ label, note, cls }) => (
+                    { label: quality.topLabel, note: v.seventhNote, cls: 'text-white' },
+                  ]).map(({ label, note, cls }) => (
                     <div key={label} className="flex items-center gap-1.5">
                       <span
                         className={cn('w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0', cls)}
@@ -342,7 +350,7 @@ export function ShellVoicingsTab() {
                     <div key={si} className="bg-brand-bg rounded px-2 py-1.5 border border-brand-line">
                       <div className="text-brand-secondary">str {6 - si}</div>
                       <div className="font-bold text-brand-ink tabular-nums">
-                        {(['R', '3', '7'] as const)[ri]}={v.frets[si] === 0 ? 'open' : v.frets[si]}
+                        {(['R', '3', quality.topLabel])[ri]}={v.frets[si] === 0 ? 'open' : v.frets[si]}
                       </div>
                     </div>
                   ))}
